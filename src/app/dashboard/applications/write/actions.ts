@@ -272,11 +272,11 @@ type FinalCorrectionData = CorrectionQueryBaseResult & {
     ai_feedback: AIFeedback | null;
 }
 
-// ✅ FUNÇÃO CORRIGIDA PARA BUSCAR AI_FEEDBACK SEPARADAMENTE
+// ✅ FUNÇÃO CORRIGIDA PARA BUSCAR AI_FEEDBACK SEPARADAMENTE E GARANTIR created_at
 export async function getCorrectionForEssay(essayId: string): Promise<{ data?: FinalCorrectionData; error?: string }> {
     const supabase = await createSupabaseServerClient();
 
-    console.log(`[actions.ts v2] Buscando correção base para essayId: ${essayId}`);
+    console.log(`[actions.ts getCorrectionForEssay] Buscando correção base para essayId: ${essayId}`);
 
     // Query 1: Busca a correção e relações diretas (profiles, errors)
     const { data: correctionBase, error: correctionBaseError } = await supabase
@@ -294,7 +294,7 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: F
             final_grade,
             audio_feedback_url,
             annotations,
-            created_at,
+            created_at,  /* <<< GARANTA QUE ESTA LINHA ESTÁ CORRETA (created_at) */
             profiles ( full_name, verification_badge ),
             essay_correction_errors (
                 common_errors ( error_type )
@@ -304,36 +304,38 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: F
         .maybeSingle(); // Permite retornar null se não houver correção
 
     if (correctionBaseError) {
-        console.error(`[actions.ts v2] Erro do Supabase ao buscar correção base para essayId ${essayId}:`, correctionBaseError);
+        // Log detalhado do erro do Supabase
+        console.error(`[actions.ts getCorrectionForEssay] Erro do Supabase ao buscar correção base para essayId ${essayId}:`, correctionBaseError);
+        // Retorna a mensagem de erro específica do Supabase para o cliente
         return { error: `Erro ao buscar correção base: ${correctionBaseError.message}` };
     }
 
-    console.log(`[actions.ts v2] Dados base da correção retornados para essayId ${essayId}:`, correctionBase);
+    console.log(`[actions.ts getCorrectionForEssay] Dados base da correção retornados para essayId ${essayId}:`, correctionBase);
 
-    // Se não encontrou a correção base, retorna sem dados
+    // Se não encontrou a correção base, retorna sem dados (não é um erro, apenas não existe)
     if (!correctionBase) {
-        console.warn(`[actions.ts v2] Correção base não encontrada para essayId ${essayId}.`);
-        return { data: undefined, error: undefined }; // Retorna undefined para indicar que não encontrou
+        console.warn(`[actions.ts getCorrectionForEssay] Correção base não encontrada para essayId ${essayId}.`);
+        // Retorna undefined para indicar que não encontrou, diferente de um erro
+        return { data: undefined, error: undefined };
     }
 
     // Query 2: Busca o AI Feedback separadamente, usando o essay_id da correção encontrada
-    console.log(`[actions.ts v2] Buscando ai_feedback para essayId: ${essayId}`);
+    console.log(`[actions.ts getCorrectionForEssay] Buscando ai_feedback para essayId: ${essayId}`);
     const { data: aiFeedbackData, error: aiFeedbackError } = await supabase
         .from('ai_feedback')
         .select('*')
         .eq('essay_id', essayId) // Busca pelo essay_id
-        // .eq('correction_id', correctionBase.id) // Alternativamente, pode buscar pelo correction_id se ele for único e mais confiável
-        .order('created_at', { ascending: false }) // Pega o mais recente, caso haja múltiplos (idealmente não deveria)
+        .order('created_at', { ascending: false }) // Pega o mais recente, caso haja múltiplos
         .limit(1)
         .maybeSingle(); // Permite retornar null se não houver ai_feedback
 
     if (aiFeedbackError) {
-        // Loga o erro, mas continua, pois a correção base existe
-        console.error(`[actions.ts v2] Erro ao buscar ai_feedback para essayId ${essayId}:`, aiFeedbackError);
-        // Não retorna erro aqui, permite que a correção base seja exibida
+        // Loga o erro, mas continua, pois a correção base existe e é mais importante
+        console.error(`[actions.ts getCorrectionForEssay] Erro ao buscar ai_feedback para essayId ${essayId}:`, aiFeedbackError);
+        // Não retorna erro aqui, permite que a correção base seja exibida mesmo sem o feedback da IA
     }
 
-    console.log(`[actions.ts v2] Dados do ai_feedback retornados para essayId ${essayId}:`, aiFeedbackData);
+    console.log(`[actions.ts getCorrectionForEssay] Dados do ai_feedback retornados para essayId ${essayId}:`, aiFeedbackData);
 
     // Combina os resultados das duas queries
     const finalData: FinalCorrectionData = {
@@ -341,8 +343,9 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: F
         ai_feedback: aiFeedbackData || null // Garante que é null se não for encontrado
     };
 
-    console.log(`[actions.ts v2] Dados finais combinados para essayId ${essayId}:`, finalData);
+    console.log(`[actions.ts getCorrectionForEssay] Dados finais combinados para essayId ${essayId}:`, finalData);
 
+    // Retorna os dados combinados e sem erro (mesmo que ai_feedback tenha falhado)
     return { data: finalData, error: undefined };
 }
 

@@ -1,18 +1,21 @@
+// src/app/dashboard/applications/write/components/FeedbackTabs.tsx
 "use client";
 
 import { useState } from 'react';
-import type { EssayCorrection, AIFeedback } from '../actions';
-import { VerificationBadge } from '@/components/VerificationBadge';
+import type { EssayCorrection, AIFeedback } from '../actions'; //
+import { VerificationBadge } from '@/components/VerificationBadge'; //
 
 // This type represents the correction data as it's shaped after fetching,
 // including the nested corrector profile.
 type CorrectionWithDetails = EssayCorrection & {
-  profiles: { full_name: string | null; verification_badge: string | null };
+  profiles: { full_name: string | null; verification_badge: string | null }; //
+  // ai_feedback is already part of EssayCorrection, adjusted in EssayCorrectionView
+  ai_feedback: AIFeedback | null; // Ensures ai_feedback is an object or null
 };
 
 type Props = {
   // The component now accepts one prop for all correction-related data.
-  correction: CorrectionWithDetails | null;
+  correction: CorrectionWithDetails | null; //
 };
 
 const TabButton = ({ label, isActive, onClick }: { label: string; isActive: boolean; onClick: () => void }) => (
@@ -23,15 +26,15 @@ const TabButton = ({ label, isActive, onClick }: { label: string; isActive: bool
         }`}
     >
         {label}
-    </button>
+    </button> //
 );
 
 export default function FeedbackTabs({ correction }: Props) {
-    const [activeTab, setActiveTab] = useState<'human' | 'ai' | 'actions'>('human');
+    const [activeTab, setActiveTab] = useState<'human' | 'ai' | 'actions'>('human'); //
 
     // Derive constants from the single prop for clarity.
-    const humanCorrection = correction;
-    const aiFeedback = correction?.ai_feedback ?? null;
+    const humanCorrection = correction; //
+    const aiFeedback = correction?.ai_feedback ?? null; //
 
     return (
         <div>
@@ -50,7 +53,7 @@ export default function FeedbackTabs({ correction }: Props) {
                                     <div className="mb-4">
                                         <h4 className="font-bold mb-2 dark:text-white-text">Feedback em Áudio</h4>
                                         <audio controls className="w-full"><source src={humanCorrection.audio_feedback_url} type="audio/webm" /></audio>
-                                    </div>
+                                    </div> //
                                 )}
                                 <h4 className="font-bold dark:text-white-text">Feedback Geral</h4>
                                 <div className="text-sm text-gray-700 dark:text-dark-text-muted bg-gray-50 dark:bg-gray-700/50 p-4 rounded-md whitespace-pre-wrap">{humanCorrection.feedback}</div>
@@ -58,9 +61,9 @@ export default function FeedbackTabs({ correction }: Props) {
                                     <span>Corrigido por: {humanCorrection.profiles?.full_name}</span>
                                     <VerificationBadge badge={humanCorrection.profiles?.verification_badge} />
                                 </div>
-                            </div>
+                            </div> //
                         ) : (
-                            <p className="text-center text-gray-500 py-8">Aguardando correção humana.</p>
+                            <p className="text-center text-gray-500 py-8">Aguardando correção humana.</p> //
                         )}
                     </div>
                 )}
@@ -74,13 +77,13 @@ export default function FeedbackTabs({ correction }: Props) {
                                     <li key={index} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
                                         <p className="font-semibold text-sm dark:text-white">{item.competency}</p>
                                         <p className="text-sm text-text-muted dark:text-dark-text-muted">{item.feedback}</p>
-                                    </li>
+                                    </li> //
                                 ))}
                             </ul>
                         </div>
                     </div>
                 )}
-                
+
                 {activeTab === 'actions' && aiFeedback && (
                      <div>
                         <h4 className="font-bold text-lg mb-2 dark:text-white-text">Seu Plano de Ação</h4>
@@ -90,12 +93,12 @@ export default function FeedbackTabs({ correction }: Props) {
                                 <li key={index} className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
                                     <i className="fas fa-check-circle text-royal-blue mt-1"></i>
                                     <span className="text-sm font-medium">{item}</span>
-                                </li>
+                                </li> //
                             ))}
                         </ul>
-                    </div>
+                    </div> //
                 )}
             </div>
         </div>
     );
-}
+} 

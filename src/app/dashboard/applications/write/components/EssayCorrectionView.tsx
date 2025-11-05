@@ -3,11 +3,11 @@
 
 import { useEffect, useState, ReactElement } from 'react';
 // Certifique-se de que estes caminhos estão corretos em relação a EssayCorrectionView.tsx
-import { Essay, EssayCorrection, Annotation, getEssayDetails, getCorrectionForEssay, AIFeedback } from '../actions';
+import { Essay, EssayCorrection, Annotation, getEssayDetails, getCorrectionForEssay, AIFeedback } from '../actions'; //
 import Image from 'next/image';
 // Certifique-se de que estes caminhos estão corretos em relação a EssayCorrectionView.tsx
-import { VerificationBadge } from '@/components/VerificationBadge';
-import FeedbackTabs from './FeedbackTabs';
+import { VerificationBadge } from '@/components/VerificationBadge'; //
+import FeedbackTabs from './FeedbackTabs'; //
 
 // --- TIPOS E SUB-COMPONENTES ---
 
@@ -25,18 +25,18 @@ type FullEssayDetails = Essay & {
 
 // Detalhes estáticos sobre as competências da redação para exibição
 const competencyDetails = [
-  { title: "Competência 1: Domínio da Escrita Formal", description: "Avalia o domínio da modalidade escrita formal da língua portuguesa e da norma-padrão." },
-  { title: "Competência 2: Compreensão do Tema e Estrutura", description: "Avalia a compreensão da proposta de redação e a aplicação de conceitos de várias áreas do conhecimento para desenvolver o tema, dentro da estrutura do texto dissertativo-argumentativo." },
-  { title: "Competência 3: Argumentação", description: "Avalia a capacidade de selecionar, relacionar, organizar e interpretar informações, fatos e opiniões em defesa de um ponto de vista." },
-  { title: "Competência 4: Coesão e Coerência", description: "Avalia o uso de mecanismos linguísticos (conjunções, preposições, etc.) para construir uma argumentação coesa e coerente." },
-  { title: "Competência 5: Proposta de Intervenção", description: "Avalia a elaboração de uma proposta de intervenção para o problema abordado, que respeite os direitos humanos." },
+  { title: "Competência 1: Domínio da Escrita Formal", description: "Avalia o domínio da modalidade escrita formal da língua portuguesa e da norma-padrão." }, //
+  { title: "Competência 2: Compreensão do Tema e Estrutura", description: "Avalia a compreensão da proposta de redação e a aplicação de conceitos de várias áreas do conhecimento para desenvolver o tema, dentro da estrutura do texto dissertativo-argumentativo." }, //
+  { title: "Competência 3: Argumentação", description: "Avalia a capacidade de selecionar, relacionar, organizar e interpretar informações, fatos e opiniões em defesa de um ponto de vista." }, //
+  { title: "Competência 4: Coesão e Coerência", description: "Avalia o uso de mecanismos linguísticos (conjunções, preposições, etc.) para construir uma argumentação coesa e coerente." }, //
+  { title: "Competência 5: Proposta de Intervenção", description: "Avalia a elaboração de uma proposta de intervenção para o problema abordado, que respeite os direitos humanos." }, //
 ];
 
 // Estilos para diferentes marcadores de anotação
 const markerStyles = {
-    erro: { flag: 'text-red-500', highlight: 'bg-red-200 dark:bg-red-500/30 border-b-2 border-red-400' },
-    acerto: { flag: 'text-green-500', highlight: 'bg-green-200 dark:bg-green-500/30' },
-    sugestao: { flag: 'text-blue-500', highlight: 'bg-blue-200 dark:bg-blue-500/30' },
+    erro: { flag: 'text-red-500', highlight: 'bg-red-200 dark:bg-red-500/30 border-b-2 border-red-400' }, //
+    acerto: { flag: 'text-green-500', highlight: 'bg-green-200 dark:bg-green-500/30' }, //
+    sugestao: { flag: 'text-blue-500', highlight: 'bg-blue-200 dark:bg-blue-500/30' }, //
 };
 
 /**
@@ -47,14 +47,14 @@ const markerStyles = {
  */
 const renderAnnotatedText = (text: string, annotations: Annotation[] | null | undefined): ReactElement => {
     // Filtra apenas anotações de texto com uma seleção
-    const textAnnotations = annotations?.filter(a => a.type === 'text' && a.selection) || [];
+    const textAnnotations = annotations?.filter(a => a.type === 'text' && a.selection) || []; //
     // Se não houver texto ou anotações, retorna o texto formatado com quebras de linha
     if (!text || textAnnotations.length === 0) {
-        return <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: text.replace(/\n/g, '<br />') }} />;
+        return <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: text.replace(/\n/g, '<br />') }} />; //
     }
 
     // Começa com o texto completo como um único elemento string em um array
-    let result: (string | ReactElement)[] = [text];
+    let result: (string | ReactElement)[] = [text]; //
 
     // Itera por cada anotação para dividir o texto e inserir elementos <mark>
     textAnnotations.forEach((anno, i) => {
@@ -66,7 +66,7 @@ const renderAnnotatedText = (text: string, annotations: Annotation[] | null | un
                 return;
             }
             // Divide o nó string pelo texto selecionado da anotação
-            const parts = node.split(anno.selection!);
+            const parts = node.split(anno.selection!); //
             for (let j = 0; j < parts.length; j++) {
                 // Adiciona a parte antes da seleção
                 newResult.push(parts[j]);
@@ -77,7 +77,7 @@ const renderAnnotatedText = (text: string, annotations: Annotation[] | null | un
                             {anno.selection}
                             {/* Tooltip exibido ao passar o mouse */}
                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-black text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">{anno.comment}</span>
-                        </mark>
+                        </mark> //
                     );
                 }
             }
@@ -94,7 +94,7 @@ const renderAnnotatedText = (text: string, annotations: Annotation[] | null | un
                     ? <span key={index} dangerouslySetInnerHTML={{ __html: node.replace(/\n/g, '<br />') }} />
                     : node
             )}
-        </div>
+        </div> //
     );
 };
 
@@ -114,7 +114,7 @@ const CompetencyModal = ({ competencyIndex, onClose }: { competencyIndex: number
                 <p className="text-sm text-text-muted dark:text-dark-text-muted">{description}</p>
                 <button onClick={onClose} className="mt-4 bg-royal-blue text-white py-2 px-4 rounded-lg text-sm font-bold">Entendi</button>
             </div>
-        </div>
+        </div> //
     );
 };
 
@@ -125,10 +125,10 @@ const CompetencyModal = ({ competencyIndex, onClose }: { competencyIndex: number
  */
 export default function EssayCorrectionView({ essayId, onBack }: {essayId: string, onBack: () => void}) {
     // Estado para detalhes da redação, status de carregamento, modal de competência e modo de visualização
-    const [details, setDetails] = useState<FullEssayDetails | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [modalCompetency, setModalCompetency] = useState<number | null>(null);
-    const [viewMode, setViewMode] = useState<'corrected' | 'comparison'>('corrected');
+    const [details, setDetails] = useState<FullEssayDetails | null>(null); //
+    const [isLoading, setIsLoading] = useState(true); //
+    const [modalCompetency, setModalCompetency] = useState<number | null>(null); //
+    const [viewMode, setViewMode] = useState<'corrected' | 'comparison'>('corrected'); //
 
     // Busca os detalhes da redação e da correção quando o componente monta ou essayId muda
     useEffect(() => {
@@ -137,42 +137,37 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
             console.log(`[EssayCorrectionView] Iniciando busca para essayId: ${essayId}`); // LOG 1: Verifica ID recebido
 
             // Busca os detalhes principais da redação (conteúdo, informações do autor)
-            const essayResult = await getEssayDetails(essayId);
+            const essayResult = await getEssayDetails(essayId); //
             console.log("[EssayCorrectionView] Resultado getEssayDetails:", essayResult); // LOG 2: Verifica os dados brutos da redação
 
             if (essayResult.data) {
                 // Busca os detalhes da correção (notas, feedback, anotações, informações do corretor)
-                const correctionResult = await getCorrectionForEssay(essayId);
+                const correctionResult = await getCorrectionForEssay(essayId); //
                 console.log("[EssayCorrectionView] Resultado getCorrectionForEssay:", correctionResult); // LOG 3: Verifica os dados brutos da correção
 
-                // Lida com a estrutura potencial do ai_feedback (objeto único ou nulo)
-                const aiFeedbackData = correctionResult.data?.ai_feedback?.[0] || null; // Pega o primeiro item se for array, senão null
-
-                // Combina os dados da correção com o feedback da IA processado
+                 // Combina os dados da correção com o feedback da IA processado
+                // A função getCorrectionForEssay já trata o ai_feedback corretamente
                 const finalCorrection: CorrectionWithDetails | null = correctionResult.data
-                    ? {
-                        ...correctionResult.data,
-                         // Atribui o objeto de feedback da IA processado (pode ser null)
-                        ai_feedback: aiFeedbackData,
-                      }
-                    : null;
+                    ? { ...correctionResult.data }
+                    : null; //
+
 
                 // Combina os detalhes da redação e da correção no objeto de estado final
                 const fullDetails = {
                     ...(essayResult.data as FullEssayDetails),
                     correction: finalCorrection,
-                };
+                }; //
                 console.log("[EssayCorrectionView] Detalhes finais montados para o estado:", fullDetails); // LOG 4: Verifica o objeto combinado final
                 setDetails(fullDetails);
 
                 // LOG 5: Aviso específico se a correção não foi encontrada ou está vazia
                 if (!finalCorrection) {
-                    console.warn(`[EssayCorrectionView] Atenção: Correção não encontrada ou retornou vazia para essayId: ${essayId}. Verifique se a correção existe no DB e se o RLS permite a leitura.`);
+                    console.warn(`[EssayCorrectionView] Atenção: Correção não encontrada ou retornou vazia para essayId: ${essayId}. Verifique se a correção existe no DB e se o RLS permite a leitura.`); //
                 }
 
             } else {
                  // LOG 6: Erro ao buscar os detalhes básicos da redação
-                 console.error(`[EssayCorrectionView] Erro ao buscar detalhes da redação (essayId: ${essayId}):`, essayResult.error);
+                 console.error(`[EssayCorrectionView] Erro ao buscar detalhes da redação (essayId: ${essayId}):`, essayResult.error); //
             }
             setIsLoading(false);
         };
@@ -181,16 +176,16 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
 
 
     // Exibição do estado de carregamento
-    if (isLoading) return <div className="text-center p-8">A carregar a sua redação...</div>;
+    if (isLoading) return <div className="text-center p-8">A carregar a sua redação...</div>; //
     // Exibição do estado de erro/não encontrado
     if (!details) return <div className="text-center p-8">Não foi possível carregar os detalhes da redação. Verifique o console do navegador (F12) para mais informações sobre erros.</div>; // Mensagem mais informativa
 
     // Desestrutura os detalhes para facilitar o acesso no JSX
-    const { title, content, correction, image_submission_url } = details;
-    const annotations = correction?.annotations;
+    const { title, content, correction, image_submission_url } = details; //
+    const annotations = correction?.annotations; //
 
     // Determina se a submissão da redação é baseada em texto
-    const isTextView = content && !image_submission_url;
+    const isTextView = content && !image_submission_url; //
 
     // Renderiza a UI do componente
     return (
@@ -211,7 +206,7 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
                     >
                        <i className={`fas ${viewMode === 'corrected' ? 'fa-exchange-alt' : 'fa-eye'} mr-2`}></i>
                        {viewMode === 'corrected' ? 'Comparar Versões' : 'Ver Correção'}
-                    </button>
+                    </button> //
                 )}
             </div>
 
@@ -235,7 +230,7 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
                             {content ? renderAnnotatedText(content, annotations) : <p>Conteúdo não disponível.</p>}
                         </div>
                     </div>
-                </div>
+                </div> //
             ) : (
                 // Visualização Padrão (Redação + Painel de Correção)
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -254,13 +249,13 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
                                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-black text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                                             {a.comment}
                                         </div>
-                                    </div>
+                                    </div> //
                                 ))}
-                            </div>
+                            </div> //
                         ) : (
                             <div className="text-gray-700 dark:text-dark-text-muted leading-relaxed">
                                 {content ? renderAnnotatedText(content, annotations) : <p>Esta redação não possui conteúdo textual para ser exibido.</p>}
-                            </div>
+                            </div> //
                         )}
                     </div>
 
@@ -289,19 +284,19 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
                                             {/* Acessa a nota dinamicamente */}
                                             {correction[`grade_c${i + 1}` as keyof EssayCorrection] as React.ReactNode}
                                         </span>
-                                    </div>
+                                    </div> //
                                 ))}
                                 {/* Abas de Feedback (Humano, IA, Plano de Ação) */}
                                 <div className="border-t dark:border-gray-700 pt-4">
                                     <FeedbackTabs correction={correction} />
                                 </div>
-                            </div>
+                            </div> //
                         ) : (
                             // Mensagem exibida se a correção não for encontrada
-                            <p className="text-center text-gray-500 py-8">A sua redação ainda está na fila para ser corrigida ou a correção não foi encontrada.</p>
+                            <p className="text-center text-gray-500 py-8">A sua redação ainda está na fila para ser corrigida ou a correção não foi encontrada.</p> //
                         )}
                     </div>
-                </div>
+                </div> //
             )}
         </div>
     );
