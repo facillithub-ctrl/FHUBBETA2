@@ -1,9 +1,37 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&display=swap');
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 
+/* 1. Diretivas principais do Tailwind. Têm de vir primeiro.
+*/
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 2. Bloco @layer base com as variáveis de tema.
+     Isto TEM DE VIR DEPOIS de @tailwind base e ANTES 
+     de qualquer outro estilo personalizado.
+*/
+@layer base {
+  /* Variáveis do modo claro (default) */
+  :root {
+    --text-primary: 17 17 20; /* #111114 */
+    --text-secondary: 85 85 85; /* #555 */
+    --bg-primary: 255 255 255; /* #ffffff */
+    --bg-secondary: 248 249 250; /* #f8f9fa */
+  }
+ 
+  /* Variáveis do modo escuro */
+  .dark {
+    --text-primary: 248 249 250; /* #f8f9fa */
+    --text-secondary: 160 160 160; /* #a0a0a0 */
+    --bg-primary: 17 17 20; /* #111114 */
+    --bg-secondary: 26 26 29; /* #1A1A1D */
+  }
+}
+
+/* 3. Todos os outros estilos personalizados vêm DEPOIS 
+     das diretivas @tailwind e do bloco @layer.
+*/
 
 /* Estilos legados para animações e fidelidade visual */
 body.noscroll {
@@ -49,13 +77,10 @@ body.noscroll {
   animation: fadeInRight 0.5s ease-out forwards;
 }
 
+/* Efeito Glass Card com as novas variáveis */
 .glass-card {
-  @apply bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-lg transition-all duration-300;
-}
-
-/* Adiciona um fundo gradiente ao body no modo escuro para o efeito glass funcionar melhor */
-.dark body {
-  background: linear-gradient(to bottom right, #111114, #190894);
+  /* Usamos bg-secondary com transparência */
+  @apply bg-bg-secondary/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-lg transition-all duration-300;
 }
 
 /* CORREÇÃO ATUALIZADA E MAIS FORTE */

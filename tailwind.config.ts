@@ -1,7 +1,9 @@
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
-  // MODIFICADO: A linha 'darkMode' foi completamente removida para desativar o modo escuro.
+  // 1. Reativamos o modo escuro. 
+  // O 'class' permite-nos controlá-lo via JavaScript (com o ThemeProvider)
+  darkMode: 'class', 
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -9,26 +11,33 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // 2. Definimos a fonte 'Inter' como padrão, conforme o seu pedido.
+      fontFamily: {
+        // O 'globals.css' já está a importar a fonte 'Inter', por isso isto vai funcionar.
+        inter: ['Inter', 'sans-serif'],
+      },
+      // 3. Adicionamos a nova paleta de cores.
       colors: {
+        // Cores primárias da marca
+        'brand-purple': '#42047E',
+        'brand-green': '#07F49E',
+
+        // Cores de Texto (para modo claro e escuro)
+        'text-primary': 'rgb(var(--text-primary) / <alpha-value>)', // Preto no claro, Branco no escuro
+        'text-secondary': 'rgb(var(--text-secondary) / <alpha-value>)', // Cinzento escuro no claro, Cinzento claro no escuro
+
+        // Cores de Fundo (para modo claro e escuro)
+        'bg-primary': 'rgb(var(--bg-primary) / <alpha-value>)', // Branco no claro, Preto no escuro
+        'bg-secondary': 'rgb(var(--bg-secondary) / <alpha-value>)', // Cinzento claro no claro, Cinzento escuro no escuro
+        
+        // Cores antigas (para referência, se necessário, mas devemos substituí-las)
         'royal-blue': '#2e14ed',
         'dark-purple-blue': '#190894',
         'lavender-blue': '#5e55f9',
-        'light-lavender': '#dfdefe',
-        'light-gray': '#e0e0e2',
-        'graphite-black': '#111114',
-        'dark-text': '#111114',
-        'white-text': '#f8f9fa',
-        'white': '#ffffff',
-        'background-light': '#e0e0e2',
-        'text-muted': '#555',
-        'dark-background': '#111114',
-        'dark-card': '#1A1A1D',
-        'dark-border': '#2c2c31',
-        'dark-text-muted': '#a0a0a0',
+        
+        // As cores neutras do Tailwind (gray, zinc, etc.) continuam disponíveis.
       },
-      fontFamily: {
-        inter: ['Inter', 'sans-serif'],
-      },
+      // 4. Mantemos as suas animações
       keyframes: {
         'fade-in-right': {
           '0%': {

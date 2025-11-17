@@ -4,8 +4,9 @@ import { useState } from 'react';
 import type { UserProfile } from './types';
 import Sidebar from '@/components/dashboard/Sidebar';
 import Topbar from '@/components/dashboard/Topbar';
-import Onboarding from './onboarding/Onboarding';
-import { ToastProvider } from '@/contexts/ToastContext'; // 1. Importe o ToastProvider
+// 1. IMPORTAÇÃO ATUALIZADA
+import OnboardingFlow from './onboarding/OnboardingFlow'; // Importa o novo gestor de fluxo
+import { ToastProvider } from '@/contexts/ToastContext';
 
 type LayoutProps = {
   userProfile: UserProfile;
@@ -16,21 +17,20 @@ export default function DashboardClientLayout({ userProfile, children }: LayoutP
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktopCollapsed, setDesktopCollapsed] = useState(false);
 
-  // Se o onboarding não foi concluído, mostra a página de seleção
+  // Se o onboarding não foi concluído, mostra o novo fluxo de 8 etapas
   if (!userProfile.has_completed_onboarding) {
-    // Envolvemos o Onboarding também, caso ele precise de toasts no futuro
     return (
       <ToastProvider>
-        <Onboarding userProfile={userProfile} />
+        {/* 2. COMPONENTE RENDERIZADO ATUALIZADO */}
+        <OnboardingFlow userProfile={userProfile} />
       </ToastProvider>
     );
   }
 
   // Se já concluiu, mostra o dashboard normal
   return (
-    // 2. Envolva todo o layout do dashboard com o ToastProvider
     <ToastProvider>
-      <div className="flex h-screen bg-background-light dark:bg-gray-900">
+      <div className="flex h-screen bg-bg-primary dark:bg-bg-primary">
         <Sidebar 
           userProfile={userProfile} 
           isMobileOpen={isSidebarOpen} 
@@ -43,7 +43,7 @@ export default function DashboardClientLayout({ userProfile, children }: LayoutP
             userProfile={userProfile} 
             toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
           />
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 bg-bg-secondary dark:bg-bg-primary">
             {children}
           </main>
         </div>

@@ -86,12 +86,12 @@ const ModuleManager = ({ userProfile, onClose }: { userProfile: UserProfile; onC
                             onClick={() => toggleModule(module.slug)}
                             disabled={isDisabled}
                             className={`relative flex flex-col items-center justify-center p-3 rounded-lg border transition-all 
-                                ${isSelected ? 'bg-royal-blue text-white border-royal-blue' 
-                                            : 'hover:border-royal-blue'}
+                                ${isSelected ? 'bg-brand-purple text-white border-brand-purple' 
+                                            : 'hover:border-brand-purple'}
                                 ${isDisabled ? 'bg-gray-100 opacity-60 cursor-not-allowed hover:border-gray-300' : ''}
                             `}
                         >
-                             <i className={`fas ${module.icon} text-2xl mb-1 ${isSelected ? 'text-white' : 'text-royal-blue'} ${isDisabled ? '!text-gray-400' : ''}`}></i>
+                             <i className={`fas ${module.icon} text-2xl mb-1 ${isSelected ? 'text-white' : 'text-brand-purple'} ${isDisabled ? '!text-gray-400' : ''}`}></i>
                              <span className="text-xs font-medium">{module.title}</span>
                              {isDisabled && <span className="absolute top-1 right-1 text-[8px] font-bold bg-gray-500 text-white px-1.5 py-0.5 rounded-full">Gestor</span>}
                         </button>
@@ -100,7 +100,7 @@ const ModuleManager = ({ userProfile, onClose }: { userProfile: UserProfile; onC
             </div>
             <div className="mt-4 flex justify-end gap-2">
                 <button onClick={onClose} className="text-sm">Cancelar</button>
-                <button onClick={handleSave} disabled={isPending} className="text-sm font-bold bg-royal-blue text-white py-1 px-3 rounded-md disabled:bg-gray-400">
+                <button onClick={handleSave} disabled={isPending} className="text-sm font-bold bg-brand-purple text-white py-1 px-3 rounded-md disabled:bg-gray-400">
                     {isPending ? 'Salvando...' : 'Salvar'}
                 </button>
             </div>
@@ -197,79 +197,93 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
   };
 
   return (
-    <header className="bg-light-gray border-b border-gray-200 p-4 flex items-center justify-between flex-shrink-0 dark:bg-gray-800 dark:border-gray-700">
+    // Topbar agora usa as novas cores de fundo
+    <header className="bg-bg-primary dark:bg-bg-secondary border-b border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between flex-shrink-0">
       <div className="flex items-center gap-4">
-        <button onClick={toggleSidebar} className="text-gray-500 hover:text-royal-blue text-xl lg:hidden">
+        <button onClick={toggleSidebar} className="text-text-secondary hover:text-brand-purple text-xl lg:hidden">
             <i className="fas fa-bars"></i>
         </button>
         <div className="relative hidden sm:block">
             <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-            <input type="search" placeholder="Busca universal..." className="w-full max-w-xs bg-gray-100 rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-royal-blue dark:bg-gray-700 dark:text-white"/>
+            <input type="search" placeholder="Busca universal..." className="w-full max-w-xs bg-bg-secondary dark:bg-bg-primary rounded-lg py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-brand-purple text-text-primary"/>
         </div>
       </div>
       
       <div className="flex items-center gap-4 md:gap-6">
-        {/* MODIFICADO: Botão de tema foi comentado */}
-        {/*
-        <button onClick={toggleTheme} className="text-gray-500 hover:text-royal-blue text-xl dark:text-gray-400">
+        
+        <button onClick={toggleTheme} className="text-text-secondary hover:text-brand-purple text-xl">
             {theme === 'light' ? <i className="fas fa-moon"></i> : <i className="fas fa-sun"></i>}
         </button>
-        */}
         
         <div className="relative" ref={gridRef}>
-            <button onClick={() => setGridOpen(!isGridOpen)} className="text-gray-500 hover:text-royal-blue text-xl dark:text-gray-400">
+            <button onClick={() => setGridOpen(!isGridOpen)} className="text-text-secondary hover:text-brand-purple text-xl">
                 <i className="fas fa-th"></i>
             </button>
             {isGridOpen && <ModuleManager userProfile={userProfile} onClose={() => setGridOpen(false)} />}
         </div>
         
         <div className="relative" ref={notificationsRef}>
-            <button onClick={() => setNotificationsOpen(!isNotificationsOpen)} className="relative text-gray-500 hover:text-royal-blue text-xl dark:text-gray-400">
+            <button onClick={() => setNotificationsOpen(!isNotificationsOpen)} className="relative text-text-secondary hover:text-brand-purple text-xl">
                 <i className="fas fa-bell"></i>
                 {hasUnread && <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-800"></span>}
             </button>
             {isNotificationsOpen && (
-                <div className="absolute top-full right-0 mt-4 w-80 bg-white rounded-xl shadow-xl border z-10 dark:bg-gray-700 dark:border-gray-600">
-                    <div className="p-3 flex justify-between items-center border-b dark:border-gray-600 dark:text-white">
+                <div className="absolute top-full right-0 mt-4 w-80 bg-bg-primary rounded-xl shadow-xl border z-10 dark:bg-bg-secondary dark:border-gray-700">
+                    <div className="p-3 flex justify-between items-center border-b dark:border-gray-600 text-text-primary">
                         <span className="font-bold">Notificações</span>
-                        {hasUnread && <button onClick={handleMarkAllAsRead} disabled={isPending} className="text-xs text-royal-blue font-bold disabled:opacity-50">Limpar</button>}
+                        {/* *** INÍCIO DA CORREÇÃO *** */}
+                        {hasUnread && <button onClick={handleMarkAllAsRead} disabled={isPending} className="text-xs text-brand-purple font-bold disabled:opacity-50">Limpar</button>}
+                        {/* *** FIM DA CORREÇÃO *** */}
                     </div>
                     <ul className="max-h-80 overflow-y-auto">
                         {notifications.length > 0 ? notifications.map(n => (
-                            <li key={n.id} onClick={() => handleNotificationClick(n)} className={`p-3 border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer ${!n.is_read ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
-                                <p className="font-semibold text-sm dark:text-white">{n.title}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">{n.message}</p>
+                            <li key={n.id} onClick={() => handleNotificationClick(n)} className={`p-3 border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${!n.is_read ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                                <p className="font-semibold text-sm text-text-primary">{n.title}</p>
+                                <p className="text-xs text-text-secondary">{n.message}</p>
                             </li>
                         )) : (
-                            <li className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">Nenhuma notificação.</li>
+                            <li className="p-4 text-center text-sm text-text-secondary">Nenhuma notificação.</li>
                         )}
                     </ul>
                 </div>
             )}
         </div>
 
-        <button className="text-gray-500 hover:text-royal-blue text-xl dark:text-gray-400 hidden sm:block"><i className="fas fa-comment"></i></button>
+        <button className="text-text-secondary hover:text-brand-purple text-xl hidden sm:block"><i className="fas fa-comment"></i></button>
 
         <div className="relative" ref={profileRef}>
           <button onClick={() => setProfileOpen(!isProfileOpen)} className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-royal-blue dark:bg-gray-600">
-                {userProfile.avatarUrl ? (<Image src={userProfile.avatarUrl} alt="Avatar" width={40} height={40} className="rounded-full" />) : (<span>{userProfile.fullName?.charAt(0)}</span>)}
+            <div className="w-10 h-10 rounded-full bg-bg-secondary dark:bg-bg-primary flex items-center justify-center font-bold text-brand-purple">
+                {userProfile.avatarUrl ? (<Image src={userProfile.avatarUrl} alt="Avatar" width={40} height={40} className="rounded-full" />) : (<span>{userProfile.fullName?.charAt(0) || 'F'}</span>)}
             </div>
-            <div className="text-left hidden md:block dark:text-white">
+            <div className="text-left hidden md:block text-text-primary">
                 <div className="flex items-center gap-2">
-                    <p className="font-bold text-sm truncate">{userProfile.fullName}</p>
+                    <p className="font-bold text-sm truncate">{userProfile.fullName || 'Novo Utilizador'}</p>
                     <VerificationBadge badge={userProfile.verification_badge} size="10px" />
                 </div>
-              <p className="text-xs text-gray-500 capitalize dark:text-gray-400">{userProfile.userCategory}</p>
+              <p className="text-xs text-text-secondary capitalize">{userProfile.userCategory || 'Individual'}</p>
             </div>
           </button>
 
           {isProfileOpen && (
-            <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border z-10 dark:bg-gray-700 dark:border-gray-600">
+            <div className="absolute top-full right-0 mt-2 w-48 bg-bg-primary rounded-lg shadow-xl border z-10 dark:bg-bg-secondary dark:border-gray-700">
               <ul>
-                <li><Link href="/dashboard/profile" className="block px-4 py-2 text-sm hover:bg-gray-100 dark:text-white dark:hover:bg-gray-600">Meu Perfil</Link></li>
-                <li><Link href="/dashboard/settings" className="block px-4 py-2 text-sm hover:bg-gray-100 dark:text-white dark:hover:bg-gray-600">Configurações</Link></li>
-                <li><Link href="/recursos/ajuda" className="block px-4 py-2 text-sm hover:bg-gray-100 dark:text-white dark:hover:bg-gray-600">Ajuda</Link></li>
+                <li>
+                  <Link 
+                    href="/dashboard/account" 
+                    className="block px-4 py-2 text-sm text-text-primary hover:bg-bg-secondary dark:hover:bg-gray-800"
+                  >
+                    Gerenciar Conta
+                  </Link>
+                </li>
+                <li>
+                  <Link 
+                    href="/recursos/ajuda" 
+                    className="block px-4 py-2 text-sm text-text-primary hover:bg-bg-secondary dark:hover:bg-gray-800"
+                  >
+                    Ajuda
+                  </Link>
+                </li>
               </ul>
             </div>
           )}

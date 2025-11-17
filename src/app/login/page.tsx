@@ -1,13 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import createSupabaseClient from '@/utils/supabase/client';
-import Particles, { initParticlesEngine } from "@tsparticles/react";
-import { type Container, type ISourceOptions } from "@tsparticles/engine";
-import { loadSlim } from "@tsparticles/slim";
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,45 +13,6 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createSupabaseClient();
-  const [init, setInit] = useState(false);
-
-  useEffect(() => {
-    initParticlesEngine(async (engine) => {
-      await loadSlim(engine);
-    }).then(() => {
-      setInit(true);
-    });
-  }, []);
-
-  const particlesLoaded = async (container?: Container): Promise<void> => {};
-
-  const options: ISourceOptions = useMemo(
-    () => ({
-      background: { color: { value: "transparent" } },
-      fpsLimit: 60,
-      interactivity: {
-        events: {
-          onClick: { enable: true, mode: "push" },
-          onHover: { enable: true, mode: "repulse" },
-        },
-        modes: {
-          push: { quantity: 4 },
-          repulse: { distance: 100, duration: 0.4 },
-        },
-      },
-      particles: {
-        color: { value: "#ffffff" },
-        links: { color: "#ffffff", distance: 150, enable: true, opacity: 0.4, width: 1 },
-        move: { direction: "none", enable: true, outModes: { default: "out" }, random: false, speed: 2, straight: false },
-        number: { density: { enable: true }, value: 80 },
-        opacity: { value: 0.5 },
-        shape: { type: "circle" },
-        size: { value: { min: 1, max: 5 } },
-      },
-      detectRetina: true,
-    }),
-    [],
-  );
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,68 +30,117 @@ export default function LoginPage() {
     }
   };
 
-  if (!init) {
-    return <div className="min-h-screen bg-royal-blue" />;
-  }
-
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-cover bg-center" style={{ backgroundImage: "linear-gradient(135deg, #2e14ed 0%, #0c0082 100%)" }}>
-      <Particles id="tsparticles" options={options} className="absolute inset-0 z-0" />
+    // Fundo em gradiente com as novas cores da marca
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-brand-purple to-brand-green">
       
-      <div className="w-full max-w-4xl rounded-2xl shadow-lg flex overflow-hidden my-8 z-10">
-        <div className="hidden md:flex flex-1 items-center justify-center p-5">
-          <Image src="/assets/images/MASCOTE/login.png" alt="Mascote Facillit Hub Login" width={400} height={400} priority />
+      {/* 1. Cartão mais largo (max-w-lg) e com mais padding (p-10) */}
+      <div className="w-full max-w-lg bg-bg-primary rounded-2xl shadow-2xl p-10 m-4">
+        
+        {/* 2. Novo Cabeçalho do Cartão */}
+        <div className="flex justify-between items-center mb-6 border-b border-gray-200 pb-4">
+          <Image 
+            src="/assets/images/accont.svg" // Logo Facillit Account
+            alt="Facillit Account Logo" 
+            width={140} 
+            height={30} 
+          />
+          <p className="text-xs text-text-secondary text-right">
+            Para saber mais informações sobre o Facillit Account 
+            <Link href="/recursos/ajuda" className="font-bold text-text-primary hover:underline ml-1">
+              clique aqui
+            </Link>
+          </p>
+        </div>
+
+        {/* 3. Isologo "F" preto */}
+        <div className="text-center my-8">
+          <Image 
+            src="/assets/images/LOGO/isologo/preto.png" 
+            alt="Facillit Hub Isologo" 
+            width={40} 
+            height={40} 
+            className="mx-auto"
+          />
         </div>
         
-        <div className="flex-1 p-8 flex flex-col justify-center bg-white animate-fade-in-right relative">
-          <Link href="/" className="absolute top-6 right-6 z-10 flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
-            <i className="fas fa-arrow-left"></i> Tela Inicial
-          </Link>
-
-          <div className="mb-8 flex justify-center">
-              <Image src="/assets/images/LOGO/png/logoazul.svg" alt="Logo Facillit Hub" width={48} height={48} />
+        {/* Títulos */}
+        <h1 className="text-2xl font-bold text-text-primary mb-2">
+          Digite o seu e-mail e senha para continuar
+        </h1>
+        <p className="text-text-secondary mb-8 text-sm">
+          Entre no FacillitHub com a sua conta Facillit Account. Se você não tiver conta, precisará criar uma.
+        </p>
+        
+        {/* Formulário de Login */}
+        <form onSubmit={handleLogin} className="space-y-5">
+          <div>
+            <label htmlFor="email" className="sr-only">E-mail</label>
+            <input 
+              type="email" 
+              name="email" 
+              id="email" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              required 
+              placeholder="Digite seu E-mail..."
+              // 4. Inputs mais largos e arredondados
+              className="w-full p-4 border border-gray-300 rounded-xl text-sm" 
+            />
           </div>
           
-          <div className="w-full max-w-sm mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-2 text-dark-text">Que bom te ver de novo!</h2>
-            <p className="text-text-muted text-center mb-6">Faça login para continuar.</p>
-            
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-dark-text mb-1">E-mail</label>
-                <input type="email" name="email" id="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full p-3 border rounded-lg" />
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label htmlFor="password" className="block text-sm font-medium text-dark-text">Senha</label>
-                  <Link href="#" className="text-xs text-royal-blue hover:underline">
-                    Esqueci minha senha
-                  </Link>
-                </div>
-                <input type="password" name="password" id="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full p-3 border rounded-lg" />
-              </div>
-              {error && (<p className="text-red-500 text-sm text-center">{error}</p>)}
-              <div>
-                <button type="submit" disabled={isLoading} className="w-full mt-2 py-3 px-4 bg-royal-blue text-white rounded-lg font-bold hover:bg-opacity-90 transition disabled:bg-gray-400">
-                  {isLoading ? 'Entrando...' : 'Entrar'}
-                </button>
-              </div>
-            </form>
-
-            <div className="relative my-4 text-center">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t"></span></div>
-              <span className="relative px-2 bg-white text-sm text-text-muted">ou</span>
-            </div>
-
-            <Link href="/login/institucional" className="w-full flex items-center justify-center gap-3 py-3 px-4 border rounded-lg hover:bg-gray-50 transition font-medium">
-                <i className="fas fa-school text-royal-blue"></i>
-                Acesso Institucional
-            </Link>
-
-            <div className="text-sm text-text-muted text-center mt-6">
-              Não tem uma conta? <Link href="/register" className="font-bold text-royal-blue">Crie uma agora</Link>
-            </div>
+          <div>
+            <label htmlFor="password" className="sr-only">Senha</label>
+            <input 
+              type="password" 
+              name="password" 
+              id="password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              required 
+              placeholder="Digite sua senha"
+              // 4. Inputs mais largos e arredondados
+              className="w-full p-4 border border-gray-300 rounded-xl text-sm" 
+            />
           </div>
+          
+          {error && (<p className="text-red-500 text-sm text-center">{error}</p>)}
+          
+          {/* 5. Linha do Botão e "Esqueci minha senha" */}
+          <div className="flex justify-between items-center pt-2">
+            <Link href="#" className="text-sm font-medium text-brand-purple hover:underline">
+              Esqueci minha senha
+            </Link>
+            
+            <button 
+              type="submit" 
+              disabled={isLoading} 
+              // 4. Botão arredondado e com padding
+              className="py-3 px-8 bg-gradient-to-r from-brand-purple to-brand-green text-white rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50"
+            >
+              {isLoading ? 'Entrando...' : 'Entrar'}
+            </button>
+          </div>
+        </form>
+
+        {/* 6. Divisor */}
+        <hr className="my-8 border-gray-300" />
+
+        {/* 7. Link de Registo */}
+        <div className="text-center">
+          <Link href="/register" className="font-bold text-text-primary hover:text-brand-purple hover:underline">
+            Criar uma conta
+          </Link>
+        </div>
+
+        {/* 8. Rodapé do Cartão com o texto exato */}
+        <div className="mt-10 border-t border-gray-200 pt-6">
+          <p className="text-xs text-text-secondary text-center font-medium">
+            A Facillit Account faz parte do nosso ecossistema de soluções integradas.
+          </p>
+          <p className="text-xs text-text-secondary text-center mt-3">
+            Com a Facillit Account, você acessa serviços e experiências oferecidas pela nossa plataforma, reunindo funcionalidades, integrações e recursos pensados para facilitar a gestão e otimizar o seu dia a dia — tudo em um só lugar.
+          </p>
         </div>
       </div>
     </div>

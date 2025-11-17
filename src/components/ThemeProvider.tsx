@@ -12,37 +12,31 @@ type ThemeContextType = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setTheme] = useState<Theme>('light'); // 'light' é um default seguro
 
   useEffect(() => {
-    // A lógica de detecção de preferência foi mantida, mas a aplicação da classe foi removida abaixo.
+    // 1. Removemos a lógica que forçava o 'light'
+    // Agora, ele verifica o localStorage ou a preferência do sistema.
     const savedTheme = localStorage.getItem('theme') as Theme | null;
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
-    // Forçamos o tema para 'light' para desativar o modo escuro
-    setTheme('light');
+    setTheme(initialTheme);
   }, []);
 
   useEffect(() => {
-    // MODIFICADO: Lógica de manipulação da classe 'dark' foi comentada/removida
-    // para desativar a troca de tema visualmente.
-    /*
+    // 2. Reativamos a lógica que adiciona/remove a classe 'dark' do HTML
+    // Isto é o que faz o `darkMode: 'class'` do Tailwind funcionar.
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
     localStorage.setItem('theme', theme);
-    */
-
-    // Garante que a classe 'dark' seja sempre removida
-    document.documentElement.classList.remove('dark');
-    localStorage.setItem('theme', 'light');
 
   }, [theme]);
 
   const toggleTheme = () => {
-    // A função de troca agora não terá efeito visual
+    // 3. A função de troca agora funciona como esperado.
     setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
