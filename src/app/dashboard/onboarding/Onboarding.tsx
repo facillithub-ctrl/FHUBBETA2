@@ -139,7 +139,7 @@ export default function Onboarding({ userProfile }: { userProfile: UserProfile }
                     disabled={isContinueDisabled}
                     className="w-full py-3 bg-royal-blue text-white font-bold rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed hover:bg-opacity-90"
                 >
-                    {isLoading ? 'Salvando...' : 'Continuar para o Dashboard'}
+                    {isLoading ? 'Salvando...' : 'Continuar para a Dashboard'}
                 </button>
             </div>
         </div>
