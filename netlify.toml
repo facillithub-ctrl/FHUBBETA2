@@ -22,4 +22,3 @@
     Permissions-Policy = "microphone=('self')"
     # Strict-Transport-Security (HSTS): Garante que a comunicação seja sempre via HTTPS.
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
-}
