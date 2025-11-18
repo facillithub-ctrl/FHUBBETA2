@@ -226,7 +226,7 @@ export async function getLatestEssayForDashboard() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { data: null, error: 'Usuário não autenticado.' };
 
-  // Busca a redação mais recente, trazendo a nota se existir e o título do prompt
+  // --- INÍCIO DAS CORREÇÕES ---
   const { data, error } = await supabase
     .from('essays')
     .select(`
@@ -234,29 +234,37 @@ export async function getLatestEssayForDashboard() {
         title,
         status,
         essay_corrections ( final_grade ),
-        prompts ( title )
-    `)
+        essay_prompts ( title ) 
+    `) // 1. CORREÇÃO: Alterado de 'prompts' para 'essay_prompts'
     .eq('student_id', user.id)
-    .order('created_at', { ascending: false }) // Ordena pela criação para pegar a mais recente
+    // 2. CORREÇÃO: Alterado de 'created_at' para 'submitted_at'
+    //    Adicionado 'nullsFirst: true' para lidar com rascunhos sem data de envio.
+    .order('submitted_at', { ascending: false, nullsFirst: true }) 
     .limit(1)
-    .maybeSingle(); // Usa maybeSingle para retornar null se não houver nenhuma
+    .maybeSingle(); 
 
     if (error) {
-        console.error("Erro ao buscar última redação para dashboard:", error);
-        return { data: null, error: error.message };
+        // Log mais detalhado do erro
+        console.error("Erro detalhado ao buscar última redação para dashboard:", JSON.stringify(error, null, 2));
+        
+        // Mensagem de erro segura
+        const errorMessage = error.message || 'Ocorreu um erro ao buscar sua última redação.';
+        return { data: null, error: errorMessage };
     }
 
     // Adapta o resultado para ter final_grade no nível superior e prompts.title
     const adaptedData = data ? {
         ...data,
         final_grade: data.essay_corrections?.[0]?.final_grade ?? null,
-        prompts: data.prompts ? { title: data.prompts.title } : null,
+        // Corrigido para ler de 'essay_prompts'
+        prompts: data.essay_prompts ? { title: data.essay_prompts.title } : null,
         essay_corrections: undefined, // Remove a estrutura aninhada original
+        essay_prompts: undefined, // Remove a nova estrutura aninhada
     } : null;
+    // --- FIM DAS CORREÇÕES ---
 
     return { data: adaptedData };
 }
-
 
 // --- FUNÇÕES DE CORREÇÃO ---
 
