@@ -31,7 +31,7 @@ export default async function TestPage() {
   }
 
   // ROTA PARA ALUNO
-  if (['aluno', 'vestibulando'].includes(profile.user_category || '')) {
+  if (['aluno', 'vestibulando', 'individual'].includes(profile.user_category || '')) {
     const [dashboardDataRes, availableTestsRes, knowledgeTestsRes, campaignsRes, consentedCampaignsRes] = await Promise.all([
       getStudentTestDashboardData(),
       getAvailableTestsForStudent(),

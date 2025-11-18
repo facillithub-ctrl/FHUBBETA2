@@ -4,8 +4,7 @@ import { useState } from 'react';
 import type { UserProfile } from './types';
 import Sidebar from '@/components/dashboard/Sidebar';
 import Topbar from '@/components/dashboard/Topbar';
-// 1. IMPORTAÇÃO ATUALIZADA
-import OnboardingFlow from './onboarding/OnboardingFlow'; // Importa o novo gestor de fluxo
+import OnboardingFlow from './onboarding/OnboardingFlow'; 
 import { ToastProvider } from '@/contexts/ToastContext';
 
 type LayoutProps = {
@@ -15,13 +14,13 @@ type LayoutProps = {
 
 export default function DashboardClientLayout({ userProfile, children }: LayoutProps) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [isDesktopCollapsed, setDesktopCollapsed] = useState(false);
+  // Começa a sidebar recolhida por padrão no desktop
+  const [isDesktopCollapsed, setDesktopCollapsed] = useState(true);
 
-  // Se o onboarding não foi concluído, mostra o novo fluxo de 8 etapas
+  // Se o onboarding não foi concluído, mostra o novo fluxo
   if (!userProfile.has_completed_onboarding) {
     return (
       <ToastProvider>
-        {/* 2. COMPONENTE RENDERIZADO ATUALIZADO */}
         <OnboardingFlow userProfile={userProfile} />
       </ToastProvider>
     );
@@ -30,7 +29,8 @@ export default function DashboardClientLayout({ userProfile, children }: LayoutP
   // Se já concluiu, mostra o dashboard normal
   return (
     <ToastProvider>
-      <div className="flex h-screen bg-bg-primary dark:bg-bg-primary">
+      {/* 1. O fundo da página inteira é o roxo da Sidebar */}
+      <div className="flex h-screen bg-brand-purple">
         <Sidebar 
           userProfile={userProfile} 
           isMobileOpen={isSidebarOpen} 
@@ -38,12 +38,21 @@ export default function DashboardClientLayout({ userProfile, children }: LayoutP
           isDesktopCollapsed={isDesktopCollapsed}
           setIsDesktopCollapsed={setDesktopCollapsed}
         />
-        <div className="flex-1 flex flex-col overflow-hidden">
+        
+        {/* 2. O container do conteúdo principal é arredondado
+               e tem o seu próprio fundo (claro ou escuro) */}
+        <div className={`flex-1 flex flex-col overflow-hidden 
+                       bg-bg-secondary dark:bg-bg-primary 
+                       transition-all duration-300
+                       md:rounded-l-3xl md:my-3 md:ml-0`}
+        >
           <Topbar 
             userProfile={userProfile} 
             toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
           />
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 bg-bg-secondary dark:bg-bg-primary">
+          {/* 3. A área de scroll (main) agora tem o padding 
+                 para o conteúdo não ficar colado na Topbar */}
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
             {children}
           </main>
         </div>

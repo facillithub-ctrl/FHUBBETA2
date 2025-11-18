@@ -42,7 +42,7 @@ export default async function WritePage() {
   }
 
   // ROTA PARA ALUNO
-  if (['aluno', 'vestibulando'].includes(profile.user_category || '')) {
+  if (['aluno', 'vestibulando', 'individual'].includes(profile.user_category || '')) {
     const [
         essaysResult,
         promptsResult,
