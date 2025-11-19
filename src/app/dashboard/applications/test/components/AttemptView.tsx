@@ -326,11 +326,12 @@ export default function AttemptView({ test, onFinish }: Props) {
                                         <textarea 
                                             className="w-full min-h-[250px] p-6 rounded-2xl bg-gray-50 dark:bg-black/20 border-2 border-gray-200 dark:border-gray-700 focus:border-brand-purple focus:bg-white dark:focus:bg-dark-card transition-all outline-none text-text-primary dark:text-white resize-y"
                                             placeholder="Digite sua resposta dissertativa aqui..."
-                                            value={currentAnswer || ''}
+                                            value={currentAnswer?.toString() || ''}
                                             onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
                                         />
                                         <div className="absolute bottom-4 right-4 text-xs text-text-muted font-mono">
-                                            {(currentAnswer || '').length} caracteres
+                                            {/* CORREÇÃO AQUI: Convertemos para String antes de ler o length */}
+                                            {String(currentAnswer || '').length} caracteres
                                         </div>
                                     </div>
                                 )}

@@ -53,7 +53,7 @@ type CorrectionQueryBaseResult = {
     final_grade: number;
     audio_feedback_url?: string | null;
     annotations?: Annotation[] | null;
-    created_at?: string;
+    corrected_at?: string; // ATUALIZADO: Nome da coluna corrigido conforme esquema do banco
     profiles: { full_name: string | null; verification_badge: string | null } | null;
     essay_correction_errors: { common_errors: { error_type: string } | null }[];
 };
@@ -250,45 +250,49 @@ export async function getLatestEssayForDashboard() {
 
 // --- FUNÇÕES DE CORREÇÃO (PROFESSOR/ALUNO) ---
 
-// ✅ FUNÇÃO CORRIGIDA E ROBUSTA
+// ✅ FUNÇÃO CORRIGIDA: Alterado 'created_at' para 'corrected_at'
 export async function getCorrectionForEssay(essayId: string): Promise<{ data?: EssayCorrection; error?: string }> {
     const supabase = await createSupabaseServerClient();
 
-    // 1. Busca a correção humana (Base) com created_at
-    const { data: correctionBase, error: correctionBaseError } = await supabase
-        .from('essay_corrections')
-        .select(`
-            id,
-            essay_id,
-            corrector_id,
-            feedback,
-            grade_c1, grade_c2, grade_c3, grade_c4, grade_c5,
-            final_grade,
-            audio_feedback_url,
-            annotations,
-            created_at,
-            profiles ( full_name, verification_badge ),
-            essay_correction_errors (
-                common_errors ( error_type )
-            )
-        `)
-        .eq('essay_id', essayId)
-        .maybeSingle();
-
-    if (correctionBaseError) {
-        console.error(`Erro ao buscar correção base:`, correctionBaseError);
-        return { error: `Erro de banco de dados: ${correctionBaseError.message}` };
-    }
-
-    // Se não existe correção, retornamos undefined (sem erro)
-    if (!correctionBase) {
-        return { data: undefined };
-    }
-
-    // 2. Busca feedback da IA separadamente (Tenta, mas não falha se der erro)
-    let aiFeedbackData = null;
     try {
-        const { data, error } = await supabase
+        const { data: correctionBase, error: correctionBaseError } = await supabase
+            .from('essay_corrections')
+            .select(`
+                id,
+                essay_id,
+                corrector_id,
+                feedback,
+                grade_c1, grade_c2, grade_c3, grade_c4, grade_c5,
+                final_grade,
+                audio_feedback_url,
+                annotations,
+                corrected_at,
+                profiles ( full_name, verification_badge ),
+                essay_correction_errors (
+                    common_errors ( error_type )
+                )
+            `)
+            .eq('essay_id', essayId)
+            .maybeSingle();
+
+        if (correctionBaseError) {
+            console.error(`Erro ao buscar correção base:`, correctionBaseError);
+            return { error: `Erro de banco de dados: ${correctionBaseError.message}` };
+        }
+
+        // Se não existe correção, retornamos undefined (sem erro)
+        if (!correctionBase) {
+            return { data: undefined };
+        }
+        
+        // Ajuste: Garantir que 'profiles' é tratado como objeto único
+        const profiles = Array.isArray(correctionBase.profiles) 
+            ? correctionBase.profiles[0] 
+            : correctionBase.profiles;
+
+        // Busca feedback da IA separadamente
+        let aiFeedbackData = null;
+        const { data: aiData, error: aiError } = await supabase
             .from('ai_feedback')
             .select('*')
             .eq('essay_id', essayId)
@@ -296,25 +300,28 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: E
             .limit(1)
             .maybeSingle();
         
-        if (!error) {
-            aiFeedbackData = data;
+        if (!aiError) {
+            aiFeedbackData = aiData;
         } else {
-            console.warn("Aviso: Erro ao buscar ai_feedback (ignorado para não bloquear):", error.message);
+            console.warn("Aviso: Erro ao buscar ai_feedback (ignorado):", aiError.message);
         }
-    } catch (e) {
-        console.warn("Exceção ao buscar ai_feedback:", e);
+
+        // Combina os dados
+        const finalData: EssayCorrection = {
+            ...(correctionBase as any),
+            profiles: profiles || null,
+            ai_feedback: aiFeedbackData
+        };
+
+        return { data: finalData };
+
+    } catch (error: any) {
+         console.error("Exceção crítica em getCorrectionForEssay:", error);
+         return { error: "Erro interno ao processar a correção." };
     }
-
-    // 3. Combina os dados
-    const finalData: EssayCorrection = {
-        ...(correctionBase as any),
-        ai_feedback: aiFeedbackData
-    };
-
-    return { data: finalData };
 }
 
-export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id' | 'corrector_id' | 'created_at' | 'profiles' | 'essay_correction_errors'>) {
+export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id' | 'corrector_id' | 'corrected_at' | 'profiles' | 'essay_correction_errors'>) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -359,9 +366,9 @@ export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id
         .update({ status: 'corrected' })
         .eq('id', correctionData.essay_id);
 
-    // Cria notificação (simplificado)
+    // Cria notificação
     await createNotification(
-        correctionData.essay_id, // Idealmente seria o ID do aluno, mas simplificando
+        correctionData.essay_id, 
         'Redação Corrigida',
         'Sua redação recebeu uma correção.',
         `/dashboard/applications/write?essayId=${correctionData.essay_id}`
