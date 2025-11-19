@@ -8,7 +8,7 @@ type EssayWithProfile = Essay & {
     profiles: { full_name: string | null } | null;
 };
 
-// Popup com posição fixa para garantir visibilidade
+// Popup com posição fixa (fixed) para garantir visibilidade correta sobre qualquer elemento
 const AnnotationPopup = ({ position, onSave, onClose }: { 
     position: { top: number; left: number }; 
     onSave: (comment: string, marker: Annotation['marker']) => void; 
@@ -19,39 +19,37 @@ const AnnotationPopup = ({ position, onSave, onClose }: {
 
     return (
         <div
-            className="fixed z-[9999] bg-white dark:bg-dark-card shadow-2xl rounded-lg p-3 w-72 border border-gray-200 dark:border-dark-border animate-fade-in"
+            className="fixed z-[9999] bg-white dark:bg-dark-card shadow-2xl rounded-xl p-4 w-80 border border-gray-200 dark:border-dark-border animate-[fadeIn_0.2s_ease-out] origin-top-left"
             style={{ top: position.top, left: position.left }}
             onMouseDown={e => e.stopPropagation()}
         >
+            <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Novo Comentário</h4>
             <textarea
-                placeholder="Escreva seu comentário..."
+                placeholder="Digite seu comentário aqui..."
                 rows={3}
-                className="w-full p-2 border rounded text-sm mb-2 dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-royal-blue outline-none"
+                className="w-full p-3 border rounded-lg text-sm mb-3 bg-gray-50 dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-royal-blue outline-none resize-none"
                 value={comment}
                 onChange={e => setComment(e.target.value)}
                 autoFocus
             />
             <div className="flex justify-between items-center">
                 <div className="flex gap-2">
-                    <button 
-                        onClick={() => setMarker('erro')} 
-                        className={`w-6 h-6 rounded-full bg-red-500 border-2 ${marker === 'erro' ? 'border-black dark:border-white' : 'border-transparent'}`} 
-                        title="Erro"
-                    />
-                    <button 
-                        onClick={() => setMarker('acerto')} 
-                        className={`w-6 h-6 rounded-full bg-green-500 border-2 ${marker === 'acerto' ? 'border-black dark:border-white' : 'border-transparent'}`} 
-                        title="Acerto"
-                    />
-                    <button 
-                        onClick={() => setMarker('sugestao')} 
-                        className={`w-6 h-6 rounded-full bg-blue-500 border-2 ${marker === 'sugestao' ? 'border-black dark:border-white' : 'border-transparent'}`} 
-                        title="Sugestão"
-                    />
+                    {[
+                        { id: 'erro', color: 'bg-red-500', label: 'Erro' },
+                        { id: 'acerto', color: 'bg-green-500', label: 'Acerto' },
+                        { id: 'sugestao', color: 'bg-blue-500', label: 'Sugestão' }
+                    ].map((m) => (
+                        <button 
+                            key={m.id}
+                            onClick={() => setMarker(m.id as Annotation['marker'])} 
+                            className={`w-6 h-6 rounded-full ${m.color} border-2 transition-transform hover:scale-110 ${marker === m.id ? 'border-black dark:border-white scale-110 ring-2 ring-offset-1' : 'border-transparent'}`} 
+                            title={m.label}
+                        />
+                    ))}
                 </div>
                 <div className="flex gap-2">
-                    <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-700">Cancelar</button>
-                    <button onClick={() => comment && onSave(comment, marker)} className="text-xs bg-royal-blue text-white px-3 py-1 rounded font-bold">Salvar</button>
+                    <button onClick={onClose} className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 px-3 py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800">Cancelar</button>
+                    <button onClick={() => comment && onSave(comment, marker)} className="text-xs bg-royal-blue text-white px-4 py-1.5 rounded-lg font-bold shadow-md hover:bg-blue-700 transition-colors">Salvar</button>
                 </div>
             </div>
         </div>
@@ -65,8 +63,8 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
     const [isSubmitting, startTransition] = useTransition();
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
     
-    // Anotações e Popup
     const [annotations, setAnnotations] = useState<Annotation[]>([]);
+    // Popup usa coordenadas relativas à janela (viewport)
     const [popup, setPopup] = useState<{ x: number, y: number, selection?: string, position?: any } | null>(null);
     
     const [aiData, setAiData] = useState<AIFeedback>({
@@ -81,17 +79,17 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
         });
     }, [essayId]);
 
-    // Evento ao soltar o mouse no texto
+    // Lógica de Seleção de Texto Corrigida
     const handleTextMouseUp = (e: MouseEvent) => {
         const selection = window.getSelection();
         if (selection && !selection.isCollapsed && selection.toString().trim().length > 0) {
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
             
-            // Usa coordenadas do mouse ou do retângulo, mas com posição fixa
+            // Usa rect.left e rect.bottom para posicionar o popup fixo exatamente onde a seleção ocorreu
             setPopup({
-                x: e.clientX, // Posição X do mouse na tela
-                y: rect.bottom + 10, // Logo abaixo da seleção
+                x: rect.left, 
+                y: rect.bottom + 10, 
                 selection: selection.toString()
             });
         }
@@ -114,6 +112,12 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
         window.getSelection()?.removeAllRanges();
     };
 
+    const removeAnnotation = (id: string) => {
+        if (confirm("Remover esta anotação?")) {
+            setAnnotations(prev => prev.filter(a => a.id !== id));
+        }
+    };
+
     const handleGenerateAI = async () => {
         if (!essay?.content) return alert("Redação sem texto para analisar.");
         setIsGeneratingAI(true);
@@ -131,7 +135,7 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
             }
 
             setAiData(data);
-            alert("Análise da IA concluída com sucesso!");
+            alert("✨ Análise da IA concluída com sucesso!");
         } catch (error: any) {
             console.error(error);
             alert(`Erro ao gerar IA: ${error.message}`);
@@ -155,7 +159,7 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
             });
             
             if(result.data) {
-                alert("Correção enviada!");
+                alert("Correção enviada com sucesso!");
                 onBack();
             } else {
                 alert("Erro ao salvar: " + result.error);
@@ -163,137 +167,108 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
         });
     };
 
-    // Renderiza texto com marcações (Highlighter)
     const renderHighlightedText = () => {
         if (!essay?.content) return null;
-        const textAnnos = annotations.filter(a => a.type === 'text');
-        if (textAnnos.length === 0) return <div className="whitespace-pre-wrap">{essay.content}</div>;
-
-        // Lógica simplificada de replace para exibição (em produção usaríamos uma lib de highlight mais robusta)
-        let content = essay.content;
-        // Nota: Esta é uma visualização simplificada para o editor. O ideal é usar dangerouslySetInnerHTML com cuidado
-        // ou uma abordagem de split/join mais complexa se houver muitas anotações sobrepostas.
-        
-        return (
-            <div className="whitespace-pre-wrap relative" onMouseUp={handleTextMouseUp}>
-                {content}
-                {/* Sobreposição visual das anotações não é trivial em textarea/div puro sem libs.
-                    Para este exemplo funcionar bem, vamos confiar no popup aparecendo na seleção.
-                    A visualização das anotações FEITAS aparecerá na 'Visualização da Correção' ou 
-                    podemos listar abaixo. */}
-            </div>
-        );
+        return <div className="whitespace-pre-wrap cursor-text" onMouseUp={handleTextMouseUp}>{essay.content}</div>;
     };
 
-    if (!essay) return <div className="p-8 text-center">Carregando...</div>;
+    if (!essay) return <div className="p-8 text-center animate-pulse">Carregando...</div>;
 
     return (
         <div className="relative min-h-screen pb-20">
-            {/* Popup Flutuante */}
             {popup && (
-                <div className="fixed inset-0 z-40" onClick={() => setPopup(null)}>
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setPopup(null)} />
                     <AnnotationPopup 
                         position={{ top: popup.y, left: popup.x }} 
                         onSave={handleSaveAnnotation} 
                         onClose={() => setPopup(null)} 
                     />
-                </div>
+                </>
             )}
 
             <div className="flex justify-between items-center mb-4">
-                <button onClick={onBack} className="text-royal-blue font-bold text-sm flex items-center gap-2">
+                <button onClick={onBack} className="text-royal-blue font-bold text-sm flex items-center gap-2 hover:underline">
                     <i className="fas fa-arrow-left"></i> Voltar
                 </button>
                 <button 
                     onClick={handleGenerateAI} 
                     disabled={isGeneratingAI}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-white transition-all ${isGeneratingAI ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:shadow-lg'}`}
+                    className={`flex items-center gap-2 px-5 py-2 rounded-lg font-bold text-white transition-all shadow-md
+                        ${isGeneratingAI ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:shadow-lg hover:scale-105 active:scale-95'}`}
                 >
-                    {isGeneratingAI ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-magic"></i>}
-                    {isGeneratingAI ? 'Analisando...' : 'Gerar Análise IA'}
+                    {isGeneratingAI ? <i className="fas fa-spinner fa-spin animate-spin"></i> : <i className="fas fa-magic"></i>}
+                    {isGeneratingAI ? 'Analisando...' : 'Gerar Análise com IA'}
                 </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* Coluna da Esquerda: Texto/Imagem (7 colunas) */}
                 <div className="lg:col-span-7 bg-white dark:bg-dark-card p-8 rounded-xl shadow-sm border border-gray-200 dark:border-dark-border min-h-[600px]">
                     <h2 className="text-2xl font-bold mb-6 dark:text-white">{essay.title}</h2>
                     
-                    {essay.image_submission_url ? (
-                        <div className="relative">
-                             <Image src={essay.image_submission_url} alt="Redação" width={800} height={1000} className="w-full rounded" />
-                             {/* Aqui entraria a lógica de clique na imagem para anotação */}
-                        </div>
-                    ) : (
-                        <div 
-                            className="prose dark:prose-invert max-w-none text-lg leading-relaxed"
-                            onMouseUp={handleTextMouseUp}
-                        >
-                            {/* Renderização simples para permitir seleção. As anotações são salvas no estado. */}
-                            <div className="whitespace-pre-wrap">{essay.content}</div>
-                        </div>
-                    )}
-                    
-                    {/* Lista de Anotações Feitas */}
-                    {annotations.length > 0 && (
-                        <div className="mt-8 pt-4 border-t dark:border-gray-700">
-                            <h4 className="font-bold text-sm text-gray-500 mb-2">Anotações Realizadas ({annotations.length})</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {annotations.map((a, i) => (
-                                    <span key={a.id} className={`text-xs px-2 py-1 rounded border flex items-center gap-2 ${a.marker === 'erro' ? 'bg-red-50 border-red-200 text-red-700' : a.marker === 'acerto' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
-                                        #{i+1} {a.comment.substring(0, 20)}...
-                                        <button onClick={() => setAnnotations(prev => prev.filter(x => x.id !== a.id))} className="hover:text-black"><i className="fas fa-times"></i></button>
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                    <div className="prose dark:prose-invert max-w-none text-lg leading-relaxed relative">
+                         {renderHighlightedText()}
+                         
+                         {annotations.length > 0 && (
+                             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                 <p className="text-xs text-gray-400 font-bold uppercase">Anotações ({annotations.length})</p>
+                                 <div className="flex flex-wrap gap-2 mt-2">
+                                     {annotations.map((a, i) => (
+                                         <span key={a.id} className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded border flex items-center gap-2">
+                                             {a.selection?.substring(0, 15)}... 
+                                             <button onClick={() => setAnnotations(p => p.filter(x => x.id !== a.id))} className="text-red-500 hover:text-red-700 text-sm font-bold">×</button>
+                                         </span>
+                                     ))}
+                                 </div>
+                             </div>
+                         )}
+                    </div>
                 </div>
 
-                {/* Coluna da Direita: Avaliação (5 colunas) */}
                 <div className="lg:col-span-5 space-y-6">
-                    {/* Notas */}
                     <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-sm border border-gray-200 dark:border-dark-border">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-lg dark:text-white">Competências</h3>
-                            <span className="text-2xl font-bold text-royal-blue">{Object.values(grades).reduce((a,b)=>a+b,0)}</span>
+                            <h3 className="font-bold text-lg dark:text-white">Avaliação</h3>
+                            <span className={`text-2xl font-bold ${Object.values(grades).reduce((a,b)=>a+b,0) >= 600 ? 'text-green-600' : 'text-yellow-600'}`}>
+                                {Object.values(grades).reduce((a,b)=>a+b,0)}
+                            </span>
                         </div>
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                             {[1,2,3,4,5].map(i => (
-                                <div key={i} className="flex items-center gap-4">
-                                    <label className="text-sm font-medium w-32 dark:text-gray-300">Competência {i}</label>
+                                <div key={i} className="flex flex-col gap-1">
+                                    <div className="flex justify-between text-sm dark:text-gray-300">
+                                        <span>Competência {i}</span>
+                                        <span className="font-bold">{grades[`c${i}` as keyof typeof grades]}</span>
+                                    </div>
                                     <input 
-                                        type="range" min="0" max="200" step="20" 
+                                        type="range" min="0" max="200" step="40" 
                                         value={grades[`c${i}` as keyof typeof grades]}
                                         onChange={e => setGrades(p => ({...p, [`c${i}`]: Number(e.target.value)}))}
-                                        className="flex-1 accent-royal-blue"
+                                        className="w-full accent-royal-blue cursor-pointer"
                                     />
-                                    <span className="w-10 text-right font-bold text-sm dark:text-white">{grades[`c${i}` as keyof typeof grades]}</span>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Feedback Geral */}
                     <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-sm border border-gray-200 dark:border-dark-border">
                         <h3 className="font-bold text-lg mb-2 dark:text-white">Feedback Geral</h3>
                         <textarea 
                             className="w-full p-3 border rounded-lg text-sm dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-royal-blue outline-none"
                             rows={4}
-                            placeholder="Escreva um comentário geral sobre o texto..."
+                            placeholder="Pontos fortes, fracos e resumo..."
                             value={feedback}
                             onChange={e => setFeedback(e.target.value)}
                         />
                     </div>
 
-                    {/* Feedback IA Editável */}
                     <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-sm border border-gray-200 dark:border-dark-border">
                          <h3 className="font-bold text-lg mb-4 dark:text-white flex items-center gap-2">
                             <i className="fas fa-robot text-purple-500"></i> Detalhes da IA
                          </h3>
-                         <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                         <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                             {aiData.detailed_feedback.map((item, i) => (
-                                <div key={i} className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                                <div key={i} className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-transparent focus-within:border-purple-400 transition-colors">
                                     <p className="text-xs font-bold text-gray-500 mb-1">{item.competency}</p>
                                     <textarea 
                                         className="w-full bg-transparent text-sm dark:text-white border-none p-0 focus:ring-0 resize-none"
@@ -314,7 +289,7 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                     <button 
                         onClick={handleSubmit} 
                         disabled={isSubmitting}
-                        className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-transform hover:scale-[1.02] disabled:opacity-50 disabled:scale-100"
+                        className="w-full py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-lg transition-all hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isSubmitting ? 'Enviando...' : 'Finalizar Correção'}
                     </button>
