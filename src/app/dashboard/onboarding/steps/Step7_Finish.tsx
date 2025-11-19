@@ -1,7 +1,10 @@
 "use client";
 
-// 1. A importação de tipos é do ficheiro pai (../)
-import type { OnboardingData, UserProfile } from '../OnboardingFlow';
+// 1. Importações corrigidas:
+// OnboardingData vem do OnboardingFlow (que o exporta)
+import type { OnboardingData } from '../OnboardingFlow';
+// UserProfile deve vir diretamente dos tipos do dashboard (subindo 2 níveis: steps -> onboarding -> dashboard)
+import type { UserProfile } from '../../types';
 
 // Props especiais para a etapa final
 type FinalStepProps = {
