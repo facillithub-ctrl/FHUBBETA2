@@ -3,12 +3,12 @@
 import { createContext, useState, useContext, ReactNode } from 'react';
 import Toast from '@/components/Toast';
 
-// 1. Adicionamos a propriedade 'title' aqui
+// ATUALIZAÇÃO: Adicionados 'warning' e 'info' aos tipos permitidos
 type ToastMessage = {
   id: number;
   title: string;
   message: string;
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'warning' | 'info';
 };
 
 type ToastContextType = {
@@ -32,22 +32,22 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     <ToastContext.Provider value={{ addToast }}>
       {children}
       {/* Container posicionado no canto inferior central */}
-      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] space-y-3">
+      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[2000] space-y-3 pointer-events-none">
         {toasts.map((toast) => (
-          <Toast
-            key={toast.id}
-            title={toast.title} // 2. Passamos o novo título para o componente
-            message={toast.message}
-            type={toast.type}
-            onClose={() => removeToast(toast.id)}
-          />
+          <div key={toast.id} className="pointer-events-auto">
+            <Toast
+              title={toast.title}
+              message={toast.message}
+              type={toast.type}
+              onClose={() => removeToast(toast.id)}
+            />
+          </div>
         ))}
       </div>
     </ToastContext.Provider>
   );
 };
 
-// Hook customizado para facilitar o uso
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {
