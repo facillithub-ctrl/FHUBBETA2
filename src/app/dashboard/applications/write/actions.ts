@@ -1,4 +1,3 @@
-// src/app/dashboard/applications/write/actions.ts
 "use server";
 
 import { revalidatePath } from 'next/cache';
@@ -351,8 +350,10 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: F
     console.log(`[actions.ts getCorrectionForEssay] Dados do ai_feedback retornados para essayId ${essayId}:`, aiFeedbackData);
 
     // Combina os resultados das duas queries
+    // CORREÇÃO CRÍTICA: Casting 'as any' para garantir que o TypeScript aceita o spread
+    // Sabemos que correctionBase é um objeto pois passamos pelo check if(!correctionBase) acima.
     const finalData: FinalCorrectionData = {
-        ...correctionBase,
+        ...(correctionBase as any), 
         ai_feedback: aiFeedbackData || null // Garante que é null se não for encontrado
     };
 
