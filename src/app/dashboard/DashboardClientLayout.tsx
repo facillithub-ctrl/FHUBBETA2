@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { UserProfile } from './types';
+import type { UserStats } from './data-access'; // Importar tipo
 import Sidebar from '@/components/dashboard/Sidebar';
 import Topbar from '@/components/dashboard/Topbar';
 import OnboardingFlow from './onboarding/OnboardingFlow'; 
@@ -9,15 +10,15 @@ import { ToastProvider } from '@/contexts/ToastContext';
 
 type LayoutProps = {
   userProfile: UserProfile;
+  stats: UserStats; // Nova prop
   children: React.ReactNode;
 };
 
-export default function DashboardClientLayout({ userProfile, children }: LayoutProps) {
+export default function DashboardClientLayout({ userProfile, stats, children }: LayoutProps) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  // Começa a sidebar recolhida por padrão no desktop
   const [isDesktopCollapsed, setDesktopCollapsed] = useState(true);
 
-  // Se o onboarding não foi concluído, mostra o novo fluxo
+  // Se onboarding incompleto, mostra fluxo de entrada
   if (!userProfile.has_completed_onboarding) {
     return (
       <ToastProvider>
@@ -26,10 +27,8 @@ export default function DashboardClientLayout({ userProfile, children }: LayoutP
     );
   }
 
-  // Se já concluiu, mostra o dashboard normal
   return (
     <ToastProvider>
-      {/* 1. O fundo da página inteira é o roxo da Sidebar */}
       <div className="flex h-screen bg-brand-purple">
         <Sidebar 
           userProfile={userProfile} 
@@ -39,20 +38,21 @@ export default function DashboardClientLayout({ userProfile, children }: LayoutP
           setIsDesktopCollapsed={setDesktopCollapsed}
         />
         
-        {/* 2. O container do conteúdo principal é arredondado
-               e tem o seu próprio fundo (claro ou escuro) */}
+        {/* Adicionamos 'relative' para que elementos absolutos dentro da Topbar/Main 
+           fiquem contidos aqui se necessário.
+        */}
         <div className={`flex-1 flex flex-col overflow-hidden 
                        bg-bg-secondary dark:bg-bg-primary 
                        transition-all duration-300
-                       md:rounded-l-3xl md:my-3 md:ml-0`}
+                       md:rounded-l-3xl md:my-3 md:ml-0 relative`}
         >
           <Topbar 
             userProfile={userProfile} 
             toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
+            stats={stats} // Passamos os dados cacheados
           />
-          {/* 3. A área de scroll (main) agora tem o padding 
-                 para o conteúdo não ficar colado na Topbar */}
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
+          
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 scroll-smooth">
             {children}
           </main>
         </div>
