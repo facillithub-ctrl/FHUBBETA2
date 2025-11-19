@@ -41,7 +41,8 @@ export default function ProfileInfo({ userProfile, fullProfileData }: Props) {
         fullName: formData.fullName,
         nickname: formData.nickname,
         birthDate: formData.birthDate,
-        avatarUrl: formData.avatarUrl,
+        // CORREÇÃO AQUI: O operador '??' garante que se for null, envia undefined
+        avatarUrl: formData.avatarUrl ?? undefined, 
         country: formData.country,
         language: formData.language,
         bio: formData.bio,
