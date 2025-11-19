@@ -5,7 +5,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import { useEffect } from 'react';
-import { cn } from '@/utils/utils'; // Assumindo que tens uma func utilitária, ou usa clsx direto
+import { cn } from '@/utils/utils';
 
 // Barra de ferramentas simples e flutuante ou fixa
 const MenuBar = ({ editor }: { editor: any }) => {
@@ -49,6 +49,7 @@ interface NativeEditorProps {
 
 export default function NativeRichTextEditor({ value, onChange, placeholder = "Começa a escrever...", editable = true }: NativeEditorProps) {
   const editor = useEditor({
+    immediatelyRender: false, // CORREÇÃO: Previne erro de hidratação no Next.js
     extensions: [
       StarterKit,
       Placeholder.configure({ placeholder }),
