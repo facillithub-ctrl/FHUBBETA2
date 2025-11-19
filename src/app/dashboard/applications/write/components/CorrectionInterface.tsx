@@ -460,7 +460,8 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                         </div>
                     ) : (
                         <div onMouseUp={handleTextMouseUp} className="text-gray-700 dark:text-dark-text-muted whitespace-pre-wrap leading-relaxed bg-gray-50 dark:bg-gray-900/50 p-4 rounded-md cursor-text">
-                           {renderAnnotatedText(essay.content, annotations)}
+                            {/* CORREÇÃO: Garantimos que passamos uma string vazia caso essay.content seja null */}
+                           {renderAnnotatedText(essay.content || '', annotations)}
                         </div>
                     )}
                 </div>
