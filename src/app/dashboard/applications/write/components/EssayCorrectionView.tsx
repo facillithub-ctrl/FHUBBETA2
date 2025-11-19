@@ -1,170 +1,92 @@
-// src/app/dashboard/applications/write/components/EssayCorrectionView.tsx
 "use client";
 
 import { useEffect, useState } from 'react';
-import { getEssayDetails, getCorrectionForEssay, EssayCorrection } from '../actions';
-import { useToast } from '@/contexts/ToastContext';
+import { getEssayDetails, getCorrectionForEssay } from '../actions';
 import Image from 'next/image';
 
-export default function EssayCorrectionView({ essayId, onBack }: {essayId: string, onBack: () => void}) {
+export default function EssayCorrectionView({ essayId, onBack }: { essayId: string, onBack: () => void }) {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [aiSummary, setAiSummary] = useState<string | null>(null);
-    const [analyzingFeedback, setAnalyzingFeedback] = useState(false);
-    const { addToast } = useToast();
 
     useEffect(() => {
         const load = async () => {
-            const essayRes = await getEssayDetails(essayId);
-            const correctionRes = await getCorrectionForEssay(essayId);
+            const [essayRes, correctionRes] = await Promise.all([
+                getEssayDetails(essayId),
+                getCorrectionForEssay(essayId)
+            ]);
             
             if (essayRes.data) {
-                // Garante que a correção seja nula se não vierem dados
-                setData({ essay: essayRes.data, correction: correctionRes.data || null });
+                // Se a correção vier, usamos. Se não, é null.
+                setData({ 
+                    essay: essayRes.data, 
+                    correction: correctionRes.data || null 
+                });
             }
             setLoading(false);
         };
         load();
     }, [essayId]);
 
-    const handleAnalyzeFeedback = async () => {
-        if (!data?.correction?.feedback) return;
-        
-        setAnalyzingFeedback(true);
-        try {
-            const response = await fetch('/api/generate-feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    text: `FEEDBACK DO PROFESSOR: ${data.correction.feedback}. NOTA FINAL: ${data.correction.final_grade}. TEXTO ORIGINAL DO ALUNO: ${data.essay.content}`,
-                    title: "ANÁLISE DE FEEDBACK",
-                    theme: "Explicar correção"
-                })
-            });
-            
-            const result = await response.json();
-            setAiSummary(result.general_comment || "Não foi possível gerar o resumo.");
-            
-        } catch (error) {
-            addToast({ title: "Erro", message: "Erro ao analisar feedback.", type: 'error' });
-        } finally {
-            setAnalyzingFeedback(false);
-        }
-    };
-
-    if (loading) return <div className="p-8 text-center animate-pulse">A carregar correção...</div>;
-    if (!data) return <div className="p-8 text-center">Erro ao carregar dados.</div>;
+    if (loading) return <div className="p-10 text-center animate-pulse text-[#42047e]">A carregar...</div>;
+    if (!data) return <div className="p-10 text-center">Erro ao carregar dados.</div>;
 
     const { essay, correction } = data;
 
+    // Lógica robusta: Se tem objeto de correção, está corrigida.
+    const isCorrected = !!correction;
+
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] pb-10">
-            {/* Header da Nota */}
-            <div className="bg-gradient-to-r from-[#42047e] to-[#07f49e] text-white p-8 rounded-b-[2rem] shadow-xl mb-8">
-                <button onClick={onBack} className="mb-4 text-white/80 hover:text-white text-sm font-bold flex items-center">
-                    <i className="fas fa-arrow-left mr-2"></i> Voltar
-                </button>
-                <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-end">
-                    <div>
-                        <h1 className="text-3xl font-bold mb-2">{essay.title || "Redação sem título"}</h1>
-                        <p className="opacity-90 text-sm">
-                            Corrigido por: {correction?.profiles?.full_name || 'A aguardar correção...'}
-                        </p>
-                    </div>
-                    {correction && (
-                        <div className="text-center mt-4 md:mt-0 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20">
-                            <span className="block text-xs uppercase font-bold opacity-80">Nota Final</span>
-                            <span className="text-5xl font-black">{correction.final_grade}</span>
-                        </div>
-                    )}
-                </div>
-            </div>
+        <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] p-6">
+            <button onClick={onBack} className="mb-4 text-[#42047e] font-bold flex items-center gap-2 hover:underline">
+                ← Voltar
+            </button>
 
-            <div className="max-w-5xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Coluna Esquerda: O Texto Corrigido */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-[#121212] p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800">
-                        <h3 className="font-bold text-gray-800 dark:text-white mb-4 flex items-center">
-                            <i className="fas fa-file-alt mr-2 text-[#42047e]"></i> Texto Avaliado
-                        </h3>
-                        <div className="prose dark:prose-invert max-w-none text-gray-700 dark:text-gray-300 leading-relaxed">
-                             {essay.image_submission_url ? (
-                                <Image src={essay.image_submission_url} alt="Redação" width={800} height={1000} className="w-full rounded-lg" />
-                            ) : (
-                                <div dangerouslySetInnerHTML={{ __html: essay.content || '<p>Sem conteúdo textual.</p>' }} />
-                            )}
-                        </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-white dark:bg-[#121212] p-6 rounded-xl shadow border border-gray-200 dark:border-gray-800">
+                    <h1 className="text-2xl font-bold mb-4 text-gray-800 dark:text-white">{essay.title || "Sem Título"}</h1>
+                    <div className="prose dark:prose-invert max-w-none text-gray-600 dark:text-gray-300">
+                        {essay.image_submission_url ? (
+                            <Image src={essay.image_submission_url} alt="Redação" width={800} height={1000} className="w-full rounded" />
+                        ) : (
+                            <div dangerouslySetInnerHTML={{ __html: essay.content || "<p>Conteúdo indisponível</p>" }} />
+                        )}
                     </div>
                 </div>
 
-                {/* Coluna Direita: Feedback e IA */}
                 <div className="space-y-6">
-                    {correction ? (
-                        <>
-                            {/* Feedback do Professor */}
-                            <div className="bg-white dark:bg-[#121212] p-6 rounded-2xl shadow-sm border-l-4 border-[#42047e]">
-                                <h3 className="font-bold text-[#42047e] mb-4">Comentários do Professor</h3>
-                                <div 
-                                    className="text-sm text-gray-600 dark:text-gray-300 prose dark:prose-invert"
-                                    dangerouslySetInnerHTML={{ __html: correction.feedback || "Sem comentários escritos." }}
-                                />
-                            </div>
-
-                            {/* Detalhe das Notas - COM PROTEÇÃO CONTRA ERRO */}
-                            <div className="bg-white dark:bg-[#121212] p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800">
-                                <h3 className="font-bold mb-4 dark:text-white">Detalhamento</h3>
-                                <div className="space-y-3">
-                                    {[1,2,3,4,5].map(c => (
-                                        <div key={c} className="flex justify-between items-center p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded transition">
-                                            <span className="text-xs font-bold text-gray-500">Competência {c}</span>
-                                            <span className="font-bold text-[#42047e] dark:text-[#07f49e]">
-                                                {(correction as any)[`grade_c${c}`] ?? '-'}
-                                            </span>
-                                        </div>
-                                    ))}
+                    {isCorrected ? (
+                        <div className="bg-white dark:bg-[#121212] p-6 rounded-xl shadow border-t-4 border-[#42047e]">
+                            <div className="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
+                                <div>
+                                    <p className="text-sm text-gray-500">Corrigido por</p>
+                                    <p className="font-bold text-gray-800 dark:text-white">{correction.profiles?.full_name || "Professor"}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-sm text-gray-500">Nota Final</p>
+                                    <p className="text-4xl font-black text-[#42047e]">{correction.final_grade}</p>
                                 </div>
                             </div>
 
-                            {/* Botão da IA e Resumo */}
-                            <div className="bg-gradient-to-br from-gray-900 to-black text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-[#07f49e] blur-[60px] opacity-20 rounded-full pointer-events-none"></div>
-                                
-                                <h3 className="font-bold mb-2 flex items-center gap-2">
-                                    <i className="fas fa-robot text-[#07f49e]"></i> Assistente IA
-                                </h3>
-                                
-                                {!aiSummary ? (
-                                    <>
-                                        <p className="text-sm text-gray-400 mb-4">Não percebeste alguma parte da correção? A IA pode explicar.</p>
-                                        <button 
-                                            onClick={handleAnalyzeFeedback}
-                                            disabled={analyzingFeedback}
-                                            className="w-full bg-[#07f49e] text-black font-bold py-3 rounded-xl hover:bg-white transition shadow-lg flex justify-center items-center gap-2"
-                                        >
-                                            {analyzingFeedback ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-lightbulb"></i>}
-                                            {analyzingFeedback ? "A Analisar..." : "Explicar Correção"}
-                                        </button>
-                                    </>
-                                ) : (
-                                    <div className="animate-fadeIn">
-                                        <div className="bg-white/10 p-4 rounded-xl backdrop-blur-md border border-white/10 mb-4">
-                                            <p className="text-sm italic text-gray-200 leading-relaxed">"{aiSummary}"</p>
-                                        </div>
-                                        <button 
-                                            onClick={() => setAiSummary(null)}
-                                            className="text-xs text-gray-400 hover:text-white underline w-full text-center"
-                                        >
-                                            Fechar explicação
-                                        </button>
+                            <div className="space-y-3 mb-6">
+                                {[1, 2, 3, 4, 5].map(c => (
+                                    <div key={c} className="flex justify-between p-2 bg-gray-50 dark:bg-gray-900 rounded">
+                                        <span className="text-sm font-bold text-gray-600 dark:text-gray-400">Competência {c}</span>
+                                        <span className="font-bold text-[#42047e]">
+                                            {correction[`grade_c${c}`] ?? '-'}
+                                        </span>
                                     </div>
-                                )}
+                                ))}
                             </div>
-                        </>
+
+                            <div>
+                                <h3 className="font-bold mb-2 text-gray-800 dark:text-white">Feedback</h3>
+                                <div className="prose dark:prose-invert text-sm text-gray-600 dark:text-gray-300" dangerouslySetInnerHTML={{ __html: correction.feedback || "Sem comentários." }} />
+                            </div>
+                        </div>
                     ) : (
-                        <div className="bg-yellow-50 dark:bg-yellow-900/20 p-6 rounded-2xl border border-yellow-100 dark:border-yellow-800 text-center">
-                            <i className="fas fa-clock text-yellow-500 text-3xl mb-2"></i>
-                            <p className="text-sm font-bold text-yellow-700 dark:text-yellow-400">Em Correção</p>
-                            <p className="text-xs text-gray-500 mt-1">A tua redação foi recebida e será corrigida em breve.</p>
+                        <div className="bg-yellow-50 dark:bg-yellow-900/20 p-6 rounded-xl border border-yellow-200 dark:border-yellow-800 text-center">
+                            <p className="text-yellow-700 dark:text-yellow-500 font-bold">A aguardar correção...</p>
+                            <p className="text-xs text-yellow-600/80 mt-2">A tua redação está na fila.</p>
                         </div>
                     )}
                 </div>

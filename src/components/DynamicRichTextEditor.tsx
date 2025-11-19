@@ -1,46 +1,80 @@
-// src/components/DynamicRichTextEditor.tsx
 "use client";
 
-import React from 'react';
-import { Editor } from '@tinymce/tinymce-react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
+import CharacterCount from '@tiptap/extension-character-count';
+import { useEffect } from 'react';
+import { cn } from '@/utils/utils'; // Certifica-te que este ficheiro existe em src/utils/utils.ts
 
-// Interface para definir as propriedades do nosso componente
-interface RichTextEditorProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  height?: number;
-}
+// Barra de ferramentas simples
+const MenuBar = ({ editor }: { editor: any }) => {
+  if (!editor) return null;
 
-export default function DynamicRichTextEditor({ value, onChange, placeholder, height = 300 }: RichTextEditorProps) {
-  // ✅ CORREÇÃO: A chave de API agora é lida corretamente das variáveis de ambiente PÚBLICAS do Next.js
-  const apiKey = process.env.NEXT_PUBLIC_TINYMCE_API_KEY;
-
-  if (!apiKey) {
-    console.error("A chave de API do TinyMCE (NEXT_PUBLIC_TINYMCE_API_KEY) não foi encontrada. Verifique seu arquivo .env.local");
-    return <div className="p-4 border rounded-md bg-red-100 text-red-800">Erro: Chave de API do Editor não configurada. Certifique-se de que a variável NEXT_PUBLIC_TINYMCE_API_KEY está definida no seu .env.local</div>;
-  }
+  const buttons = [
+    { label: 'B', action: () => editor.chain().focus().toggleBold().run(), isActive: editor.isActive('bold') },
+    { label: 'I', action: () => editor.chain().focus().toggleItalic().run(), isActive: editor.isActive('italic') },
+    { label: 'H1', action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), isActive: editor.isActive('heading', { level: 1 }) },
+    { label: 'H2', action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive('heading', { level: 2 }) },
+    { label: '•', action: () => editor.chain().focus().toggleBulletList().run(), isActive: editor.isActive('bulletList'), title: 'Lista' },
+  ];
 
   return (
-    <Editor
-      apiKey={apiKey}
-      value={value}
-      onEditorChange={(content) => onChange(content)}
-      init={{
-        height: height,
-        menubar: false,
-        plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
-        toolbar: 'undo redo | blocks fontfamily fontsize | ' +
-                 'bold italic underline strikethrough | ' +
-                 'link image media table | ' +
-                 'align lineheight | numlist bullist indent outdent | ' +
-                 'emoticons charmap | removeformat',
-        content_style: 'body { font-family:Inter,sans-serif; font-size:14px }',
-        placeholder: placeholder,
-        // Adicionado para garantir que o editor funcione mesmo com CSP mais restrito (opcional, teste sem isso primeiro)
-        // external_plugins: { tiny_mce_wiris: 'https://www.wiris.net/demo/plugins/tiny_mce/plugin.js' },
-        // allow_script_urls: true
-      }}
-    />
+    <div className="flex items-center gap-2 p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+      {buttons.map((btn, idx) => (
+        <button
+          key={idx}
+          onClick={btn.action}
+          className={cn(
+            "px-3 py-1 rounded text-sm font-bold transition-colors",
+            btn.isActive 
+              ? "bg-[#42047e] text-white" 
+              : "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+          )}
+        >
+          {btn.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+interface RichTextEditorProps {
+  value: string;
+  onChange: (content: string) => void;
+  placeholder?: string;
+  height?: number; // Mantido para compatibilidade de props
+}
+
+export default function DynamicRichTextEditor({ value, onChange, placeholder = "Escreva aqui..." }: RichTextEditorProps) {
+  const editor = useEditor({
+    immediatelyRender: false, // Essencial para evitar erro de hidratação
+    extensions: [
+      StarterKit,
+      Placeholder.configure({ placeholder }),
+      CharacterCount,
+    ],
+    content: value,
+    editorProps: {
+      attributes: {
+        class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[200px] p-4 text-gray-800 dark:text-gray-200',
+      },
+    },
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
+    },
+  });
+
+  useEffect(() => {
+    if (editor && value !== editor.getHTML()) {
+      editor.commands.setContent(value);
+    }
+  }, [value, editor]);
+
+  return (
+    <div className="border border-gray-300 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-900 focus-within:ring-2 focus-within:ring-[#07f49e]">
+      <MenuBar editor={editor} />
+      <EditorContent editor={editor} />
+    </div>
   );
 }
