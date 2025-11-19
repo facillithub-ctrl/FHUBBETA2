@@ -1,106 +1,91 @@
 import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
-
-// Configuração do cliente compatível com OpenAI (Groq, Together, etc.)
-const client = new OpenAI({
-  apiKey: process.env.AI_API_KEY,
-  baseURL: process.env.AI_BASE_URL,
-});
 
 export async function POST(request: Request) {
   try {
-    // 1. Validar Entrada
-    const { text, theme, title } = await request.json();
+    // 1. Validação das Chaves de API
+    const apiKey = process.env.AI_API_KEY;
+    const baseUrl = process.env.AI_BASE_URL || "https://api.groq.com/openai/v1";
+    const model = process.env.AI_MODEL || "qwen-2.5-72b-versatile";
 
-    if (!text || text.trim().length < 50) {
-      return NextResponse.json(
-        { error: 'O texto é demasiado curto para uma análise precisa.' }, 
-        { status: 400 }
-      );
+    if (!apiKey) {
+      console.error("ERRO: AI_API_KEY não encontrada no .env.local");
+      return NextResponse.json({ error: 'Chave de API da IA não configurada no servidor.' }, { status: 500 });
     }
 
-    console.log("🚀 Iniciando correção com IA para:", title);
+    // 2. Ler o corpo da requisição
+    const body = await request.json();
+    const { text } = body;
 
-    // 2. Construção do Prompt do Especialista
+    if (!text || typeof text !== 'string' || text.trim().length < 10) {
+      return NextResponse.json({ error: 'Texto muito curto ou inválido.' }, { status: 400 });
+    }
+
+    // 3. Construção do Prompt
     const systemPrompt = `
-      Tu és um corretor sénior de redações para vestibulares e exames nacionais (como o ENEM).
-      O teu objetivo é avaliar redações com rigor, foco técnico e didática.
-      
-      As 5 Competências de avaliação são:
-      1. Domínio da escrita formal da língua portuguesa.
-      2. Compreensão do tema e estrutura do texto dissertativo-argumentativo.
-      3. Capacidade de argumentação e defesa de ponto de vista.
-      4. Conhecimento dos mecanismos linguísticos (coesão e coerência).
-      5. Proposta de intervenção para o problema abordado.
-
-      DEVES retornar APENAS um objeto JSON válido com a seguinte estrutura exata, sem markdown ou explicações adicionais:
+      Você é um corretor especialista em redações do ENEM.
+      Analise o texto e retorne APENAS um JSON válido com esta estrutura exata:
       {
-        "final_grade": number (0 a 1000),
-        "grade_c1": number (0, 40, 80, 120, 160, 200),
-        "grade_c2": number (0, 40, 80, 120, 160, 200),
-        "grade_c3": number (0, 40, 80, 120, 160, 200),
-        "grade_c4": number (0, 40, 80, 120, 160, 200),
-        "grade_c5": number (0, 40, 80, 120, 160, 200),
         "detailed_feedback": [
-          { "competency": "1", "feedback": "Comentário específico sobre a competência 1..." },
-          { "competency": "2", "feedback": "Comentário específico sobre a competência 2..." },
-          ... para as 5 competências
+          { "competency": "Competência 1...", "feedback": "..." },
+          { "competency": "Competência 2...", "feedback": "..." },
+          { "competency": "Competência 3...", "feedback": "..." },
+          { "competency": "Competência 4...", "feedback": "..." },
+          { "competency": "Competência 5...", "feedback": "..." }
         ],
         "rewrite_suggestions": [
-          { "original": "Frase original com problema", "suggestion": "Sugestão de reescrita melhorada" },
-          ... (mínimo 2, máximo 5 sugestões)
+          { "original": "trecho", "suggestion": "melhoria" }
         ],
-        "actionable_items": [
-          "Ação prática 1 para melhorar (ex: estudar uso de vírgulas)",
-          "Ação prática 2...",
-          ... (3 a 5 itens)
-        ],
-        "general_comment": "Um parágrafo curto e motivador resumindo o desempenho."
+        "actionable_items": ["ação 1", "ação 2"]
       }
     `;
 
-    const userPrompt = `
-      Tema da Redação: ${theme || "Tema Livre"}
-      Título: ${title || "Sem título"}
-      
-      Texto da Redação:
-      "${text}"
-    `;
-
-    // 3. Chamada à IA
-    const completion = await client.chat.completions.create({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      model: process.env.AI_MODEL || 'qwen-2.5-72b-versatile',
-      temperature: 0.3, // Baixa temperatura para ser mais consistente e técnico
-      max_tokens: 4096,
-      response_format: { type: "json_object" }, // Garante resposta JSON na Groq
+    // 4. Chamada direta à API do Groq usando fetch (sem biblioteca extra)
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: text }
+        ],
+        temperature: 0.3,
+        response_format: { type: "json_object" }
+      })
     });
 
-    const aiContent = completion.choices[0].message.content;
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Erro na API do Groq:", errorData);
+      return NextResponse.json({ error: `Erro no provedor de IA: ${response.statusText}` }, { status: 500 });
+    }
+
+    const data = await response.json();
+    const aiContent = data.choices?.[0]?.message?.content;
 
     if (!aiContent) {
-      throw new Error("A IA retornou uma resposta vazia.");
+      return NextResponse.json({ error: 'A IA não retornou conteúdo.' }, { status: 500 });
     }
 
-    // 4. Parse e Tratamento de Erros do JSON
-    let parsedData;
+    // 5. Parse e Retorno
     try {
-      parsedData = JSON.parse(aiContent);
-    } catch (e) {
+      const jsonResponse = JSON.parse(aiContent);
+      return NextResponse.json(jsonResponse);
+    } catch (parseError) {
       console.error("Erro ao fazer parse do JSON da IA:", aiContent);
-      return NextResponse.json({ error: 'Erro ao processar a resposta da IA.' }, { status: 500 });
+      // Tenta recuperar o JSON se vier misturado com texto
+      const match = aiContent.match(/\{[\s\S]*\}/);
+      if (match) {
+          return NextResponse.json(JSON.parse(match[0]));
+      }
+      return NextResponse.json({ error: 'Formato de resposta da IA inválido.' }, { status: 500 });
     }
-
-    return NextResponse.json(parsedData);
 
   } catch (error: any) {
-    console.error("Erro na rota /api/generate-feedback:", error);
-    return NextResponse.json(
-      { error: error.message || 'Ocorreu um erro interno ao processar a correção.' }, 
-      { status: 500 }
-    );
+    console.error("Erro crítico na rota:", error);
+    return NextResponse.json({ error: error.message || 'Erro interno do servidor.' }, { status: 500 });
   }
 }
