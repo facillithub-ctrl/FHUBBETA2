@@ -226,7 +226,8 @@ export async function getLatestEssayForDashboard() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { data: null, error: 'Usuário não autenticado.' };
 
-  // --- INÍCIO DAS CORREÇÕES ---
+  // Busca a redação mais recente, trazendo a nota se existir e o título do prompt
+  // CORREÇÃO: Usamos 'essay_prompts' que é o nome provável da tabela/relação
   const { data, error } = await supabase
     .from('essays')
     .select(`
@@ -234,37 +235,41 @@ export async function getLatestEssayForDashboard() {
         title,
         status,
         essay_corrections ( final_grade ),
-        essay_prompts ( title ) 
-    `) // 1. CORREÇÃO: Alterado de 'prompts' para 'essay_prompts'
+        essay_prompts ( title )
+    `)
     .eq('student_id', user.id)
-    // 2. CORREÇÃO: Alterado de 'created_at' para 'submitted_at'
-    //    Adicionado 'nullsFirst: true' para lidar com rascunhos sem data de envio.
-    .order('submitted_at', { ascending: false, nullsFirst: true }) 
+    .order('created_at', { ascending: false }) // Ordena pela criação para pegar a mais recente
     .limit(1)
-    .maybeSingle(); 
+    .maybeSingle(); // Usa maybeSingle para retornar null se não houver nenhuma
 
     if (error) {
-        // Log mais detalhado do erro
-        console.error("Erro detalhado ao buscar última redação para dashboard:", JSON.stringify(error, null, 2));
-        
-        // Mensagem de erro segura
-        const errorMessage = error.message || 'Ocorreu um erro ao buscar sua última redação.';
-        return { data: null, error: errorMessage };
+        console.error("Erro ao buscar última redação para dashboard:", error);
+        return { data: null, error: error.message };
     }
+
+    // Função auxiliar para pegar o título com segurança
+    // O Supabase pode retornar um array ou objeto dependendo da inferência de tipos
+    const getPromptTitle = (promptsData: any) => {
+        if (!promptsData) return null;
+        if (Array.isArray(promptsData)) {
+            return promptsData[0]?.title || null;
+        }
+        return promptsData.title || null;
+    };
 
     // Adapta o resultado para ter final_grade no nível superior e prompts.title
     const adaptedData = data ? {
         ...data,
         final_grade: data.essay_corrections?.[0]?.final_grade ?? null,
-        // Corrigido para ler de 'essay_prompts'
-        prompts: data.essay_prompts ? { title: data.essay_prompts.title } : null,
+        // CORREÇÃO: Usa a função auxiliar e mapeia 'essay_prompts' para 'prompts'
+        prompts: data.essay_prompts ? { title: getPromptTitle(data.essay_prompts) } : null,
         essay_corrections: undefined, // Remove a estrutura aninhada original
-        essay_prompts: undefined, // Remove a nova estrutura aninhada
+        essay_prompts: undefined, // Remove a estrutura bruta
     } : null;
-    // --- FIM DAS CORREÇÕES ---
 
     return { data: adaptedData };
 }
+
 
 // --- FUNÇÕES DE CORREÇÃO ---
 
