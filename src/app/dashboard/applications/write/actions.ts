@@ -53,7 +53,7 @@ type CorrectionQueryBaseResult = {
     final_grade: number;
     audio_feedback_url?: string | null;
     annotations?: Annotation[] | null;
-    corrected_at?: string; // ATUALIZADO: Nome da coluna corrigido conforme esquema do banco
+    corrected_at?: string; // CORRIGIDO: Nome da coluna conforme seu banco de dados
     profiles: { full_name: string | null; verification_badge: string | null } | null;
     essay_correction_errors: { common_errors: { error_type: string } | null }[];
 };
@@ -237,10 +237,15 @@ export async function getLatestEssayForDashboard() {
         return { data: null, error: error.message };
     }
 
+    // CORREÇÃO BUILD: Verificação de array para prompts
+    const promptTitle = data?.prompts 
+        ? (Array.isArray(data.prompts) ? data.prompts[0]?.title : (data.prompts as any).title) 
+        : null;
+
     const adaptedData = data ? {
         ...data,
         final_grade: data.essay_corrections?.[0]?.final_grade ?? null,
-        prompts: data.prompts ? { title: data.prompts.title } : null,
+        prompts: promptTitle ? { title: promptTitle } : null,
         essay_corrections: undefined,
     } : null;
 
@@ -250,10 +255,11 @@ export async function getLatestEssayForDashboard() {
 
 // --- FUNÇÕES DE CORREÇÃO (PROFESSOR/ALUNO) ---
 
-// ✅ FUNÇÃO CORRIGIDA: Alterado 'created_at' para 'corrected_at'
+// ✅ FUNÇÃO CORRIGIDA E ROBUSTA
 export async function getCorrectionForEssay(essayId: string): Promise<{ data?: EssayCorrection; error?: string }> {
     const supabase = await createSupabaseServerClient();
 
+    // 1. Busca a correção humana (Base) com corrected_at
     try {
         const { data: correctionBase, error: correctionBaseError } = await supabase
             .from('essay_corrections')
@@ -285,12 +291,12 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: E
             return { data: undefined };
         }
         
-        // Ajuste: Garantir que 'profiles' é tratado como objeto único
+        // 2. Ajuste: Garantir que 'profiles' é tratado como objeto único
         const profiles = Array.isArray(correctionBase.profiles) 
             ? correctionBase.profiles[0] 
             : correctionBase.profiles;
 
-        // Busca feedback da IA separadamente
+        // 3. Busca feedback da IA separadamente (Tenta, mas não falha se der erro)
         let aiFeedbackData = null;
         const { data: aiData, error: aiError } = await supabase
             .from('ai_feedback')
@@ -306,7 +312,7 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: E
             console.warn("Aviso: Erro ao buscar ai_feedback (ignorado):", aiError.message);
         }
 
-        // Combina os dados
+        // 4. Combina os dados
         const finalData: EssayCorrection = {
             ...(correctionBase as any),
             profiles: profiles || null,
@@ -366,7 +372,7 @@ export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id
         .update({ status: 'corrected' })
         .eq('id', correctionData.essay_id);
 
-    // Cria notificação
+    // Cria notificação (simplificado)
     await createNotification(
         correctionData.essay_id, 
         'Redação Corrigida',
