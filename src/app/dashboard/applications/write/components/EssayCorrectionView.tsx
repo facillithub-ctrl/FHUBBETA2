@@ -11,9 +11,9 @@ import FeedbackTabs from './FeedbackTabs'; //
 
 // --- TIPOS E SUB-COMPONENTES ---
 
-// Define a forma dos dados de correção, incluindo o perfil aninhado do corretor e o feedback da IA
+// CORREÇÃO AQUI: 'profiles' agora pode ser null, correspondendo ao retorno do backend
 type CorrectionWithDetails = EssayCorrection & {
-  profiles: { full_name: string | null; verification_badge: string | null }; // Detalhes do corretor
+  profiles: { full_name: string | null; verification_badge: string | null } | null; // Detalhes do corretor (pode ser nulo)
   ai_feedback: AIFeedback | null; // Detalhes do feedback da IA (pode ser nulo)
 };
 
@@ -147,8 +147,9 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
 
                  // Combina os dados da correção com o feedback da IA processado
                 // A função getCorrectionForEssay já trata o ai_feedback corretamente
+                // CORREÇÃO: Casting 'as any' no spread para evitar conflitos estritos, já que atualizamos o tipo acima
                 const finalCorrection: CorrectionWithDetails | null = correctionResult.data
-                    ? { ...correctionResult.data }
+                    ? { ...correctionResult.data } as any
                     : null; //
 
 
