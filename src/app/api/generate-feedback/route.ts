@@ -2,45 +2,53 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    // 1. Validação das Chaves de API
+    // 1. Configuração e Normalização das Chaves
     const apiKey = process.env.AI_API_KEY;
-    const baseUrl = process.env.AI_BASE_URL || "https://api.groq.com/openai/v1";
-    const model = process.env.AI_MODEL || "qwen-2.5-72b-versatile";
+    // Remove barra final se houver
+    const rawBaseUrl = process.env.AI_BASE_URL || "https://api.groq.com/openai/v1";
+    const baseUrl = rawBaseUrl.replace(/\/+$/, ''); 
+    
+    // ATUALIZAÇÃO: Mudamos o fallback para o llama-3.3-70b-versatile que é muito estável no Groq
+    const model = process.env.AI_MODEL || "llama-3.3-70b-versatile";
 
     if (!apiKey) {
-      console.error("ERRO: AI_API_KEY não encontrada no .env.local");
-      return NextResponse.json({ error: 'Chave de API da IA não configurada no servidor.' }, { status: 500 });
+      return NextResponse.json({ error: 'Configuração de API Key ausente no servidor.' }, { status: 500 });
     }
 
-    // 2. Ler o corpo da requisição
-    const body = await request.json();
-    const { text } = body;
+    const { text } = await request.json();
 
-    if (!text || typeof text !== 'string' || text.trim().length < 10) {
-      return NextResponse.json({ error: 'Texto muito curto ou inválido.' }, { status: 400 });
+    if (!text || text.trim().length < 10) {
+      return NextResponse.json({ error: 'Texto muito curto para análise.' }, { status: 400 });
     }
 
-    // 3. Construção do Prompt
+    // 2. Construção da URL final
+    const endpoint = `${baseUrl}/chat/completions`;
+
+    console.log(`[IA] Conectando em: ${endpoint}`);
+    console.log(`[IA] Usando Modelo: ${model}`); // Log para confirmar qual modelo está indo
+
     const systemPrompt = `
-      Você é um corretor especialista em redações do ENEM.
-      Analise o texto e retorne APENAS um JSON válido com esta estrutura exata:
+      Você é um corretor especialista em redações do ENEM (Brasil).
+      Analise o texto fornecido e retorne ESTRITAMENTE um JSON. Não inclua markdown (como \`\`\`json), apenas o objeto JSON puro.
+      
+      A estrutura deve ser:
       {
         "detailed_feedback": [
-          { "competency": "Competência 1...", "feedback": "..." },
-          { "competency": "Competência 2...", "feedback": "..." },
-          { "competency": "Competência 3...", "feedback": "..." },
-          { "competency": "Competência 4...", "feedback": "..." },
-          { "competency": "Competência 5...", "feedback": "..." }
+          { "competency": "Competência 1", "feedback": "..." },
+          { "competency": "Competência 2", "feedback": "..." },
+          { "competency": "Competência 3", "feedback": "..." },
+          { "competency": "Competência 4", "feedback": "..." },
+          { "competency": "Competência 5", "feedback": "..." }
         ],
         "rewrite_suggestions": [
-          { "original": "trecho", "suggestion": "melhoria" }
+          { "original": "texto original", "suggestion": "texto melhorado" }
         ],
-        "actionable_items": ["ação 1", "ação 2"]
+        "actionable_items": ["ação 1", "ação 2", "ação 3"]
       }
     `;
 
-    // 4. Chamada direta à API do Groq usando fetch (sem biblioteca extra)
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    // 3. Chamada Fetch
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
@@ -52,40 +60,52 @@ export async function POST(request: Request) {
           { role: "system", content: systemPrompt },
           { role: "user", content: text }
         ],
-        temperature: 0.3,
-        response_format: { type: "json_object" }
+        temperature: 0.3, // Baixa temperatura para ser mais analítico
+        // Nota: Nem todos os modelos do Groq suportam json_object nativo perfeitamente, 
+        // mas o Llama 3.3 costuma respeitar bem o prompt.
+        // Se der erro de formato, removemos essa linha, mas vamos tentar manter.
+        response_format: { type: "json_object" } 
       })
     });
 
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error("Erro na API do Groq:", errorData);
-      return NextResponse.json({ error: `Erro no provedor de IA: ${response.statusText}` }, { status: 500 });
+      const errorText = await response.text();
+      console.error(`[IA] Erro da API (${response.status}):`, errorText);
+      
+      // Tenta fazer o parse do erro para mostrar algo amigável
+      let errorMessage = errorText;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.error && errorJson.error.message) {
+          errorMessage = errorJson.error.message;
+        }
+      } catch (e) { /* ignore */ }
+
+      return NextResponse.json({ 
+        error: `Erro do provedor: ${errorMessage}` 
+      }, { status: response.status });
     }
 
     const data = await response.json();
-    const aiContent = data.choices?.[0]?.message?.content;
+    const content = data.choices?.[0]?.message?.content;
 
-    if (!aiContent) {
+    if (!content) {
       return NextResponse.json({ error: 'A IA não retornou conteúdo.' }, { status: 500 });
     }
 
-    // 5. Parse e Retorno
+    // 4. Tratamento do JSON
     try {
-      const jsonResponse = JSON.parse(aiContent);
-      return NextResponse.json(jsonResponse);
-    } catch (parseError) {
-      console.error("Erro ao fazer parse do JSON da IA:", aiContent);
-      // Tenta recuperar o JSON se vier misturado com texto
-      const match = aiContent.match(/\{[\s\S]*\}/);
-      if (match) {
-          return NextResponse.json(JSON.parse(match[0]));
-      }
-      return NextResponse.json({ error: 'Formato de resposta da IA inválido.' }, { status: 500 });
+      // Às vezes a IA coloca markdown em volta mesmo pedindo pra não pôr
+      const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
+      const jsonContent = JSON.parse(cleanContent);
+      return NextResponse.json(jsonContent);
+    } catch (e) {
+      console.error("[IA] Falha ao parsear JSON. Conteúdo bruto:", content);
+      return NextResponse.json({ error: 'A resposta da IA não veio no formato correto. Tente novamente.' }, { status: 500 });
     }
 
   } catch (error: any) {
-    console.error("Erro crítico na rota:", error);
+    console.error("[IA] Erro crítico:", error);
     return NextResponse.json({ error: error.message || 'Erro interno do servidor.' }, { status: 500 });
   }
 }
