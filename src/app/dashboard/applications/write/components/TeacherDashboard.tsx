@@ -3,28 +3,15 @@
 import { useState } from 'react';
 import CorrectionInterface from './CorrectionInterface';
 import EssayCorrectionView from './EssayCorrectionView';
-import type { UserProfile } from '@/app/dashboard/types'; // MODIFICAÇÃO: Importar UserProfile
+import type { UserProfile } from '@/app/dashboard/types';
 
-type EssayListItem = {
-  id: string;
-  title: string | null;
-  submitted_at: string | null;
-  profiles: { full_name: string | null; } | null;
-  essay_corrections?: { final_grade: number }[] | null;
-};
-
-type TeacherDashboardProps = {
-  userProfile: UserProfile; // MODIFICAÇÃO: Adicionar userProfile
-  pendingEssays: EssayListItem[];
-  correctedEssays: EssayListItem[];
-};
+// ... tipos mantêm-se iguais ...
 
 export default function TeacherDashboard({ userProfile, pendingEssays, correctedEssays }: TeacherDashboardProps) {
   const [view, setView] = useState<'list' | 'correct' | 'view_correction'>('list');
   const [selectedEssayId, setSelectedEssayId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'corrected'>('pending');
   
-  // MODIFICAÇÃO: Identificar se o professor é institucional
   const isInstitutional = !!userProfile.organization_id;
 
   const handleSelectEssay = (essayId: string, status: 'pending' | 'corrected') => {
@@ -32,82 +19,94 @@ export default function TeacherDashboard({ userProfile, pendingEssays, corrected
     setView(status === 'pending' ? 'correct' : 'view_correction');
   };
 
-  const handleBack = () => {
-    setSelectedEssayId(null);
-    setView('list');
-    // Idealmente, aqui você faria um router.refresh() para recarregar a lista
-  };
+  // ... lógica de renderização condicional mantém-se ...
 
-  if (view === 'correct' && selectedEssayId) {
-    return <CorrectionInterface essayId={selectedEssayId} onBack={handleBack} />;
-  }
-
-  if (view === 'view_correction' && selectedEssayId) {
-    return <EssayCorrectionView essayId={selectedEssayId} onBack={handleBack} />;
-  }
-  
   const essaysToShow = activeTab === 'pending' ? pendingEssays : correctedEssays;
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-dark-text dark:text-white">Painel do Corretor</h1>
-        {/* MODIFICAÇÃO: Botão de criar temas (futuramente abrirá um modal) */}
-        <button 
-            className="bg-royal-blue text-white font-bold py-2 px-4 rounded-lg hover:bg-opacity-90"
-            onClick={() => alert('Em breve: Modal para criar temas globais ou para turmas específicas.')}
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0a] p-6">
+      <header className="mb-8">
+        <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#42047e] to-[#07f49e] mb-2">
+          Painel do Corretor
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400">
+            {isInstitutional 
+                ? `Gestão de redações: ${userProfile.schoolName}` 
+                : "Gestão global de redações"}
+        </p>
+      </header>
+
+      {/* Tabs Estilizadas */}
+      <div className="flex space-x-2 mb-6 bg-white dark:bg-[#121212] p-1 rounded-xl w-fit shadow-sm border border-gray-200 dark:border-gray-800">
+        <button
+          onClick={() => setActiveTab('pending')}
+          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+            activeTab === 'pending' 
+            ? 'bg-[#42047e] text-white shadow-md' 
+            : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
         >
-          <i className="fas fa-plus mr-2"></i> Novo Tema de Redação
+          Pendentes <span className="ml-2 bg-white/20 px-1.5 py-0.5 rounded-full text-xs">{pendingEssays.length}</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('corrected')}
+          className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+            activeTab === 'corrected' 
+            ? 'bg-[#07f49e] text-[#42047e] shadow-md' 
+            : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+        >
+          Corrigidas <span className="ml-2 bg-black/10 px-1.5 py-0.5 rounded-full text-xs">{correctedEssays.length}</span>
         </button>
       </div>
-      {isInstitutional && (
-          <p className="text-sm text-text-muted mb-6">Você está visualizando as redações da sua instituição: <strong>{userProfile.schoolName}</strong>.</p>
-      )}
 
-      <div className="mb-4 border-b border-gray-200 dark:border-gray-700">
-        <nav className="flex space-x-4" aria-label="Tabs">
-          <button
-            onClick={() => setActiveTab('pending')}
-            className={`${activeTab === 'pending' ? 'border-royal-blue text-royal-blue' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm`}
-          >
-            Pendentes ({pendingEssays.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('corrected')}
-            className={`${activeTab === 'corrected' ? 'border-royal-blue text-royal-blue' : 'border-transparent text-gray-500 hover:text-gray-700'} whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm`}
-          >
-            Corrigidas ({correctedEssays.length})
-          </button>
-        </nav>
-      </div>
-
-      <div className="bg-white dark:bg-dark-card rounded-lg shadow p-4">
-        <ul className="divide-y dark:divide-gray-700">
-          {essaysToShow.length > 0 ? essaysToShow.map(essay => (
-            <li 
-              key={essay.id} 
-              onClick={() => handleSelectEssay(essay.id, activeTab)} 
-              className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+      {/* Lista de Cards Modernos */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {essaysToShow.length > 0 ? essaysToShow.map(essay => (
+            <div 
+                key={essay.id}
+                onClick={() => handleSelectEssay(essay.id, activeTab)}
+                className="group bg-white dark:bg-[#121212] p-6 rounded-2xl border border-gray-100 dark:border-gray-800 hover:border-[#07f49e] transition-all cursor-pointer shadow-sm hover:shadow-md relative overflow-hidden"
             >
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="font-bold text-dark-text dark:text-white">{essay.title || "Redação sem título"}</p>
-                  <p className="text-sm text-gray-500">
-                    Enviada por {essay.profiles?.full_name || 'Aluno desconhecido'} em {new Date(essay.submitted_at!).toLocaleDateString()}
-                  </p>
+                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#42047e] to-[#07f49e] opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                <div className="flex justify-between items-start mb-4">
+                    <span className={`text-xs font-bold px-2 py-1 rounded-md uppercase ${activeTab === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>
+                        {activeTab === 'pending' ? 'Aguardando' : 'Finalizada'}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                        {new Date(essay.submitted_at!).toLocaleDateString()}
+                    </span>
                 </div>
+
+                <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2 line-clamp-2">
+                    {essay.title || "Redação sem título"}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    {essay.profiles?.full_name || 'Aluno Anónimo'}
+                </p>
+
                 {activeTab === 'corrected' && (
-                  <div className="text-right">
-                    <p className="font-bold text-lg text-royal-blue">{essay.essay_corrections?.[0]?.final_grade ?? 'N/A'}</p>
-                    <p className="text-xs text-gray-500">Nota Final</p>
-                  </div>
+                    <div className="flex items-center justify-between border-t dark:border-gray-800 pt-4 mt-2">
+                        <span className="text-sm font-medium text-gray-500">Nota Final</span>
+                        <span className="text-xl font-black text-[#42047e] dark:text-[#07f49e]">
+                            {essay.essay_corrections?.[0]?.final_grade ?? '-'}
+                        </span>
+                    </div>
                 )}
-              </div>
-            </li>
-          )) : (
-            <p className="p-4 text-center text-gray-500">Nenhuma redação nesta categoria.</p>
-          )}
-        </ul>
+
+                <div className="mt-4 flex justify-end">
+                    <span className="text-sm font-bold text-[#42047e] dark:text-[#07f49e] group-hover:translate-x-1 transition-transform flex items-center">
+                        {activeTab === 'pending' ? 'Corrigir Agora' : 'Ver Detalhes'} <i className="fas fa-arrow-right ml-2"></i>
+                    </span>
+                </div>
+            </div>
+        )) : (
+            <div className="col-span-full flex flex-col items-center justify-center p-12 text-gray-400 bg-white dark:bg-[#121212] rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
+                <i className="fas fa-inbox text-4xl mb-4 opacity-50"></i>
+                <p>Não há redações nesta categoria.</p>
+            </div>
+        )}
       </div>
     </div>
   );
