@@ -8,7 +8,7 @@ type EssayWithProfile = Essay & {
     profiles: { full_name: string | null } | null;
 };
 
-// Popup com a nova identidade visual e posicionamento corrigido
+// Popup com posição fixa (fixed) para garantir visibilidade correta sobre qualquer elemento
 const AnnotationPopup = ({ position, onSave, onClose }: { 
     position: { top: number; left: number }; 
     onSave: (comment: string, marker: Annotation['marker']) => void; 
@@ -49,12 +49,7 @@ const AnnotationPopup = ({ position, onSave, onClose }: {
                 </div>
                 <div className="flex gap-2">
                     <button onClick={onClose} className="text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 px-3 py-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800">Cancelar</button>
-                    <button 
-                        onClick={() => comment && onSave(comment, marker)} 
-                        className="text-xs bg-[#42047e] text-white px-4 py-1.5 rounded-lg font-bold shadow-md hover:bg-[#2e0259] transition-colors"
-                    >
-                        Salvar
-                    </button>
+                    <button onClick={() => comment && onSave(comment, marker)} className="text-xs bg-[#42047e] text-white px-4 py-1.5 rounded-lg font-bold shadow-md hover:bg-[#2e0259] transition-colors">Salvar</button>
                 </div>
             </div>
         </div>
@@ -96,7 +91,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
             
-            // Usa clientX/Y para position: fixed, garantindo que o popup apareça onde o mouse está
             setPopup({
                 x: rect.left, 
                 y: rect.bottom + 10, 
@@ -131,14 +125,12 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
         setIsDrawing(false);
         if (selectionBox && (selectionBox.width > 10 || selectionBox.height > 10)) {
             const rect = imageContainerRef.current!.getBoundingClientRect();
-            // Salva posição em porcentagem para ser responsivo
             const position = {
                 x: (selectionBox.x / rect.width) * 100,
                 y: (selectionBox.y / rect.height) * 100,
                 width: (selectionBox.width / rect.width) * 100,
                 height: (selectionBox.height / rect.height) * 100,
             };
-            // Usa coordenadas da página para o popup
             setPopup({ x: e.clientX, y: e.clientY, position });
         }
         setSelectionBox(null);
@@ -174,7 +166,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
         setIsGeneratingAI(true);
         
         try {
-            // Chama a API via fetch para evitar erro de dependência
             const response = await fetch('/api/generate-feedback', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -188,8 +179,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
             }
 
             setAiData(data);
-            // Feedback visual sutil ao invés de alert intrusivo
-            // (O ideal seria um toast, mas o alert serve para debug agora)
             alert("✨ Análise da IA gerada! Revise os campos abaixo.");
         } catch (error: any) {
             console.error(error);
@@ -224,8 +213,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
 
     const renderHighlightedText = () => {
         if (!essay?.content) return null;
-        // Visualização simplificada para o editor (texto selecionável)
-        // As anotações feitas são mostradas na lista abaixo para não atrapalhar a seleção de novos trechos
         return <div className="whitespace-pre-wrap cursor-text outline-none" onMouseUp={handleTextMouseUp}>{essay.content}</div>;
     };
 
@@ -303,7 +290,8 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                                 {annotations.map((a, i) => (
                                     <div key={a.id} className="flex items-start justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm border border-gray-100 dark:border-gray-700">
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-gray-500 text-xs mb-1">"{a.selection?.substring(0, 30)}..."</span>
+                                            {/* CORREÇÃO DE ESCAPE DE ASPAS AQUI: &quot; */}
+                                            <span className="font-bold text-gray-500 text-xs mb-1">&quot;{a.selection?.substring(0, 30)}...&quot;</span>
                                             <span className={`${a.marker === 'erro' ? 'text-red-600' : a.marker === 'acerto' ? 'text-[#07f49e]' : 'text-[#42047e]'}`}>
                                                 {a.comment}
                                             </span>
