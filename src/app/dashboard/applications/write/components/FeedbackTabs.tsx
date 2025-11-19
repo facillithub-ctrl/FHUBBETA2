@@ -5,16 +5,15 @@ import { useState } from 'react';
 import type { EssayCorrection, AIFeedback } from '../actions'; //
 import { VerificationBadge } from '@/components/VerificationBadge'; //
 
-// This type represents the correction data as it's shaped after fetching,
-// including the nested corrector profile.
+// CORREÇÃO AQUI: Atualizado para permitir que 'profiles' seja null
+// Isto alinha o tipo com o que é enviado pelo EssayCorrectionView
 type CorrectionWithDetails = EssayCorrection & {
-  profiles: { full_name: string | null; verification_badge: string | null }; //
-  // ai_feedback is already part of EssayCorrection, adjusted in EssayCorrectionView
-  ai_feedback: AIFeedback | null; // Ensures ai_feedback is an object or null
+  profiles: { full_name: string | null; verification_badge: string | null } | null; // Pode ser nulo
+  ai_feedback: AIFeedback | null; // Garante que ai_feedback é um objeto ou null
 };
 
 type Props = {
-  // The component now accepts one prop for all correction-related data.
+  // O componente agora aceita uma prop para todos os dados relacionados à correção.
   correction: CorrectionWithDetails | null; //
 };
 
@@ -32,7 +31,7 @@ const TabButton = ({ label, isActive, onClick }: { label: string; isActive: bool
 export default function FeedbackTabs({ correction }: Props) {
     const [activeTab, setActiveTab] = useState<'human' | 'ai' | 'actions'>('human'); //
 
-    // Derive constants from the single prop for clarity.
+    // Deriva constantes da prop única para clareza.
     const humanCorrection = correction; //
     const aiFeedback = correction?.ai_feedback ?? null; //
 
@@ -58,8 +57,9 @@ export default function FeedbackTabs({ correction }: Props) {
                                 <h4 className="font-bold dark:text-white-text">Feedback Geral</h4>
                                 <div className="text-sm text-gray-700 dark:text-dark-text-muted bg-gray-50 dark:bg-gray-700/50 p-4 rounded-md whitespace-pre-wrap">{humanCorrection.feedback}</div>
                                 <div className="text-xs text-gray-400 mt-2 flex items-center gap-2">
-                                    <span>Corrigido por: {humanCorrection.profiles?.full_name}</span>
-                                    <VerificationBadge badge={humanCorrection.profiles?.verification_badge} />
+                                    {/* O operador ?. (optional chaining) previne erros se profiles for null */}
+                                    <span>Corrigido por: {humanCorrection.profiles?.full_name || 'Corretor Indisponível'}</span>
+                                    <VerificationBadge badge={humanCorrection.profiles?.verification_badge || null} />
                                 </div>
                             </div> //
                         ) : (
@@ -101,4 +101,4 @@ export default function FeedbackTabs({ correction }: Props) {
             </div>
         </div>
     );
-} 
+}
