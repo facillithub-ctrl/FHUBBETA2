@@ -2,14 +2,14 @@
 "use server";
 
 import { revalidatePath } from 'next/cache';
-import createSupabaseServerClient from '@/utils/supabase/server'; 
+import createSupabaseServerClient from '@/utils/supabase/server';
 
 // --- TIPOS DE DADOS ---
 
 export type Essay = {
   id: string;
-  title: string | null; 
-  content: string | null; 
+  title: string | null;
+  content: string | null;
   status: 'draft' | 'submitted' | 'corrected';
   submitted_at: string | null;
   prompt_id: string | null;
@@ -26,8 +26,8 @@ export type Annotation = {
     type: 'text' | 'image';
     comment: string;
     marker: 'erro' | 'acerto' | 'sugestao';
-    selection?: string; 
-    position?: { x: number; y: number; width?: number; height?: number }; 
+    selection?: string;
+    position?: { x: number; y: number; width?: number; height?: number };
 };
 
 export type EssayCorrection = {
@@ -43,8 +43,8 @@ export type EssayCorrection = {
     final_grade: number;
     audio_feedback_url?: string | null;
     annotations?: Annotation[] | null;
-    ai_feedback?: AIFeedback | AIFeedback[] | null; 
-    created_at?: string; 
+    ai_feedback?: AIFeedback | AIFeedback[] | null;
+    created_at?: string;
 };
 
 export type EssayPrompt = {
@@ -52,7 +52,7 @@ export type EssayPrompt = {
     title: string;
     description: string | null;
     source: string | null;
-    image_url: string | null; 
+    image_url: string | null;
     category: string | null;
     publication_date: string | null;
     deadline: string | null;
@@ -64,21 +64,22 @@ export type EssayPrompt = {
     motivational_text_3_image_source: string | null;
     difficulty: number | null;
     tags: string[] | null;
-    created_at?: string; 
+    created_at?: string;
 };
 
 export type AIFeedback = {
-  id?: string; 
+  id?: string;
   essay_id?: string;
   correction_id?: string;
   detailed_feedback: { competency: string; feedback: string }[];
   rewrite_suggestions: { original: string; suggestion: string }[];
   actionable_items: string[];
-  created_at?: string; 
+  created_at?: string;
 };
 
 
 // --- FUNÇÕES DE ALUNO E GERAIS ---
+
 export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -105,7 +106,7 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
       if (existingEssay) {
         return { error: 'Você já enviou uma redação para este tema.' };
       }
-      if (existingError && existingError.code !== 'PGRST116') { 
+      if (existingError && existingError.code !== 'PGRST116') {
         console.error("Erro ao verificar redações existentes:", existingError);
         return { error: 'Erro ao verificar redações existentes.' };
       }
@@ -114,8 +115,8 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
 
   const dataToUpsert: Partial<Essay> & { student_id: string } = {
       ...essayData,
-      student_id: user.id, 
-      organization_id: profile?.organization_id, 
+      student_id: user.id,
+      organization_id: profile?.organization_id,
       submitted_at: essayData.status === 'submitted' ? new Date().toISOString() : essayData.submitted_at,
   };
   
@@ -126,7 +127,7 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
 
   const { data: upsertedEssay, error: upsertError } = await supabase
     .from('essays')
-    .upsert(dataToUpsert) 
+    .upsert(dataToUpsert)
     .select()
     .single();
 
@@ -157,7 +158,7 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
   }
 
   revalidatePath('/dashboard/applications/write');
-  revalidatePath('/dashboard'); 
+  revalidatePath('/dashboard');
   return { data: upsertedEssay };
 }
 
@@ -166,7 +167,7 @@ export async function getPrompts(): Promise<{ data?: EssayPrompt[]; error?: stri
     const { data, error } = await supabase
         .from('essay_prompts')
         .select('*')
-        .order('created_at', { ascending: false }); 
+        .order('created_at', { ascending: false });
 
     if (error) {
         console.error("Erro ao buscar temas:", error);
@@ -181,16 +182,24 @@ export async function getEssayDetails(essayId: string): Promise<{ data?: Essay &
         .from('essays')
         .select(`
             *,
-            profiles (full_name)
+            profiles (full_name),
+            essay_prompts (title)
         `)
         .eq('id', essayId)
-        .maybeSingle(); 
+        .maybeSingle();
 
     if (error) {
         console.error(`Erro ao buscar detalhes da redação ${essayId}:`, error);
         return { error: `Erro ao buscar detalhes da redação: ${error.message}` };
     }
-    return { data: data as (Essay & { profiles: { full_name: string | null } | null }) | undefined };
+    
+    // Mapear essay_prompts para prompts para manter consistência
+    const formattedData = data ? {
+      ...data,
+      prompts: data.essay_prompts ? { title: data.essay_prompts.title } : null
+    } : undefined;
+
+    return { data: formattedData as (Essay & { profiles: { full_name: string | null } | null }) | undefined };
 }
 
 
@@ -201,7 +210,7 @@ export async function getEssaysForStudent() {
 
   const { data, error } = await supabase
     .from('essays')
-    .select('id, title, status, submitted_at, content, image_submission_url, prompt_id') 
+    .select('id, title, status, submitted_at, content, image_submission_url, prompt_id')
     .eq('student_id', user.id)
     .order('submitted_at', { ascending: false, nullsFirst: true });
 
@@ -229,9 +238,9 @@ export async function getLatestEssayForDashboard() {
         essay_prompts ( title )
     `) // CORRIGIDO: Nome da tabela é 'essay_prompts', não 'prompts'
     .eq('student_id', user.id)
-    .order('created_at', { ascending: false }) 
+    .order('created_at', { ascending: false })
     .limit(1)
-    .maybeSingle(); 
+    .maybeSingle();
 
     if (error) {
         console.error("Erro ao buscar última redação para dashboard:", error);
@@ -242,7 +251,7 @@ export async function getLatestEssayForDashboard() {
         ...data,
         final_grade: data.essay_corrections?.[0]?.final_grade ?? null,
         prompts: data.essay_prompts ? { title: data.essay_prompts.title } : null, // CORRIGIDO: Mapeamento para essay_prompts
-        essay_corrections: undefined, 
+        essay_corrections: undefined,
         essay_prompts: undefined
     } : null;
 
@@ -288,7 +297,7 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: F
             )
         `)
         .eq('essay_id', essayId)
-        .maybeSingle(); 
+        .maybeSingle();
 
     if (correctionBaseError) {
         console.error(`[actions.ts getCorrectionForEssay] Erro do Supabase ao buscar correção base para essayId ${essayId}:`, correctionBaseError);
@@ -306,10 +315,10 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: F
     const { data: aiFeedbackData, error: aiFeedbackError } = await supabase
         .from('ai_feedback')
         .select('*')
-        .eq('essay_id', essayId) 
-        .order('created_at', { ascending: false }) 
+        .eq('essay_id', essayId)
+        .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle(); 
+        .maybeSingle();
 
     if (aiFeedbackError) {
         console.error(`[actions.ts getCorrectionForEssay] Erro ao buscar ai_feedback para essayId ${essayId}:`, aiFeedbackError);
@@ -319,7 +328,7 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: F
 
     const finalData: FinalCorrectionData = {
         ...correctionBase,
-        ai_feedback: aiFeedbackData || null 
+        ai_feedback: aiFeedbackData || null
     };
 
     console.log(`[actions.ts getCorrectionForEssay] Dados finais combinados para essayId ${essayId}:`, finalData);
@@ -350,12 +359,12 @@ export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id
         return { error: `Erro ao salvar correção: ${correctionError.message}` };
     }
 
-    if (ai_feedback && !Array.isArray(ai_feedback)) { 
+    if (ai_feedback && !Array.isArray(ai_feedback)) {
         const { error: aiError } = await supabase
             .from('ai_feedback')
             .insert({
                 essay_id: correctionData.essay_id,
-                correction_id: correction.id, 
+                correction_id: correction.id,
                 detailed_feedback: ai_feedback.detailed_feedback,
                 rewrite_suggestions: ai_feedback.rewrite_suggestions,
                 actionable_items: ai_feedback.actionable_items
@@ -370,7 +379,7 @@ export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id
         .from('essays')
         .update({ status: 'corrected' })
         .eq('id', correctionData.essay_id)
-        .select('student_id, title') 
+        .select('student_id, title')
         .single();
 
     if (essayError) {
@@ -383,12 +392,12 @@ export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id
             essayData.student_id,
             'Sua redação foi corrigida!',
             `A redação "${essayData.title || 'sem título'}" já tem um feedback.`,
-            `/dashboard/applications/write?essayId=${correctionData.essay_id}` 
+            `/dashboard/applications/write?essayId=${correctionData.essay_id}`
         );
     }
 
     revalidatePath('/dashboard/applications/write');
-    return { data: correction }; 
+    return { data: correction };
 }
 
 // --- FUNÇÕES DE ESTATÍSTICAS E RANKING ---
@@ -402,7 +411,7 @@ export async function getStudentStatistics() {
         .select(`
             submitted_at,
             essay_corrections!inner ( final_grade, grade_c1, grade_c2, grade_c3, grade_c4, grade_c5 )
-        `) 
+        `)
         .eq('student_id', user.id)
         .eq('status', 'corrected');
 
@@ -411,7 +420,7 @@ export async function getStudentStatistics() {
         return { data: null, error: error?.message };
     }
     if (!correctedEssays || correctedEssays.length === 0) {
-        return { data: null }; 
+        return { data: null };
     }
 
     const validCorrections = correctedEssays
@@ -448,8 +457,8 @@ export async function getStudentStatistics() {
     const pointToImprove = competencyAverages.sort((a, b) => a.average - b.average)[0];
 
     const progression = validCorrections
-        .filter(c => c.submitted_at) 
-        .sort((a, b) => new Date(a.submitted_at!).getTime() - new Date(b.submitted_at!).getTime()) 
+        .filter(c => c.submitted_at)
+        .sort((a, b) => new Date(a.submitted_at!).getTime() - new Date(b.submitted_at!).getTime())
         .map(c => ({
             date: new Date(c.submitted_at!).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
             grade: c.final_grade,
@@ -477,13 +486,13 @@ export async function calculateWritingStreak() {
 
     const uniqueDates = [...new Set(data.map(e => new Date(e.submitted_at!).toDateString()))]
         .map(d => new Date(d))
-        .sort((a, b) => b.getTime() - a.getTime()); 
+        .sort((a, b) => b.getTime() - a.getTime());
 
     if (uniqueDates.length === 0) return { data: 0 };
 
     let streak = 0;
     const today = new Date();
-    today.setHours(0, 0, 0, 0); 
+    today.setHours(0, 0, 0, 0);
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
 
@@ -498,7 +507,7 @@ export async function calculateWritingStreak() {
             if (previousDay.getTime() === expectedPreviousDay.getTime()) {
                 streak++;
             } else {
-                break; 
+                break;
             }
         }
     }
@@ -531,7 +540,7 @@ export async function getUserStateRank() {
 
     if (error) {
         console.error('Erro ao chamar RPC get_user_rank_in_state:', error);
-        return { data: { rank: null, state: userState } }; 
+        return { data: { rank: null, state: userState } };
     }
 
     return { data: { rank: data, state: userState } };
@@ -577,7 +586,7 @@ export async function getCurrentEvents() {
         .from('current_events')
         .select('id, title, summary, link')
         .order('created_at', { ascending: false })
-        .limit(5); 
+        .limit(5);
 
     if (error) {
         console.error("Erro ao buscar eventos atuais:", error);
@@ -596,7 +605,7 @@ export async function getPendingEssaysForTeacher(teacherId: string, organization
 
     let query = supabase
         .from('essays')
-        .select('id, title, submitted_at, profiles(full_name)') 
+        .select('id, title, submitted_at, profiles(full_name)')
         .eq('status', 'submitted');
 
     if (organizationId) {
@@ -605,7 +614,7 @@ export async function getPendingEssaysForTeacher(teacherId: string, organization
         query = query.is('organization_id', null);
     }
 
-    const { data, error } = await query.order('submitted_at', { ascending: true }); 
+    const { data, error } = await query.order('submitted_at', { ascending: true });
 
     if (error) {
         console.error("Erro ao buscar redações pendentes:", error);
@@ -625,9 +634,9 @@ export async function getCorrectedEssaysForTeacher(teacherId: string, organizati
         submitted_at,
         profiles ( full_name ),
         essay_corrections!inner ( final_grade, corrector_id )
-    `) 
+    `)
     .eq('status', 'corrected')
-    .eq('essay_corrections.corrector_id', teacherId); 
+    .eq('essay_corrections.corrector_id', teacherId);
 
   if (organizationId) {
       query = query.eq('organization_id', organizationId);
@@ -635,7 +644,7 @@ export async function getCorrectedEssaysForTeacher(teacherId: string, organizati
       query = query.is('organization_id', null);
   }
 
-  const { data, error } = await query.order('submitted_at', { ascending: false }); 
+  const { data, error } = await query.order('submitted_at', { ascending: false });
 
   if (error) {
       console.error("Erro ao buscar redações corrigidas pelo professor:", error);
@@ -650,7 +659,7 @@ export async function getAIFeedbackForEssay(essayId: string) {
         .from('ai_feedback')
         .select('*')
         .eq('essay_id', essayId)
-        .maybeSingle(); 
+        .maybeSingle();
 
     if (error) {
         console.error("Erro ao buscar feedback da IA:", error);
@@ -665,13 +674,13 @@ export async function checkForPlagiarism(_text: string): Promise<{ data?: { simi
     try {
         await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000));
 
-        const hasPlagiarism = Math.random() > 0.6; 
+        const hasPlagiarism = Math.random() > 0.6;
         if (hasPlagiarism) {
-            const similarity = Math.random() * (25 - 5) + 5; 
+            const similarity = Math.random() * (25 - 5) + 5;
             return {
                 data: {
                     similarity_percentage: similarity,
-                    matches: [ 
+                    matches: [
                         { source: "Fonte Simulada 1 (ex: Wikipedia)", text: "um trecho simulado que se parece com o texto original..." },
                         ...(similarity > 15 ? [{ source: "Fonte Simulada 2 (ex: Blog)", text: "outro trecho similar encontrado em outro lugar..." }] : [])
                     ]
@@ -680,8 +689,8 @@ export async function checkForPlagiarism(_text: string): Promise<{ data?: { simi
         } else {
             return {
                 data: {
-                    similarity_percentage: Math.random() * 4, 
-                    matches: [] 
+                    similarity_percentage: Math.random() * 4,
+                    matches: []
                 }
             };
         }
