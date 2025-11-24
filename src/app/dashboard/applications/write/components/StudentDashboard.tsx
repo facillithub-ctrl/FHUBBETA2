@@ -9,6 +9,7 @@ import EssayCorrectionView from './EssayCorrectionView';
 import StatisticsWidget from './StatisticsWidget';
 import ProgressionChart from './ProgressionChart';
 import CountdownWidget from '@/components/dashboard/CountdownWidget';
+import Image from 'next/image';
 
 // --- TIPOS ---
 type Stats = {
@@ -33,83 +34,72 @@ type Props = {
   examDate: string | null | undefined;
 };
 
+// --- COMPONENTES VISUAIS ---
 
-// --- SUB-COMPONENTES REESTILIZADOS ---
-
-const StatCard = ({ title, value, icon, valueDescription }: { title: string, value: string | number, icon: string, valueDescription?: string }) => (
-  <div className="glass-card p-5 flex items-center justify-between h-full">
-    <div className="min-w-0 flex-1 mr-2">
-      <p className="text-sm text-dark-text-muted truncate mb-1" title={title}>{title}</p>
-      <p className="text-2xl font-bold text-dark-text dark:text-white truncate">
-        {value} <span className="text-sm font-normal text-dark-text-muted ml-1">{valueDescription}</span>
-      </p>
-    </div>
-    <div className="text-3xl text-lavender-blue flex-shrink-0 bg-royal-blue/10 w-12 h-12 rounded-full flex items-center justify-center">
-      <i className={`fas ${icon}`}></i>
-    </div>
-  </div>
-);
-
-const ActionShortcuts = () => (
-    <div className="glass-card p-6 h-full flex flex-col">
-        <h3 className="font-bold mb-4 dark:text-white-text">Atalhos Rápidos</h3>
-        <div className="space-y-3 flex-1">
-            <Link href="/dashboard/applications/test" className="flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-transparent hover:border-royal-blue/30 transition-all hover:shadow-sm group">
-                <div className="bg-royal-blue/10 text-royal-blue w-10 h-10 flex items-center justify-center rounded-lg text-lg group-hover:bg-royal-blue group-hover:text-white transition-colors">
-                    <i className="fas fa-spell-check"></i>
-                </div>
-                <span className="text-sm font-medium dark:text-gray-200">Testar gramática</span>
-                <i className="fas fa-chevron-right ml-auto text-xs text-gray-400 group-hover:text-royal-blue"></i>
-            </Link>
-             <Link href="/dashboard/applications/day" className="flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-transparent hover:border-royal-blue/30 transition-all hover:shadow-sm group">
-                 <div className="bg-royal-blue/10 text-royal-blue w-10 h-10 flex items-center justify-center rounded-lg text-lg group-hover:bg-royal-blue group-hover:text-white transition-colors">
-                    <i className="fas fa-calendar-check"></i>
-                </div>
-                <span className="text-sm font-medium dark:text-gray-200">Agendar redação</span>
-                <i className="fas fa-chevron-right ml-auto text-xs text-gray-400 group-hover:text-royal-blue"></i>
-            </Link>
-             <Link href="/dashboard/applications/library" className="flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-transparent hover:border-royal-blue/30 transition-all hover:shadow-sm group">
-                 <div className="bg-royal-blue/10 text-royal-blue w-10 h-10 flex items-center justify-center rounded-lg text-lg group-hover:bg-royal-blue group-hover:text-white transition-colors">
-                    <i className="fas fa-book-open"></i>
-                </div>
-                <span className="text-sm font-medium dark:text-gray-200">Ver repertórios</span>
-                <i className="fas fa-chevron-right ml-auto text-xs text-gray-400 group-hover:text-royal-blue"></i>
-            </Link>
-        </div>
+const GlassCard = ({ children, className = "", onClick }: { children: React.ReactNode, className?: string, onClick?: () => void }) => (
+    <div 
+        onClick={onClick}
+        className={`bg-white/80 dark:bg-[#1A1A1D]/70 backdrop-blur-xl border border-white/60 dark:border-white/10 shadow-lg rounded-[2rem] transition-all duration-300 ${className}`}
+    >
+        {children}
     </div>
 );
 
-const CurrentEventsWidget = ({ events }: { events: CurrentEvent[] }) => (
-    <div className="glass-card p-6 h-full flex flex-col">
-        <h3 className="font-bold text-lg mb-4 dark:text-white flex items-center gap-2">
-            <i className="fas fa-newspaper text-royal-blue"></i> Atualidades
-        </h3>
-        {events.length > 0 ? (
-            <ul className="space-y-3 overflow-y-auto flex-1 pr-1 custom-scrollbar max-h-[250px]">
-                {events.map(event => (
-                    <li key={event.id}>
-                        <a href={event.link} target="_blank" rel="noopener noreferrer" className="block p-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
-                            <p className="font-bold text-sm dark:text-white text-royal-blue mb-1 line-clamp-1">{event.title}</p>
-                            {event.summary && <p className="text-xs text-dark-text-muted line-clamp-2 leading-relaxed">{event.summary}</p>}
-                        </a>
-                    </li>
-                ))}
-            </ul>
-        ) : (
-            <div className="flex-1 flex items-center justify-center text-center flex-col text-dark-text-muted p-4">
-                <i className="far fa-newspaper text-4xl mb-2 opacity-50"></i>
-                <p className="text-sm">Nenhuma notícia recente.</p>
+const StatBadge = ({ icon, value, label, colorClass, trend }: any) => (
+    <GlassCard className="p-6 relative overflow-hidden group hover:shadow-xl hover:-translate-y-1">
+        <div className={`absolute -right-6 -top-6 w-32 h-32 rounded-full blur-3xl opacity-20 transition-all group-hover:opacity-30 ${colorClass}`}></div>
+        <div className="relative z-10 flex justify-between items-start">
+            <div>
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl mb-4 ${colorClass} bg-opacity-10 text-opacity-100 transition-transform group-hover:scale-110`}>
+                    <i className={`fas ${icon}`}></i>
+                </div>
+                <h4 className="text-3xl font-black text-dark-text dark:text-white tracking-tight">{value}</h4>
+                <p className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mt-1">{label}</p>
             </div>
-        )}
-    </div>
+            {trend && (
+                <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                    <i className="fas fa-arrow-up"></i> {trend}
+                </span>
+            )}
+        </div>
+    </GlassCard>
 );
 
+const ActionPlanList = () => {
+    // Mock de planos de ação (idealmente viria do backend)
+    const plans = [
+        { id: 1, title: "Melhorar uso de conectivos", progress: 75, total: 4, done: 3 },
+        { id: 2, title: "Revisar regras de crase", progress: 30, total: 3, done: 1 },
+        { id: 3, title: "Estrutura da Proposta de Intervenção", progress: 0, total: 5, done: 0 },
+    ];
 
-// --- COMPONENTE PRINCIPAL ---
+    return (
+        <div className="space-y-4">
+            {plans.map(plan => (
+                <div key={plan.id} className="bg-white dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/10 hover:border-brand-purple/30 transition-colors group">
+                    <div className="flex justify-between items-center mb-2">
+                        <h4 className="font-bold text-dark-text dark:text-white group-hover:text-brand-purple transition-colors">{plan.title}</h4>
+                        <span className="text-xs font-bold text-gray-500">{plan.done}/{plan.total}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
+                        <div 
+                            className="h-full bg-gradient-to-r from-brand-purple to-brand-green transition-all duration-1000" 
+                            style={{ width: `${plan.progress}%` }}
+                        ></div>
+                    </div>
+                </div>
+            ))}
+             <button className="w-full py-3 mt-2 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl text-gray-500 font-bold hover:border-brand-purple hover:text-brand-purple transition-all flex items-center justify-center gap-2">
+                <i className="fas fa-plus"></i> Novo Plano Manual
+            </button>
+        </div>
+    );
+};
 
 export default function StudentDashboard({ initialEssays, prompts, statistics, streak, rankInfo, frequentErrors, currentEvents, targetExam, examDate }: Props) {
   const [essays, setEssays] = useState(initialEssays);
   const [view, setView] = useState<'dashboard' | 'edit' | 'view_correction'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'overview' | 'plans'>('overview'); // Nova Navegação
   const [currentEssay, setCurrentEssay] = useState<Partial<Essay> | null>(null);
   const searchParams = useSearchParams();
 
@@ -121,168 +111,208 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
   useEffect(() => {
     const essayIdFromUrl = searchParams.get('essayId');
     if (essayIdFromUrl) {
-      const essayToOpen = initialEssays.find(e => e.id === essayIdFromUrl);
-      if (essayToOpen) {
-        handleSelectEssay(essayToOpen);
-      }
+        const found = initialEssays.find(e => e.id === essayIdFromUrl);
+        if (found) handleSelectEssay(found);
     }
   }, [searchParams, initialEssays, handleSelectEssay]);
 
-  const handleCreateNew = () => {
-    setCurrentEssay(null);
-    setView('edit');
+  const handleBack = async () => {
+      const res = await getEssaysForStudent();
+      if (res.data) setEssays(res.data as any);
+      setView('dashboard');
+      setCurrentEssay(null);
   };
 
-  const handleBackToDashboard = async () => {
-    const result = await getEssaysForStudent();
-    if (result.data) setEssays(result.data);
-    setView('dashboard');
-    setCurrentEssay(null);
-    window.history.pushState({}, '', '/dashboard/applications/write');
-  };
-
-  if (view === 'edit') return <EssayEditor essay={currentEssay} prompts={prompts} onBack={handleBackToDashboard} />;
-  if (view === 'view_correction' && currentEssay?.id) return <EssayCorrectionView essayId={currentEssay.id} onBack={handleBackToDashboard} />;
+  if (view === 'edit') return <EssayEditor essay={currentEssay} prompts={prompts} onBack={handleBack} />;
+  if (view === 'view_correction' && currentEssay?.id) return <EssayCorrectionView essayId={currentEssay.id} onBack={handleBack} />;
 
   return (
-    <div className="pb-8">
-       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-        <div>
-            <h1 className="text-3xl font-bold text-dark-text dark:text-white-text">Redação</h1>
-            <p className="text-text-muted dark:text-gray-400">Acompanhe seu progresso e pratique sua escrita.</p>
-        </div>
-        <button onClick={handleCreateNew} className="bg-royal-blue text-white font-bold py-3 px-6 rounded-xl hover:bg-opacity-90 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center gap-2">
-          <i className="fas fa-plus"></i> Nova Redação
-        </button>
-      </div>
-      
-      {/* --- LINHA SUPERIOR DE CARDS --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="lg:col-span-1">
-            <StatCard 
-                title="Sequência (Streak)" 
-                value={streak} 
-                valueDescription={`dia${streak === 1 ? '' : 's'}`} 
-                icon="fa-fire" 
-            />
-        </div>
-        <div className="lg:col-span-1">
-            <StatCard 
-                title={`Ranking ${rankInfo?.state || ''}`} 
-                value={rankInfo?.rank ? `#${rankInfo.rank}` : 'N/A'}
-                valueDescription=""
-                icon="fa-trophy" 
-            />
-        </div>
-        <div className="lg:col-span-2">
-            <div className="glass-card p-0 h-full overflow-hidden">
-                <CountdownWidget targetExam={targetExam} examDate={examDate} />
-            </div>
-        </div>
-      </div>
-
-      {/* --- LINHA DO MEIO DE CARDS --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2">
-            {statistics ? (
-                <div className="h-full">
-                     <ProgressionChart data={statistics.progression} />
-                </div>
-            ) : (
-                <div className="glass-card h-full flex flex-col items-center justify-center p-8 text-center min-h-[300px]">
-                    <div className="w-16 h-16 bg-gray-100 dark:bg-white/10 rounded-full flex items-center justify-center mb-4 text-gray-400 text-2xl">
-                        <i className="fas fa-chart-line"></i>
-                    </div>
-                    <p className="font-bold text-dark-text dark:text-white mb-1">Sem dados suficientes</p>
-                    <p className="text-sm text-dark-text-muted">Envie sua primeira redação para ver sua progressão aqui.</p>
-                </div>
-            )}
-        </div>
-        
-        <div className="lg:col-span-1">
-            <div className="glass-card p-6 h-full">
-                {statistics ? <StatisticsWidget stats={statistics} frequentErrors={frequentErrors}/> : (
-                    <div className="flex flex-col items-center justify-center h-full text-center p-4 min-h-[300px]">
-                        <div className="w-16 h-16 bg-gray-100 dark:bg-white/10 rounded-full flex items-center justify-center mb-4 text-gray-400 text-2xl">
-                            <i className="fas fa-chart-pie"></i>
-                        </div>
-                        <p className="font-bold text-dark-text dark:text-white mb-1">Estatísticas vazias</p>
-                        <p className="text-sm text-dark-text-muted">Suas médias por competência aparecerão aqui após a primeira correção.</p>
-                    </div>
-                )}
-            </div>
-        </div>
-      </div>
-
-      {/* --- NOVA LINHA INFERIOR DE CARDS --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* HISTÓRICO DE REDAÇÕES */}
-        <div className="lg:col-span-2">
-            <div className="glass-card p-6 h-full flex flex-col">
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-dark-text dark:text-white-text">Minhas Redações</h2>
-                    <span className="text-xs font-medium bg-gray-100 dark:bg-white/10 px-2 py-1 rounded text-gray-600 dark:text-gray-300">
-                        {essays.length} total
-                    </span>
-                </div>
+    <div className="pb-12 space-y-8">
+        {/* --- HEADER & HERO --- */}
+        <div className="flex flex-col gap-8">
+             <div className="relative rounded-[2.5rem] overflow-hidden bg-brand-dark p-10 md:p-14 text-white shadow-2xl ring-1 ring-white/10">
+                {/* Efeitos de Fundo */}
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-purple via-brand-dark to-brand-green opacity-80"></div>
+                <div className="absolute -top-24 -right-24 w-[500px] h-[500px] bg-brand-green/30 rounded-full blur-[128px] mix-blend-screen animate-pulse"></div>
+                <div className="absolute -bottom-24 -left-24 w-[400px] h-[400px] bg-brand-purple/40 rounded-full blur-[100px] mix-blend-screen"></div>
                 
-                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar max-h-[400px]">
-                    {essays.length > 0 ? (
-                        <ul className="space-y-3">
-                            {essays.map(essay => (
-                              <li key={essay.id} onClick={() => handleSelectEssay(essay)} className="p-4 hover:bg-gray-50 dark:hover:bg-white/5 border border-gray-100 dark:border-white/10 rounded-xl cursor-pointer flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 transition-all duration-200 group">
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${essay.status === 'corrected' ? 'bg-green-500' : essay.status === 'submitted' ? 'bg-yellow-500' : 'bg-gray-400'}`}></div>
-                                      <p className="font-bold text-dark-text dark:text-white-text truncate group-hover:text-royal-blue transition-colors" title={essay.title || "Sem título"}>
-                                          {essay.title || "Redação sem título"}
-                                      </p>
-                                  </div>
-                                  <p className="text-xs text-gray-500 dark:text-dark-text-muted pl-4">
-                                    {essay.status === 'draft' 
-                                        ? 'Editado recentemente' 
-                                        : `Enviada em: ${new Date(essay.submitted_at!).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'})}`}
-                                  </p>
-                                </div>
-                                
-                                <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pl-4 sm:pl-0">
-                                    <span className={`px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${
-                                        essay.status === 'corrected' ? 'bg-green-100 text-green-700 border border-green-200' : 
-                                        essay.status === 'submitted' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' : 
-                                        'bg-gray-100 text-gray-600 border border-gray-200'
-                                    }`}>
-                                      {essay.status === 'corrected' ? 'Corrigida' : essay.status === 'submitted' ? 'Em Análise' : 'Rascunho'}
-                                    </span>
-                                    <i className="fas fa-chevron-right text-gray-300 group-hover:text-royal-blue transition-colors"></i>
-                                </div>
-                              </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-                            <div className="w-20 h-20 bg-gray-50 dark:bg-white/5 rounded-full flex items-center justify-center mb-4">
-                                <i className="fas fa-pen-alt text-3xl text-gray-300"></i>
-                            </div>
-                            <p className="text-dark-text font-medium mb-2">Nenhuma redação encontrada</p>
-                            <p className="text-sm text-gray-500 mb-6 max-w-xs mx-auto">Comece a praticar hoje mesmo para melhorar sua escrita e alcançar a nota 1000.</p>
-                            <button onClick={handleCreateNew} className="text-royal-blue font-bold text-sm hover:underline">Criar primeira redação</button>
+                <div className="relative z-10 flex flex-col lg:flex-row justify-between items-center gap-8">
+                    <div className="text-center lg:text-left">
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold mb-6 text-brand-green shadow-lg">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            Oficina de Redação Ativa
                         </div>
-                    )}
+                        <h1 className="text-4xl md:text-6xl font-black mb-4 tracking-tight leading-tight">
+                            Sua Jornada <br/>rumo à <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-green to-white">Nota 1000</span>
+                        </h1>
+                        <p className="text-white/70 text-lg max-w-lg mx-auto lg:mx-0 font-medium">
+                            Pratique com temas atualizados, receba correções detalhadas e siga um plano de ação personalizado.
+                        </p>
+                    </div>
+                    
+                    <button 
+                        onClick={() => { setCurrentEssay(null); setView('edit'); }}
+                        className="group relative px-8 py-5 bg-white text-brand-purple font-black text-lg rounded-2xl shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_-15px_rgba(7,244,158,0.5)] hover:scale-105 transition-all duration-300 overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-gray-50 to-white opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <span className="relative flex items-center gap-3">
+                            <i className="fas fa-pen-nib text-brand-green"></i> Escrever Agora
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            {/* --- TABS DE NAVEGAÇÃO --- */}
+            <div className="flex justify-center">
+                <div className="bg-white/50 dark:bg-white/5 backdrop-blur-md p-1.5 rounded-2xl border border-white/20 shadow-sm inline-flex">
+                    <button 
+                        onClick={() => setActiveTab('overview')}
+                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'overview' ? 'bg-brand-purple text-white shadow-md' : 'text-gray-500 hover:text-brand-purple'}`}
+                    >
+                        Visão Geral
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('plans')}
+                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${activeTab === 'plans' ? 'bg-brand-purple text-white shadow-md' : 'text-gray-500 hover:text-brand-purple'}`}
+                    >
+                        Meus Planos <span className="bg-brand-green text-brand-dark text-[10px] px-1.5 rounded-md">Novo</span>
+                    </button>
                 </div>
             </div>
         </div>
-        
-        <div className="lg:col-span-1 flex flex-col gap-6">
-            <div className="flex-1 min-h-[200px]">
-                <ActionShortcuts />
-            </div>
-            <div className="flex-1 min-h-[300px]">
-                <CurrentEventsWidget events={currentEvents} />
-            </div>
-        </div>
-      </div>
 
+        {activeTab === 'overview' ? (
+            <div className="space-y-8 animate-fade-in-up">
+                {/* --- STATS ROW --- */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <StatBadge icon="fa-fire" value={streak} label="Dias Seguidos" colorClass="text-orange-500 bg-orange-500" trend="Estável" />
+                    <StatBadge icon="fa-trophy" value={rankInfo?.rank ? `#${rankInfo.rank}` : '-'} label="Ranking Estadual" colorClass="text-yellow-500 bg-yellow-500" />
+                    <StatBadge icon="fa-file-alt" value={essays.length} label="Redações Feitas" colorClass="text-blue-500 bg-blue-500" trend="+2 este mês" />
+                    <GlassCard className="p-0 overflow-hidden bg-gradient-to-br from-brand-purple/5 to-brand-green/5 border-brand-purple/10">
+                        <CountdownWidget targetExam={targetExam} examDate={examDate} />
+                    </GlassCard>
+                </div>
+
+                {/* --- MAIN CONTENT --- */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Left: Evolution & History */}
+                    <div className="lg:col-span-2 space-y-8">
+                        <GlassCard className="p-8 min-h-[400px]">
+                            <div className="flex justify-between items-center mb-8">
+                                <div>
+                                    <h3 className="text-xl font-black text-dark-text dark:text-white">Sua Evolução</h3>
+                                    <p className="text-sm text-gray-500">Acompanhe o histórico das suas notas.</p>
+                                </div>
+                                <select className="bg-gray-50 dark:bg-white/5 border-none rounded-xl text-xs font-bold p-3 text-gray-600 dark:text-white cursor-pointer hover:bg-gray-100 transition-colors">
+                                    <option>Últimos 6 meses</option>
+                                    <option>Todo o período</option>
+                                </select>
+                            </div>
+                            {statistics?.progression ? (
+                                <ProgressionChart data={statistics.progression} />
+                            ) : (
+                                <div className="h-64 flex flex-col items-center justify-center text-center opacity-50">
+                                    <div className="w-20 h-20 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-4">
+                                        <i className="fas fa-chart-line text-3xl text-gray-300"></i>
+                                    </div>
+                                    <p className="font-medium text-gray-500">Gráfico indisponível</p>
+                                </div>
+                            )}
+                        </GlassCard>
+
+                        <GlassCard className="p-8">
+                            <div className="flex justify-between items-end mb-6">
+                                <div>
+                                    <h3 className="text-xl font-black text-dark-text dark:text-white">Histórico Recente</h3>
+                                    <p className="text-sm text-gray-500">Suas últimas submissões.</p>
+                                </div>
+                                <Link href="#" className="text-sm font-bold text-brand-purple hover:text-brand-green transition-colors flex items-center gap-1">
+                                    Ver tudo <i className="fas fa-arrow-right"></i>
+                                </Link>
+                            </div>
+                            <div className="space-y-3">
+                                {essays.length > 0 ? essays.slice(0, 5).map(essay => (
+                                    <div key={essay.id} onClick={() => handleSelectEssay(essay)} className="group flex items-center justify-between p-4 rounded-2xl bg-gray-50/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-transparent hover:border-brand-purple/20 shadow-sm hover:shadow-md transition-all cursor-pointer">
+                                        <div className="flex items-center gap-4 overflow-hidden">
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg shadow-sm transition-colors ${essay.status === 'corrected' ? 'bg-brand-green/10 text-brand-green group-hover:bg-brand-green group-hover:text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                                <i className={`fas ${essay.status === 'corrected' ? 'fa-check' : 'fa-clock'}`}></i>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="font-bold text-dark-text dark:text-white truncate text-base group-hover:text-brand-purple transition-colors">{essay.title || "Sem título"}</h4>
+                                                <p className="text-xs text-gray-500 flex items-center gap-2">
+                                                    <i className="far fa-calendar"></i> {new Date(essay.submitted_at || Date.now()).toLocaleDateString('pt-BR')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {essay.final_grade && (
+                                            <div className="text-right pl-4">
+                                                <p className="text-xs text-gray-400 uppercase font-bold">Nota</p>
+                                                <p className="text-xl font-black text-brand-purple">{essay.final_grade}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )) : (
+                                    <div className="text-center py-12">
+                                        <p className="text-gray-500">Ainda não tens redações. Que tal começar agora?</p>
+                                    </div>
+                                )}
+                            </div>
+                        </GlassCard>
+                    </div>
+
+                    {/* Right: Widgets */}
+                    <div className="space-y-8">
+                        <GlassCard className="p-8 bg-gradient-to-br from-white to-gray-50 dark:from-[#1A1A1D] dark:to-[#111114]">
+                            <StatisticsWidget stats={statistics} frequentErrors={frequentErrors} />
+                        </GlassCard>
+
+                        <GlassCard className="p-8 relative overflow-hidden bg-brand-purple text-white border-none">
+                            <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+                            <h3 className="font-bold text-lg mb-4 relative z-10 flex items-center gap-2">
+                                <i className="fas fa-lightbulb text-yellow-300"></i> Dica do Dia
+                            </h3>
+                            <p className="text-white/80 text-sm leading-relaxed relative z-10">
+                                "Evite o uso excessivo do gerúndio. Em vez de 'estarei fazendo', prefira 'farei'. Isso torna seu texto mais direto e elegante."
+                            </p>
+                            <div className="mt-6 pt-4 border-t border-white/10 flex justify-between items-center">
+                                <span className="text-xs font-bold opacity-60">Gramática</span>
+                                <button className="text-xs font-bold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors">Ler mais</button>
+                            </div>
+                        </GlassCard>
+                    </div>
+                </div>
+            </div>
+        ) : (
+            // --- ABA DE PLANOS DE AÇÃO ---
+            <div className="animate-fade-in-right">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2">
+                        <GlassCard className="p-8">
+                            <h2 className="text-2xl font-black text-dark-text dark:text-white mb-6 flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-brand-green/20 text-brand-green flex items-center justify-center"><i className="fas fa-tasks"></i></div>
+                                Meus Planos de Estudo
+                            </h2>
+                            <ActionPlanList />
+                        </GlassCard>
+                    </div>
+                    <div>
+                         <GlassCard className="p-8 text-center">
+                            <div className="w-20 h-20 mx-auto bg-brand-purple/10 rounded-full flex items-center justify-center text-brand-purple text-3xl mb-4">
+                                <i className="fas fa-robot"></i>
+                            </div>
+                            <h3 className="font-bold text-lg mb-2 text-dark-text dark:text-white">IA Coach</h3>
+                            <p className="text-sm text-gray-500 mb-6">Nossa IA analisa suas redações e cria planos automáticos para você.</p>
+                            <Link href="/dashboard/applications/test" className="block w-full py-3 rounded-xl bg-brand-dark text-white font-bold text-sm hover:bg-brand-purple transition-colors">
+                                Fazer Diagnóstico
+                            </Link>
+                         </GlassCard>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
   );
 }

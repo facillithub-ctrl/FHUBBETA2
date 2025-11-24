@@ -48,14 +48,12 @@ export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, is
     return userProfile.active_modules?.includes(link.slug);
   });
 
-  // Classes dinâmicas para controlar a largura e a transição
   const sidebarWidthClass = isDesktopCollapsed ? 'lg:w-20' : 'lg:w-64';
   const textVisibilityClass = isDesktopCollapsed ? 'hidden' : 'block';
   const itemJustifyClass = isDesktopCollapsed ? 'lg:justify-center' : '';
 
   return (
     <>
-      {/* Mobile Overlay */}
       <div
         onClick={() => setIsMobileOpen(false)}
         className={`fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-300 ${
@@ -67,11 +65,15 @@ export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, is
         className={`fixed lg:relative top-0 left-0 h-full text-white flex flex-col z-50 transition-all duration-300 ease-in-out
           ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
           ${sidebarWidthClass}
-          overflow-x-hidden
+          overflow-x-hidden shadow-2xl border-r border-white/5
         `}
-        style={{ background: 'linear-gradient(180deg, #2E14ED 0%, #190894 100%)' }}
+        // CORRIGIDO: Gradiente da Nova Marca
+        style={{ background: 'linear-gradient(160deg, #42047e 0%, #2a0250 100%)' }}
       >
-        <div className={`flex items-center mb-8 h-16 px-4 ${isDesktopCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
+        {/* Efeito de luz verde sutil no fundo */}
+        <div className="absolute bottom-0 left-0 w-full h-1/3 bg-brand-green/10 blur-3xl pointer-events-none"></div>
+
+        <div className={`flex items-center mb-8 h-16 px-4 relative z-10 ${isDesktopCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
             <div className="flex items-center gap-3 min-w-0">
                 <div className="relative w-8 h-8 flex-shrink-0">
                     <Image src="/assets/images/LOGO/png/logoazul.svg" alt="Logo" fill className="object-contain brightness-0 invert" />
@@ -85,17 +87,19 @@ export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, is
             </button>
         </div>
         
-        <nav className="flex-1 overflow-y-auto custom-scrollbar px-3">
+        <nav className="flex-1 overflow-y-auto custom-scrollbar px-3 relative z-10">
           <ul className="space-y-1">
             {activeNavLinks.map((link) => (
               <li key={link.href}>
                 <Link 
                     href={link.href} 
                     title={isDesktopCollapsed ? link.label : ''}
-                    className={`flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 transition-colors ${itemJustifyClass}`}
+                    className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group ${itemJustifyClass}
+                        hover:bg-white/10 hover:text-brand-green
+                    `}
                 >
-                  <i className={`fas ${link.icon} w-6 text-center text-lg flex-shrink-0`}></i>
-                  <span className={`whitespace-nowrap text-sm font-medium transition-all duration-200 ${textVisibilityClass}`}>
+                  <i className={`fas ${link.icon} w-6 text-center text-lg flex-shrink-0 transition-colors`}></i>
+                  <span className={`whitespace-nowrap text-sm font-medium ${textVisibilityClass}`}>
                       {link.label}
                   </span>
                 </Link>
@@ -104,8 +108,7 @@ export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, is
           </ul>
         </nav>
         
-        <div className="p-4 border-t border-white/10 space-y-2">
-            {/* Botão de Recolher (Apenas Desktop) */}
+        <div className="p-4 border-t border-white/10 space-y-2 relative z-10">
             <button 
                 onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)} 
                 title={isDesktopCollapsed ? 'Expandir' : 'Recolher'} 
@@ -118,7 +121,7 @@ export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, is
             <button 
                 onClick={handleLogout} 
                 title="Sair" 
-                className={`flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 transition-colors w-full text-left text-red-300 hover:text-red-100 ${itemJustifyClass}`}
+                className={`flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/20 text-red-300 hover:text-red-100 transition-colors w-full text-left ${itemJustifyClass}`}
             >
                 <i className="fas fa-sign-out-alt w-6 text-center text-lg flex-shrink-0"></i>
                 <span className={`whitespace-nowrap text-sm font-medium ${textVisibilityClass}`}>Sair</span>
