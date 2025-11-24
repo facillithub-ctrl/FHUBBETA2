@@ -1,43 +1,32 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700;900&display=swap');
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 
-/* 1. Diretivas principais do Tailwind. Têm de vir primeiro.
-*/
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* 2. Bloco @layer base com as variáveis de tema.
-     Isto TEM DE VIR DEPOIS de @tailwind base e ANTES 
-     de qualquer outro estilo personalizado.
-*/
-@layer base {
-  /* Variáveis do modo claro (default) */
-  :root {
-    --text-primary: 17 17 20; /* #111114 */
-    --text-secondary: 85 85 85; /* #555 */
-    --bg-primary: 255 255 255; /* #ffffff */
-    --bg-secondary: 248 249 250; /* #f8f9fa */
-  }
- 
-  /* Variáveis do modo escuro */
-  .dark {
-    --text-primary: 248 249 250; /* #f8f9fa */
-    --text-secondary: 160 160 160; /* #a0a0a0 */
-    --bg-primary: 17 17 20; /* #111114 */
-    --bg-secondary: 26 26 29; /* #1A1A1D */
-  }
+/* Configuração Base */
+body {
+  @apply bg-brand-light text-dark-text font-inter;
 }
 
-/* 3. Todos os outros estilos personalizados vêm DEPOIS 
-     das diretivas @tailwind e do bloco @layer.
-*/
+/* Estilos para scrollbar (Opcional, mas dá um toque moderno) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-brand-purple/30 rounded-full hover:bg-brand-purple/50 transition-colors;
+}
 
-/* Estilos legados para animações e fidelidade visual */
+/* Utilitários de Animação */
 body.noscroll {
     overflow: hidden;
 }
 
+/* Card Flip Animation */
 .module-card-inner {
   transition: transform 0.6s;
   transform-style: preserve-3d;
@@ -53,6 +42,7 @@ body.noscroll {
   transform: rotateY(180deg);
 }
 
+/* Carrossel Infinito */
 @keyframes scroll {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
@@ -61,7 +51,7 @@ body.noscroll {
   animation: scroll 40s linear infinite;
 }
 
-/* Keyframe da notificação (Toast) */
+/* Animações de Entrada */
 @keyframes fadeInRight {
   from {
     opacity: 0;
@@ -72,18 +62,24 @@ body.noscroll {
     transform: translateX(0);
   }
 }
-
 .animate-fade-in-right {
   animation: fadeInRight 0.5s ease-out forwards;
 }
 
-/* Efeito Glass Card com as novas variáveis */
+/* --- ESTILO DO CARD GLASS (Corrigido) --- */
+/* Usamos bg-white/10 para um vidro claro genérico. 
+   Se quiser usar as cores da marca, pode trocar por bg-brand-purple/10 */
 .glass-card {
-  /* Usamos bg-secondary com transparência */
-  @apply bg-bg-secondary/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-lg transition-all duration-300;
+  @apply bg-white/60 dark:bg-brand-dark/60 backdrop-blur-lg border border-white/20 dark:border-white/5 rounded-2xl shadow-lg transition-all duration-300;
 }
 
-/* CORREÇÃO ATUALIZADA E MAIS FORTE */
+/* Gradiente de fundo para modo escuro para realçar o efeito glass */
+.dark body {
+  background: linear-gradient(to bottom right, #0a0a0b, #1a0533); /* Adaptado para o novo tom brand-dark e roxo escuro */
+  @apply text-white;
+}
+
+/* Forçar alinhamento LTR (Left to Right) se necessário */
 .force-ltr, .force-ltr * {
   direction: ltr !important;
   text-align: left !important;

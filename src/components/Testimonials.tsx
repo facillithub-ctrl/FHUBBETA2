@@ -1,37 +1,42 @@
 import Image from 'next/image';
 
 const testimonialsData = [
-  { name: 'João Silva', role: 'Estudante de Engenharia', text: 'O Facillit Hub transformou a maneira como eu organizo meus estudos. Ter tudo em um só lugar economiza muito tempo e me mantém focado.', img: '1' },
-  { name: 'Maria Oliveira', role: 'Coordenadora Pedagógica', text: 'Finalmente uma plataforma que entende as necessidades de uma escola. A gestão pedagógica ficou muito mais simples e eficiente.', img: '2' },
-  { name: 'Carlos Souza', role: 'Gerente de Projetos', text: 'Uso as ferramentas de produtividade para gerenciar minha equipe e os resultados são incríveis. Recomendo para qualquer empresa.', img: '3' },
-  { name: 'Ana Pereira', role: 'Vestibulanda de Medicina', text: 'O Facillit Write com correção da IA me ajudou a passar no vestibular. É uma ferramenta de estudo indispensável.', img: '4' },
+  { name: 'João Silva', role: 'Estudante', text: 'O Facillit Hub organizou minha vida acadêmica de uma forma que nenhum outro app conseguiu.', img: '1' },
+  { name: 'Maria Oliveira', role: 'Diretora', text: 'A facilidade de gestão escolar com o módulo Edu é incomparável. Economizamos horas por semana.', img: '2' },
+  { name: 'Carlos Souza', role: 'Empresário', text: 'Centralizar a comunicação e tarefas da empresa no Hub aumentou nossa produtividade em 30%.', img: '3' },
+  { name: 'Ana Pereira', role: 'Vestibulanda', text: 'Os simulados e a correção de redação foram essenciais para minha aprovação.', img: '4' },
 ];
 
-const TestimonialCard = ({ name, role, text, img }: typeof testimonialsData[0]) => (
-  <div className="testimonial-card bg-white p-8 rounded-2xl border border-gray-200 text-left w-96 mx-4 flex-shrink-0">
-   <p className="testimonial-text">&quot;{text}&quot;</p> 
-    <div className="flex items-center gap-4 mt-4">
-      <Image src={`https://i.pravatar.cc/60?img=${img}`} alt={`Foto de ${name}`} width={60} height={60} className="rounded-full" />
+const TestimonialCard = ({ name, role, text, img }: any) => (
+  <div className="w-[350px] flex-shrink-0 bg-white border border-gray-100 p-8 rounded-2xl mx-4 shadow-md">
+    <div className="flex items-center gap-4 mb-4">
+      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-brand-green p-0.5">
+         <Image src={`https://i.pravatar.cc/150?img=${img}`} alt={name} width={48} height={48} className="rounded-full" />
+      </div>
       <div>
-        <strong className="block font-bold text-dark-text">{name}</strong>
-        <span className="text-sm text-text-muted">{role}</span>
+        <strong className="block text-dark-text font-bold">{name}</strong>
+        <span className="text-xs text-brand-purple font-semibold">{role}</span>
       </div>
     </div>
+    <p className="text-gray-600 text-sm italic leading-relaxed">"{text}"</p>
   </div>
 );
 
 export default function Testimonials() {
   return (
-    <section className="section bg-white py-20 lg:py-24 overflow-hidden" id="testimonials">
-      <div className="container mx-auto text-center">
-        <h2 className="section-title text-3xl md:text-4xl font-bold text-dark-text mb-16">
-          O que nossos usuários dizem
-        </h2>
-        <div className="relative w-full">
-          <div className="testimonial-carousel flex w-max">
-            {testimonialsData.map((testimonial, index) => <TestimonialCard key={index} {...testimonial} />)}
-            {testimonialsData.map((testimonial, index) => <TestimonialCard key={`clone-${index}`} {...testimonial} />)}
-          </div>
+    <section className="py-24 overflow-hidden bg-brand-light">
+      <div className="container mx-auto text-center mb-12">
+        <h2 className="text-3xl font-black text-dark-text">Quem usa, recomenda</h2>
+      </div>
+      
+      <div className="relative w-full overflow-hidden">
+        <div className="absolute left-0 top-0 w-32 h-full bg-gradient-to-r from-brand-light to-transparent z-20"></div>
+        <div className="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-brand-light to-transparent z-20"></div>
+
+        <div className="flex w-max animate-[scroll_40s_linear_infinite] hover:pause py-4">
+          {[...testimonialsData, ...testimonialsData, ...testimonialsData].map((item, idx) => (
+            <TestimonialCard key={idx} {...item} />
+          ))}
         </div>
       </div>
     </section>

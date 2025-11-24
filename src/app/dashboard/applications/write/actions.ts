@@ -30,9 +30,13 @@ export type Annotation = {
 };
 
 export type AIFeedback = {
+  id?: string;
+  essay_id?: string;
+  correction_id?: string;
   detailed_feedback: { competency: string; feedback: string }[];
   rewrite_suggestions: { original: string; suggestion: string }[];
   actionable_items: string[];
+  created_at?: string;
 };
 
 export type StudyPlan = {
@@ -87,7 +91,7 @@ export type EssayPrompt = {
     created_at?: string;
 };
 
-// --- FUNÇÕES GERAIS ---
+// --- FUNÇÕES GERAIS E DE ALUNO ---
 
 export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
   const supabase = await createSupabaseServerClient();
@@ -96,9 +100,8 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
   if (!user) return { error: 'Usuário não autenticado.' };
 
   const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single();
-
   const now = new Date().toISOString();
-  
+
   const dataToUpsert: any = {
       ...essayData,
       student_id: user.id,
@@ -111,9 +114,20 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
     if (!essayData.consent_to_ai_training) {
       return { error: 'É obrigatório consentir com os termos para enviar a redação.' };
     }
+    
+    // Verificação de duplicidade para o mesmo tema
+    if (essayData.prompt_id && !essayData.id) {
+        const { data: existing } = await supabase.from('essays')
+            .select('id')
+            .eq('student_id', user.id)
+            .eq('prompt_id', essayData.prompt_id)
+            .neq('status', 'draft')
+            .maybeSingle();
+        if (existing) return { error: 'Você já enviou uma redação para este tema.' };
+    }
   }
 
-  // Limpa chaves undefined
+  // Limpeza de campos undefined
   Object.keys(dataToUpsert).forEach(key => dataToUpsert[key] === undefined && delete dataToUpsert[key]);
 
   const { data: upsertedEssay, error: upsertError } = await supabase
@@ -127,7 +141,7 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
       return { error: `Erro ao salvar: ${upsertError.message}` };
   }
 
-  // Salva versão do rascunho (tenta, mas não falha se a tabela não existir)
+  // Salva versão (histórico)
   if (upsertedEssay && essayData.status === 'draft' && essayData.content) {
     try {
         const { count } = await supabase.from('essay_versions').select('*', { count: 'exact', head: true }).eq('essay_id', upsertedEssay.id);
@@ -136,9 +150,7 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
             content: essayData.content,
             version_number: (count ?? 0) + 1,
         });
-    } catch (e) {
-        // Silencioso para não atrapalhar o fluxo principal
-    }
+    } catch (e) { /* Ignora erro de versão */ }
   }
 
   revalidatePath('/dashboard/applications/write');
@@ -146,15 +158,23 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
   return { data: upsertedEssay };
 }
 
-export async function getPrompts() {
+export async function getPrompts(): Promise<{ data?: EssayPrompt[]; error?: string }> {
     const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.from('essay_prompts').select('*');
-
+    const { data, error } = await supabase.from('essay_prompts').select('*').order('created_at', { ascending: false });
     if (error) return { error: error.message };
-    
-    // Ordenação segura no JS
-    const sortedData = data?.sort((a, b) => (b.id > a.id ? 1 : -1)) || [];
-    return { data: sortedData };
+    return { data: data || [] };
+}
+
+export async function getEssayDetails(essayId: string): Promise<{ data?: Essay & { profiles: { full_name: string | null } | null }; error?: string }> {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+        .from('essays')
+        .select(`*, profiles (full_name)`)
+        .eq('id', essayId)
+        .maybeSingle();
+
+    if (error) return { error: `Erro ao buscar detalhes: ${error.message}` };
+    return { data: data as any };
 }
 
 export async function getEssaysForStudent() {
@@ -169,13 +189,7 @@ export async function getEssaysForStudent() {
     .order('submitted_at', { ascending: false, nullsFirst: false });
 
   if (error) return { error: error.message };
-  
-  const formattedData = data?.map(essay => ({
-      ...essay,
-      final_grade: essay.essay_corrections?.[0]?.final_grade
-  }));
-
-  return { data: formattedData };
+  return { data };
 }
 
 export async function getLatestEssayForDashboard() {
@@ -183,40 +197,27 @@ export async function getLatestEssayForDashboard() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { data: null, error: 'Usuário não autenticado.' };
 
-  try {
-      const { data, error } = await supabase
-        .from('essays')
-        .select(`
-            id,
-            title,
-            status,
-            submitted_at,
-            essay_corrections ( final_grade )
-        `)
-        .eq('student_id', user.id)
-        .order('submitted_at', { ascending: false }) 
-        .limit(1)
-        .maybeSingle();
+  const { data, error } = await supabase
+    .from('essays')
+    .select(`id, title, status, submitted_at, essay_corrections ( final_grade ), prompts ( title )`)
+    .eq('student_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-        if (error) {
-            console.error("Erro DB Dashboard:", error.message);
-            return { data: null }; 
-        }
+    if (error) return { data: null, error: error.message };
 
-        if (!data) return { data: null };
+    const adaptedData = data ? {
+        ...data,
+        final_grade: data.essay_corrections?.[0]?.final_grade ?? null,
+        prompts: data.prompts ? { title: data.prompts.title } : null,
+        essay_corrections: undefined,
+    } : null;
 
-        const adaptedData = {
-            ...data,
-            final_grade: data.essay_corrections?.[0]?.final_grade ?? null,
-            prompts: { title: data.title },
-            essay_corrections: undefined,
-        };
-
-        return { data: adaptedData };
-  } catch (err) { return { data: null }; }
+    return { data: adaptedData };
 }
 
-// --- PLANOS DE ESTUDO ---
+// --- PLANOS DE ESTUDO (Esta é a parte que estava faltando) ---
 
 export async function saveStudyPlan(plan: StudyPlan, essayId: string) {
     const supabase = await createSupabaseServerClient();
@@ -261,136 +262,177 @@ export async function getStudentStudyPlans() {
     };
 }
 
-// --- DETALHES E CORREÇÃO ---
+// --- CORREÇÃO (PROFESSOR/ALUNO) ---
 
-export async function getEssayDetails(essayId: string) {
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.from('essays').select(`*, profiles (full_name)`).eq('id', essayId).single();
-    if (error) return { error: error.message };
-    return { data };
+type FinalCorrectionData = Omit<EssayCorrection, 'ai_feedback'> & {
+    profiles: { full_name: string | null, verification_badge: string | null } | null;
+    essay_correction_errors?: { common_errors: { error_type: string } | null }[];
+    ai_feedback: AIFeedback | null;
 }
 
-export async function getCorrectionForEssay(essayId: string) {
+export async function getCorrectionForEssay(essayId: string): Promise<{ data?: FinalCorrectionData; error?: string }> {
     const supabase = await createSupabaseServerClient();
-    const { data: correctionBase } = await supabase
+
+    const { data: correctionBase, error: correctionBaseError } = await supabase
         .from('essay_corrections')
-        .select(`*, profiles ( full_name, verification_badge )`)
+        .select(`*, profiles ( full_name, verification_badge ), essay_correction_errors ( common_errors ( error_type ) )`)
         .eq('essay_id', essayId)
         .maybeSingle();
 
-    const { data: aiFeedback } = await supabase
+    if (correctionBaseError) return { error: `Erro: ${correctionBaseError.message}` };
+    if (!correctionBase) return { data: undefined };
+
+    const { data: aiFeedbackData } = await supabase
         .from('ai_feedback')
         .select('*')
         .eq('essay_id', essayId)
+        .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-    return { data: { ...(correctionBase || {}), ai_feedback: aiFeedback || null } };
+    return { data: { ...correctionBase, ai_feedback: aiFeedbackData || null } };
 }
 
-export async function submitCorrection(correctionData: any) {
+export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id' | 'corrector_id' | 'created_at'>) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
-    
-    const { ai_feedback, ...humanData } = correctionData;
-    const { data: correction, error: correctionError } = await supabase.from('essay_corrections').insert({ ...humanData, corrector_id: user?.id }).select().single();
-    
-    if (correctionError) return { error: correctionError.message };
+
+    if (!user) return { error: 'Usuário não autenticado.' };
+
+    const { ai_feedback, ...humanCorrectionData } = correctionData;
+
+    const { data: correction, error: correctionError } = await supabase
+        .from('essay_corrections')
+        .insert({ ...humanCorrectionData, corrector_id: user.id })
+        .select()
+        .single();
+
+    if (correctionError) return { error: `Erro ao salvar correção: ${correctionError.message}` };
 
     if (ai_feedback) {
-        try {
-            await supabase.from('ai_feedback').insert({
-                essay_id: correctionData.essay_id,
-                correction_id: correction.id,
-                detailed_feedback: ai_feedback.detailed_feedback,
-                rewrite_suggestions: ai_feedback.rewrite_suggestions,
-                actionable_items: ai_feedback.actionable_items
-            });
-        } catch (e) { console.error("Erro AI feedback:", e); }
+        const { error: aiError } = await supabase.from('ai_feedback').insert({
+            essay_id: correctionData.essay_id,
+            correction_id: correction.id,
+            detailed_feedback: ai_feedback.detailed_feedback,
+            rewrite_suggestions: ai_feedback.rewrite_suggestions,
+            actionable_items: ai_feedback.actionable_items
+        });
+        if (aiError) console.error("Erro feedback IA:", aiError);
     }
+
     await supabase.from('essays').update({ status: 'corrected' }).eq('id', correctionData.essay_id);
+    
+    // Notificação simples
+    await supabase.from('notifications').insert({
+        user_id: (await supabase.from('essays').select('student_id').eq('id', correctionData.essay_id).single()).data?.student_id,
+        title: 'Redação Corrigida',
+        message: 'Sua redação recebeu um feedback.',
+        link: `/dashboard/applications/write?essayId=${correctionData.essay_id}`
+    });
+
     revalidatePath('/dashboard/applications/write');
     return { data: correction };
 }
 
+// --- FUNÇÕES DE PROFESSOR (DASHBOARD AVANÇADA) ---
+
 export async function getPendingEssaysForTeacher(teacherId: string, organizationId: string | null) {
     const supabase = await createSupabaseServerClient();
-    let query = supabase.from('essays').select('id, title, submitted_at, profiles(full_name)').eq('status', 'submitted');
+    let query = supabase
+        .from('essays')
+        .select(`id, title, submitted_at, status, profiles ( id, full_name, avatar_url, address_state, user_category, school_name )`)
+        .eq('status', 'submitted');
+
     if (organizationId) query = query.eq('organization_id', organizationId); else query = query.is('organization_id', null);
+    
     const { data, error } = await query.order('submitted_at', { ascending: true });
-    return { data, error };
+    if (error) return { data: null, error: error.message };
+    return { data, error: null };
 }
 
 export async function getCorrectedEssaysForTeacher(teacherId: string, organizationId: string | null) {
   const supabase = await createSupabaseServerClient();
-  let query = supabase.from('essays').select(`id, title, submitted_at, profiles ( full_name ), essay_corrections!inner ( final_grade, corrector_id )`).eq('status', 'corrected').eq('essay_corrections.corrector_id', teacherId);
-  if (organizationId) query = query.eq('organization_id', organizationId);
+  let query = supabase
+    .from('essays')
+    .select(`id, title, submitted_at, status, profiles ( id, full_name, avatar_url, address_state, user_category, school_name ), essay_corrections!inner ( final_grade, corrector_id )`)
+    .eq('status', 'corrected')
+    .eq('essay_corrections.corrector_id', teacherId);
+
+  if (organizationId) query = query.eq('organization_id', organizationId); else query = query.is('organization_id', null);
+
   const { data, error } = await query.order('submitted_at', { ascending: false });
-  return { data, error };
+  if (error) return { data: null, error: error.message };
+  return { data };
 }
 
-// --- ESTATÍSTICAS REAIS (GRÁFICOS E RANKING) ---
+export async function getCorrectorStats(correctorId: string) {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.rpc('get_corrector_stats', { p_corrector_id: correctorId });
+    if (error) return { data: null, error: error.message };
+    return { data: data[0] || { total_corrected: 0, total_points: 0, avg_grade_given: 0 } };
+}
+
+export async function getStudentMiniHistory(studentId: string) {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase
+        .from('essays')
+        .select('id, title, submitted_at, essay_corrections(final_grade)')
+        .eq('student_id', studentId)
+        .eq('status', 'corrected')
+        .order('submitted_at', { ascending: false })
+        .limit(5);
+
+    if (error) return { data: [], error: error.message };
+    
+    const history = data.map(essay => ({
+        title: essay.title,
+        date: essay.submitted_at,
+        grade: essay.essay_corrections?.[0]?.final_grade || 0
+    }));
+    return { data: history };
+}
+
+// --- ESTATÍSTICAS E RANKING (ALUNO) ---
 
 export async function getStudentStatistics() {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { data: null };
+    if (!user) return { error: 'Usuário não autenticado.' };
 
-    // Busca redações corrigidas e suas notas
-    const { data: essays } = await supabase
+    const { data: correctedEssays, error } = await supabase
         .from('essays')
-        .select(`
-            submitted_at,
-            essay_corrections ( final_grade, grade_c1, grade_c2, grade_c3, grade_c4, grade_c5 )
-        `)
+        .select(`submitted_at, essay_corrections!inner ( final_grade, grade_c1, grade_c2, grade_c3, grade_c4, grade_c5 )`)
         .eq('student_id', user.id)
-        .eq('status', 'corrected')
-        .order('submitted_at', { ascending: true });
+        .eq('status', 'corrected');
 
-    if (!essays || essays.length === 0) return { data: null };
+    if (error || !correctedEssays || correctedEssays.length === 0) return { data: null };
 
-    const corrections = essays
-        .map(e => e.essay_corrections?.[0] ? { ...e.essay_corrections[0], date: e.submitted_at } : null)
-        .filter((c): c is NonNullable<typeof c> => !!c);
-
-    if (corrections.length === 0) return { data: null };
-
-    const totalCorrections = corrections.length;
+    const validCorrections = correctedEssays.map(e => ({ ...e.essay_corrections[0], submitted_at: e.submitted_at }));
+    const totalCorrections = validCorrections.length;
     
-    // Média Geral
-    const sumFinal = corrections.reduce((acc, curr) => acc + (curr.final_grade || 0), 0);
-    const avgFinal = sumFinal / totalCorrections;
+    const sums = validCorrections.reduce((acc, curr) => ({
+        sum_final: acc.sum_final + curr.final_grade,
+        sum_c1: acc.sum_c1 + curr.grade_c1, sum_c2: acc.sum_c2 + curr.grade_c2,
+        sum_c3: acc.sum_c3 + curr.grade_c3, sum_c4: acc.sum_c4 + curr.grade_c4, sum_c5: acc.sum_c5 + curr.grade_c5
+    }), { sum_final: 0, sum_c1: 0, sum_c2: 0, sum_c3: 0, sum_c4: 0, sum_c5: 0 });
 
-    // Médias por competência
-    const compAvgs = [1, 2, 3, 4, 5].map(i => {
-        const key = `grade_c${i}` as keyof typeof corrections[0];
-        return corrections.reduce((acc, curr) => acc + (curr[key] as number || 0), 0) / totalCorrections;
-    });
-
-    // Ponto a melhorar
-    const minAvg = Math.min(...compAvgs);
-    const pointToImprove = {
-        name: `Competência ${compAvgs.indexOf(minAvg) + 1}`,
-        average: minAvg
+    const averages = {
+        avg_final_grade: sums.sum_final / totalCorrections,
+        avg_c1: sums.sum_c1 / totalCorrections, avg_c2: sums.sum_c2 / totalCorrections,
+        avg_c3: sums.sum_c3 / totalCorrections, avg_c4: sums.sum_c4 / totalCorrections, avg_c5: sums.sum_c5 / totalCorrections,
     };
 
-    // Dados para gráfico de linha
-    const progression = corrections.map(c => ({
-        date: c.date ? new Date(c.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'N/D',
-        grade: c.final_grade || 0
-    }));
+    const competencyAverages = [
+        { name: 'Competência 1', average: averages.avg_c1 }, { name: 'Competência 2', average: averages.avg_c2 },
+        { name: 'Competência 3', average: averages.avg_c3 }, { name: 'Competência 4', average: averages.avg_c4 }, { name: 'Competência 5', average: averages.avg_c5 },
+    ];
+    const pointToImprove = competencyAverages.sort((a, b) => a.average - b.average)[0];
 
-    return {
-        data: {
-            totalCorrections,
-            averages: {
-                avg_final_grade: avgFinal,
-                avg_c1: compAvgs[0], avg_c2: compAvgs[1], avg_c3: compAvgs[2], avg_c4: compAvgs[3], avg_c5: compAvgs[4]
-            },
-            pointToImprove,
-            progression
-        }
-    };
+    const progression = validCorrections
+        .sort((a, b) => new Date(a.submitted_at!).getTime() - new Date(b.submitted_at!).getTime())
+        .map(c => ({ date: new Date(c.submitted_at!).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), grade: c.final_grade }));
+
+    return { data: { totalCorrections, averages, pointToImprove, progression } };
 }
 
 export async function calculateWritingStreak() {
@@ -398,29 +440,19 @@ export async function calculateWritingStreak() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { data: 0 };
 
-    const { data } = await supabase
-        .from('essays')
-        .select('submitted_at')
-        .eq('student_id', user.id)
-        .order('submitted_at', { ascending: false });
-
+    const { data } = await supabase.from('essays').select('submitted_at').eq('student_id', user.id).order('submitted_at', { ascending: false });
     if (!data || data.length === 0) return { data: 0 };
 
-    const dates = Array.from(new Set(data.map(e => e.submitted_at?.split('T')[0]))).filter(Boolean);
+    const uniqueDates = [...new Set(data.map(e => new Date(e.submitted_at!).toDateString()))].map(d => new Date(d)).sort((a, b) => b.getTime() - a.getTime());
+    
     let streak = 0;
-    
-    // Lógica simples de streak: conta dias consecutivos a partir de hoje ou ontem
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    
-    if (dates.includes(today) || dates.includes(yesterday)) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+
+    if (uniqueDates.length > 0 && (uniqueDates[0].getTime() === today.getTime() || uniqueDates[0].getTime() === yesterday.getTime())) {
         streak = 1;
-        let cursor = new Date(dates.includes(today) ? today : yesterday);
-        for (let i = 1; i < dates.length; i++) {
-            cursor.setDate(cursor.getDate() - 1);
-            const check = cursor.toISOString().split('T')[0];
-            if (dates.includes(check)) streak++;
-            else break;
+        for (let i = 1; i < uniqueDates.length; i++) {
+            if ((uniqueDates[i-1].getTime() - uniqueDates[i].getTime()) === 86400000) streak++; else break;
         }
     }
     return { data: streak };
@@ -429,44 +461,41 @@ export async function calculateWritingStreak() {
 export async function getUserStateRank() {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { data: { rank: null, state: null } };
+    if (!user) return { data: null };
 
-    try {
-        // 1. Pega estado do usuário
-        const { data: profile } = await supabase.from('profiles').select('address_state').eq('id', user.id).single();
-        if (!profile?.address_state) return { data: { rank: null, state: null } };
-        const userState = profile.address_state;
+    const { data: userProfile } = await supabase.from('profiles').select('address_state').eq('id', user.id).single();
+    if (!userProfile?.address_state) return { data: { rank: null, state: null } };
 
-        // 2. Calcula média do usuário atual
-        const { data: myEssays } = await supabase
-            .from('essays')
-            .select('essay_corrections(final_grade)')
-            .eq('student_id', user.id)
-            .eq('status', 'corrected');
-        
-        const myGrades = myEssays?.flatMap(e => e.essay_corrections.map(c => c.final_grade)) || [];
-        if (myGrades.length === 0) return { data: { rank: null, state: userState } };
-        const myAverage = myGrades.reduce((a, b) => a + b, 0) / myGrades.length;
+    // USA A FUNÇÃO RPC CRIADA (RANK REAL)
+    const { data, error } = await supabase.rpc('get_user_rank_in_state', { p_user_id: user.id, p_state: userProfile.address_state });
 
-        // 3. (Simplificado) Em produção usaria RPC, aqui simulamos:
-        // Retornamos um ranking "simulado" baseado na nota para não fazer query pesada no client
-        // Se a nota é > 900, rank top 1-50. Se > 800, top 100.
-        let rankEstimate = 0;
-        if (myAverage >= 900) rankEstimate = Math.floor(Math.random() * 10) + 1;
-        else if (myAverage >= 800) rankEstimate = Math.floor(Math.random() * 50) + 10;
-        else rankEstimate = Math.floor(Math.random() * 200) + 50;
-
-        return { data: { rank: rankEstimate, state: userState } };
-
-    } catch (e) {
-        return { data: { rank: null, state: null } };
+    if (error) {
+        console.error('Erro RPC get_user_rank_in_state:', error);
+        // Fallback simples se RPC falhar
+        return { data: { rank: null, state: userProfile.address_state } };
     }
+
+    return { data: { rank: data && data.length > 0 ? data[0].rank : null, state: userProfile.address_state } };
 }
 
-export async function checkForPlagiarism(text: string) {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    return { data: { similarity_percentage: Math.random() * 3, matches: [] } };
+// --- AUXILIARES ---
+
+export async function checkForPlagiarism(text: string): Promise<{ data?: { similarity_percentage: number; matches: { source: string; text: string }[] }; error?: string }> {
+    // Simulação
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return { data: { similarity_percentage: Math.random() * 2, matches: [] } };
 }
 
-export async function getFrequentErrors() { return { data: [] }; }
-export async function getCurrentEvents() { return { data: [] }; }
+export async function getFrequentErrors() {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { data: [] };
+    // Se houver RPC, use: await supabase.rpc('get_frequent_errors', { p_student_id: user.id });
+    return { data: [] };
+}
+
+export async function getCurrentEvents() {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase.from('current_events').select('id, title, summary, link').order('created_at', { ascending: false }).limit(5);
+    return { data: data || [] };
+}

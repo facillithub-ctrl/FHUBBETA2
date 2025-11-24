@@ -1,228 +1,186 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import Link from 'next/link';
-import { Essay, EssayPrompt, getEssaysForStudent, SavedStudyPlan, getStudentStudyPlans, StudyPlan } from '../actions';
+import { Essay, EssayPrompt } from '../actions';
 import EssayEditor from './EssayEditor';
 import EssayCorrectionView from './EssayCorrectionView';
-import StatisticsWidget from './StatisticsWidget';
 import ProgressionChart from './ProgressionChart';
+import StatisticsWidget from './StatisticsWidget';
 import CountdownWidget from '@/components/dashboard/CountdownWidget';
 
-type Stats = {
-    totalCorrections: number;
-    averages: { avg_final_grade: number; avg_c1: number; avg_c2: number; avg_c3: number; avg_c4: number; avg_c5: number; };
-    pointToImprove: { name: string; average: number; };
-    progression: { date: string; grade: number; }[];
-} | null;
-type RankInfo = { rank: number | null; state: string | null; } | null;
-type FrequentError = { error_type: string; count: number };
-type CurrentEvent = { id: string; title: string; summary: string | null; link: string };
-
+// Tipos completos para garantir compatibilidade
 type Props = {
   initialEssays: Partial<Essay>[];
   prompts: EssayPrompt[];
-  statistics: Stats;
+  statistics: any;
   streak: number;
-  rankInfo: RankInfo;
-  frequentErrors: FrequentError[];
-  currentEvents: CurrentEvent[];
+  rankInfo: any;
+  frequentErrors: any[];
+  currentEvents: any[];
   targetExam: string | null | undefined;
   examDate: string | null | undefined;
 };
 
-// Modal para visualização rápida do plano salvo
-const ViewSavedPlanModal = ({ plan, onClose }: { plan: SavedStudyPlan, onClose: () => void }) => (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 animate-[fadeIn_0.2s_ease-out]" onClick={onClose}>
-        <div className="bg-white dark:bg-dark-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-6 border border-gray-200" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-start mb-4 border-b pb-4">
-                <div>
-                    <h2 className="text-xl font-bold text-[#42047e]">Plano de Estudos: {plan.essay_title}</h2>
-                    <p className="text-xs text-gray-500">{new Date(plan.created_at).toLocaleDateString()}</p>
-                </div>
-                <button onClick={onClose}><i className="fas fa-times text-xl text-gray-400"></i></button>
-            </div>
-            <h3 className="font-bold text-sm mb-2 text-[#42047e]">Foco da Semana</h3>
-            <div className="space-y-2">
-                {plan.content.weekly_schedule.map((item, i) => (
-                    <div key={i} className="flex items-center gap-3 p-2 bg-gray-50 rounded border border-gray-100">
-                        <span className="text-xs font-bold bg-[#42047e] text-white px-2 py-1 rounded">{item.day}</span>
-                        <span className="text-sm text-gray-700">{item.activity}</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    </div>
-);
-
-const StatCard = ({ title, value, icon, valueDescription }: { title: string, value: string | number, icon: string, valueDescription?: string }) => (
-  <div className="glass-card p-4 flex items-center justify-between h-full shadow-sm hover:shadow-md transition-shadow bg-white dark:bg-dark-card">
-    <div>
-      <p className="text-sm text-gray-500 font-medium">{title}</p>
-      <p className="text-2xl font-bold text-dark-text mt-1">
-        {value} <span className="text-sm font-normal text-gray-400">{valueDescription}</span>
-      </p>
-    </div>
-    <div className="text-3xl text-[#42047e]/80 bg-[#42047e]/10 p-3 rounded-full">
-      <i className={`fas ${icon}`}></i>
-    </div>
-  </div>
-);
-
-export default function StudentDashboard({ initialEssays, prompts, statistics, streak, rankInfo, frequentErrors, currentEvents, targetExam, examDate }: Props) {
-  const [essays, setEssays] = useState(initialEssays);
-  const [studyPlans, setStudyPlans] = useState<SavedStudyPlan[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<SavedStudyPlan | null>(null);
+export default function StudentDashboard({ 
+    initialEssays, prompts, statistics, streak, rankInfo, frequentErrors, currentEvents, targetExam, examDate 
+}: Props) {
   const [view, setView] = useState<'dashboard' | 'edit' | 'view_correction'>('dashboard');
-  const [currentEssay, setCurrentEssay] = useState<Partial<Essay> | null>(null);
-  const searchParams = useSearchParams();
+  const [currentEssayId, setCurrentEssayId] = useState<string | null>(null);
+  const [essays, setEssays] = useState(initialEssays);
 
-  const handleSelectEssay = useCallback((essay: Partial<Essay>) => {
-    setCurrentEssay(essay);
-    setView(essay.status === 'draft' ? 'edit' : 'view_correction');
-  }, []);
-
-  useEffect(() => {
-    const essayIdFromUrl = searchParams.get('essayId');
-    if (essayIdFromUrl) {
-      const essayToOpen = initialEssays.find(e => e.id === essayIdFromUrl);
-      if (essayToOpen) handleSelectEssay(essayToOpen);
-    }
-    getStudentStudyPlans().then(res => { if(res.data) setStudyPlans(res.data); });
-  }, [searchParams, initialEssays, handleSelectEssay]);
-
-  const handleCreateNew = () => { setCurrentEssay(null); setView('edit'); };
-
-  const handleBackToDashboard = async () => {
-    const result = await getEssaysForStudent();
-    if (result.data) setEssays(result.data);
-    const plansRes = await getStudentStudyPlans();
-    if(plansRes.data) setStudyPlans(plansRes.data);
-    setView('dashboard');
-    setCurrentEssay(null);
-    window.history.pushState({}, '', '/dashboard/applications/write');
+  // Funções de Navegação
+  const handleCreateNew = () => {
+    setCurrentEssayId(null);
+    setView('edit');
   };
 
-  if (view === 'edit') return <EssayEditor essay={currentEssay} prompts={prompts} onBack={handleBackToDashboard} />;
-  if (view === 'view_correction' && currentEssay?.id) return <EssayCorrectionView essayId={currentEssay.id} onBack={handleBackToDashboard} />;
+  const handleViewEssay = (id: string) => {
+      setCurrentEssayId(id);
+      setView('view_correction');
+  };
+
+  const handleBack = () => {
+      setView('dashboard');
+      setCurrentEssayId(null);
+  };
+
+  // Renderização Condicional de Telas
+  if (view === 'edit') return <EssayEditor prompts={prompts} onBack={handleBack} />;
+  if (view === 'view_correction' && currentEssayId) return <EssayCorrectionView essayId={currentEssayId} onBack={handleBack} />;
 
   return (
-    <div className="space-y-6">
-       {selectedPlan && <ViewSavedPlanModal plan={selectedPlan} onClose={() => setSelectedPlan(null)} />}
-
-       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-            <h1 className="text-3xl font-bold text-dark-text">Redação Inteligente</h1>
-            <p className="text-gray-500">Acompanhe sua evolução e pratique com correção por IA.</p>
-        </div>
-        <button onClick={handleCreateNew} className="bg-[#42047e] text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:bg-[#2e0259] transition-all hover:scale-105 flex items-center gap-2">
-          <i className="fas fa-plus"></i> Nova Redação
-        </button>
-      </div>
-      
-      {studyPlans.length > 0 && (
-          <div className="bg-gradient-to-r from-[#42047e] to-[#6a0dad] rounded-2xl p-6 text-white shadow-lg">
-              <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold flex items-center gap-2"><i className="fas fa-road"></i> Meus Planos de Melhoria</h2>
-                  <span className="text-xs bg-white/20 px-2 py-1 rounded">{studyPlans.length} planos</span>
-              </div>
-              <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar snap-x">
-                  {studyPlans.map(plan => (
-                      <div key={plan.id} onClick={() => setSelectedPlan(plan)} className="min-w-[280px] bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20 hover:bg-white/20 transition-colors cursor-pointer snap-center">
-                          <div className="flex justify-between items-start mb-2">
-                             <span className="bg-[#07f49e] text-[#42047e] text-[10px] font-bold px-2 py-0.5 rounded">IA</span>
-                             <span className="text-[10px] opacity-70">{new Date(plan.created_at).toLocaleDateString()}</span>
-                          </div>
-                          <p className="font-bold text-sm mb-1 truncate" title={plan.essay_title}>{plan.essay_title || "Plano Personalizado"}</p>
-                          <p className="text-xs opacity-80 mb-3">Foco: {plan.content.weekly_schedule[0]?.focus || "Geral"}</p>
-                      </div>
-                  ))}
-              </div>
-          </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Sequência Atual" value={streak} valueDescription="dias" icon="fa-fire" />
-        <StatCard title="Ranking Estadual" value={rankInfo?.rank ? `#${rankInfo.rank}` : '-'} valueDescription={rankInfo?.state || 'SP'} icon="fa-trophy" />
-        <div className="lg:col-span-2 bg-white dark:bg-dark-card rounded-xl shadow-sm p-1">
-            <CountdownWidget targetExam={targetExam} examDate={examDate} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 h-80 bg-white dark:bg-dark-card rounded-xl shadow-sm p-4">
-            {statistics?.progression && statistics.progression.length > 0 ? (
-                <ProgressionChart data={statistics.progression} />
-            ) : (
-                <div className="h-full flex flex-col items-center justify-center text-gray-400">
-                    <i className="fas fa-chart-line text-4xl mb-2 opacity-20"></i>
-                    <p>Realize sua primeira redação para ver seu gráfico de evolução.</p>
+    <div className="space-y-8 animate-fade-in pb-12">
+        
+        {/* --- 1. HERO SECTION (Novo Design) --- */}
+        <div className="relative bg-gradient-to-r from-[#1a0b2e] via-[#2e0259] to-[#42047e] p-8 sm:p-10 rounded-[2rem] text-white shadow-2xl overflow-hidden border border-[#ffffff]/10">
+             {/* Efeitos de Fundo */}
+             <div className="absolute top-0 right-0 w-96 h-96 bg-[#07f49e] blur-[150px] opacity-20 rounded-full pointer-events-none -mr-20 -mt-20"></div>
+             <div className="relative z-10 flex flex-col lg:flex-row justify-between items-end gap-6">
+                <div>
+                    <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full text-xs font-bold text-[#07f49e] mb-3">
+                        <i className="fas fa-fire"></i> Sequência: {streak} dias
+                    </div>
+                    <h1 className="text-4xl font-black mb-2 leading-tight tracking-tight">Central de Redação</h1>
+                    <p className="text-white/70 max-w-lg text-lg">
+                        Pronto para evoluir? Sua média atual é <strong className="text-white">{statistics?.averages.avg_final_grade.toFixed(0) || 0}</strong>. 
+                        A IA sugere focar na <strong>Competência 1</strong> hoje.
+                    </p>
                 </div>
-            )}
+                <div className="flex gap-3 w-full lg:w-auto">
+                    <button onClick={handleCreateNew} className="flex-1 lg:flex-none bg-[#07f49e] text-[#1a0b2e] font-black py-3.5 px-8 rounded-xl shadow-[0_0_20px_rgba(7,244,158,0.4)] hover:shadow-[0_0_30px_rgba(7,244,158,0.6)] hover:scale-105 transition-all flex items-center justify-center gap-2 group">
+                        <i className="fas fa-pen group-hover:rotate-12 transition-transform"></i> Escrever Redação
+                    </button>
+                </div>
+             </div>
         </div>
-        <div className="lg:col-span-1">
-            {statistics ? (
-                <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm p-6 h-full">
+
+        {/* --- 2. ESTATÍSTICAS E GRÁFICOS (Restaurados e Melhorados) --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Coluna Esquerda: Gráfico de Progressão */}
+            <div className="lg:col-span-2 bg-white dark:bg-gray-900 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 h-[420px] flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold text-xl dark:text-white flex items-center gap-2">
+                        <i className="fas fa-chart-line text-[#42047e]"></i> Evolução da Nota
+                    </h3>
+                </div>
+                <div className="flex-1 w-full h-full">
+                    {statistics?.progression ? (
+                        <ProgressionChart data={statistics.progression} />
+                    ) : (
+                        <div className="flex items-center justify-center h-full text-gray-400">Sem dados suficientes.</div>
+                    )}
+                </div>
+            </div>
+
+            {/* Coluna Direita: Widget de Estatísticas Detalhado (Antigo restaurado) */}
+            <div className="lg:col-span-1 h-[420px]">
+                <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 h-full overflow-hidden">
                     <StatisticsWidget stats={statistics} frequentErrors={frequentErrors} />
                 </div>
-            ) : (
-                <div className="glass-card p-6 h-full bg-white dark:bg-dark-card shadow-sm">
-                    <h3 className="font-bold mb-4 text-lg">Atalhos Rápidos</h3>
-                     {/* Conteúdo dos atalhos... (mantido simplificado aqui) */}
-                     <p className="text-gray-500 text-sm">Comece a escrever para liberar estatísticas.</p>
-                </div>
-            )}
+            </div>
         </div>
-      </div>
 
-      <div className="bg-white dark:bg-dark-card rounded-xl shadow-sm overflow-hidden">
-          <div className="p-6 border-b dark:border-gray-700">
-              <h2 className="text-xl font-bold text-dark-text dark:text-white">Histórico de Redações</h2>
-          </div>
-          
-          {essays.length > 0 ? (
-            <div className="divide-y dark:divide-gray-700">
-                {essays.map(essay => (
-                  <div key={essay.id} onClick={() => handleSelectEssay(essay)} className="p-4 hover:bg-gray-50 transition-colors cursor-pointer flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-4 w-full md:w-auto">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 ${essay.status === 'corrected' ? 'bg-[#07f49e]/20 text-[#07f49e]' : 'bg-gray-100 text-gray-500'}`}>
-                            <i className={`fas ${essay.status === 'corrected' ? 'fa-check' : 'fa-pencil-alt'}`}></i>
-                        </div>
-                        <div className="min-w-0">
-                            <p className="font-bold text-dark-text truncate max-w-xs md:max-w-md">{essay.title || "Redação sem título"}</p>
-                            <p className="text-xs text-gray-500">
-                                {essay.submitted_at ? new Date(essay.submitted_at).toLocaleDateString() : 'Não enviada'}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-                         {essay.final_grade !== null && essay.final_grade !== undefined && (
-                             <span className="font-bold text-lg text-[#42047e]">{essay.final_grade}</span>
-                         )}
-                        <span className={`px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${
-                            essay.status === 'corrected' ? 'bg-[#07f49e]/20 text-[#00a86b]' : 
-                            essay.status === 'submitted' ? 'bg-yellow-100 text-yellow-700' : 
-                            'bg-gray-200 text-gray-700'
-                        }`}>
-                          {essay.status === 'corrected' ? 'Corrigida' : essay.status === 'submitted' ? 'Em Análise' : 'Rascunho'}
-                        </span>
-                        <i className="fas fa-chevron-right text-gray-300"></i>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          ) : (
-            <div className="p-12 text-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
-                    <i className="fas fa-feather-alt text-2xl"></i>
+        {/* --- 3. LISTA DE REDAÇÕES (Funcionalidade Antiga com Design Novo) --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Lista Principal */}
+            <div className="lg:col-span-2 bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+                <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                    <h3 className="font-bold text-xl dark:text-white">Minhas Redações</h3>
+                    <span className="bg-gray-100 dark:bg-gray-800 text-xs font-bold px-2 py-1 rounded text-gray-600 dark:text-gray-400">{essays.length} Total</span>
                 </div>
-                <h3 className="text-lg font-bold text-gray-700">Nenhuma redação encontrada</h3>
-                <p className="text-gray-500 mb-6">Que tal começar a praticar hoje mesmo?</p>
-                <button onClick={handleCreateNew} className="text-[#42047e] font-bold hover:underline">Criar primeira redação</button>
+                
+                <div className="max-h-[500px] overflow-y-auto custom-scrollbar p-4">
+                    {essays.length > 0 ? (
+                        <div className="space-y-3">
+                            {essays.map((essay) => (
+                                <div 
+                                    key={essay.id} 
+                                    onClick={() => handleViewEssay(essay.id!)}
+                                    className="group flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-transparent hover:border-[#42047e]/30 hover:bg-white dark:hover:bg-gray-800 transition-all cursor-pointer"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg shadow-sm ${essay.status === 'corrected' ? 'bg-[#07f49e]/20 text-[#07f49e]' : 'bg-yellow-100 text-yellow-600'}`}>
+                                            <i className={`fas ${essay.status === 'corrected' ? 'fa-check' : 'fa-clock'}`}></i>
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-800 dark:text-white group-hover:text-[#42047e] transition-colors line-clamp-1">
+                                                {essay.title || "Sem título"}
+                                            </h4>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                Enviado em {new Date(essay.submitted_at!).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="text-right">
+                                        {essay.status === 'corrected' ? (
+                                            <div className="flex flex-col items-end">
+                                                <span className="text-xs font-bold text-gray-400 uppercase">Nota</span>
+                                                <span className="text-xl font-black text-[#42047e] dark:text-[#07f49e]">{essay.final_grade}</span>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs font-bold bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">
+                                                Em Análise
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                            <i className="fas fa-folder-open text-4xl mb-3 opacity-50"></i>
+                            <p>Nenhuma redação encontrada.</p>
+                        </div>
+                    )}
+                </div>
             </div>
-          )}
-      </div>
+
+            {/* Widgets Laterais (Countdown e Atalhos) */}
+            <div className="lg:col-span-1 flex flex-col gap-6">
+                <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-0 overflow-hidden">
+                     <CountdownWidget targetExam={targetExam} examDate={examDate} />
+                </div>
+                
+                {/* Atualidades (Restaurado) */}
+                <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 flex-1">
+                    <h3 className="font-bold text-lg mb-4 dark:text-white flex items-center gap-2">
+                        <i className="fas fa-globe-americas text-[#07f49e]"></i> Atualidades
+                    </h3>
+                    <ul className="space-y-4">
+                        {currentEvents.length > 0 ? currentEvents.map((event, idx) => (
+                            <li key={idx}>
+                                <a href={event.link} target="_blank" className="block group">
+                                    <h5 className="text-sm font-bold text-gray-700 dark:text-gray-300 group-hover:text-[#42047e] transition-colors">{event.title}</h5>
+                                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{event.summary}</p>
+                                </a>
+                            </li>
+                        )) : <p className="text-sm text-gray-400">Nenhuma notícia hoje.</p>}
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
   );
 }
