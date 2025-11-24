@@ -1,186 +1,288 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Essay, EssayPrompt } from '../actions';
+import { Essay, EssayPrompt, getEssaysForStudent } from '../actions';
 import EssayEditor from './EssayEditor';
 import EssayCorrectionView from './EssayCorrectionView';
-import ProgressionChart from './ProgressionChart';
 import StatisticsWidget from './StatisticsWidget';
+import ProgressionChart from './ProgressionChart';
 import CountdownWidget from '@/components/dashboard/CountdownWidget';
 
-// Tipos completos para garantir compatibilidade
+// --- TIPOS ---
+type Stats = {
+    totalCorrections: number;
+    averages: { avg_final_grade: number; avg_c1: number; avg_c2: number; avg_c3: number; avg_c4: number; avg_c5: number; };
+    pointToImprove: { name: string; average: number; };
+    progression: { date: string; grade: number; }[];
+} | null;
+type RankInfo = { rank: number | null; state: string | null; } | null;
+type FrequentError = { error_type: string; count: number };
+type CurrentEvent = { id: string; title: string; summary: string | null; link: string };
+
 type Props = {
   initialEssays: Partial<Essay>[];
   prompts: EssayPrompt[];
-  statistics: any;
+  statistics: Stats;
   streak: number;
-  rankInfo: any;
-  frequentErrors: any[];
-  currentEvents: any[];
+  rankInfo: RankInfo;
+  frequentErrors: FrequentError[];
+  currentEvents: CurrentEvent[];
   targetExam: string | null | undefined;
   examDate: string | null | undefined;
 };
 
-export default function StudentDashboard({ 
-    initialEssays, prompts, statistics, streak, rankInfo, frequentErrors, currentEvents, targetExam, examDate 
-}: Props) {
-  const [view, setView] = useState<'dashboard' | 'edit' | 'view_correction'>('dashboard');
-  const [currentEssayId, setCurrentEssayId] = useState<string | null>(null);
-  const [essays, setEssays] = useState(initialEssays);
 
-  // Funções de Navegação
+// --- SUB-COMPONENTES REESTILIZADOS ---
+
+const StatCard = ({ title, value, icon, valueDescription }: { title: string, value: string | number, icon: string, valueDescription?: string }) => (
+  <div className="glass-card p-5 flex items-center justify-between h-full">
+    <div className="min-w-0 flex-1 mr-2">
+      <p className="text-sm text-dark-text-muted truncate mb-1" title={title}>{title}</p>
+      <p className="text-2xl font-bold text-dark-text dark:text-white truncate">
+        {value} <span className="text-sm font-normal text-dark-text-muted ml-1">{valueDescription}</span>
+      </p>
+    </div>
+    <div className="text-3xl text-lavender-blue flex-shrink-0 bg-royal-blue/10 w-12 h-12 rounded-full flex items-center justify-center">
+      <i className={`fas ${icon}`}></i>
+    </div>
+  </div>
+);
+
+const ActionShortcuts = () => (
+    <div className="glass-card p-6 h-full flex flex-col">
+        <h3 className="font-bold mb-4 dark:text-white-text">Atalhos Rápidos</h3>
+        <div className="space-y-3 flex-1">
+            <Link href="/dashboard/applications/test" className="flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-transparent hover:border-royal-blue/30 transition-all hover:shadow-sm group">
+                <div className="bg-royal-blue/10 text-royal-blue w-10 h-10 flex items-center justify-center rounded-lg text-lg group-hover:bg-royal-blue group-hover:text-white transition-colors">
+                    <i className="fas fa-spell-check"></i>
+                </div>
+                <span className="text-sm font-medium dark:text-gray-200">Testar gramática</span>
+                <i className="fas fa-chevron-right ml-auto text-xs text-gray-400 group-hover:text-royal-blue"></i>
+            </Link>
+             <Link href="/dashboard/applications/day" className="flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-transparent hover:border-royal-blue/30 transition-all hover:shadow-sm group">
+                 <div className="bg-royal-blue/10 text-royal-blue w-10 h-10 flex items-center justify-center rounded-lg text-lg group-hover:bg-royal-blue group-hover:text-white transition-colors">
+                    <i className="fas fa-calendar-check"></i>
+                </div>
+                <span className="text-sm font-medium dark:text-gray-200">Agendar redação</span>
+                <i className="fas fa-chevron-right ml-auto text-xs text-gray-400 group-hover:text-royal-blue"></i>
+            </Link>
+             <Link href="/dashboard/applications/library" className="flex items-center gap-3 p-3 rounded-xl bg-white/50 dark:bg-white/5 border border-transparent hover:border-royal-blue/30 transition-all hover:shadow-sm group">
+                 <div className="bg-royal-blue/10 text-royal-blue w-10 h-10 flex items-center justify-center rounded-lg text-lg group-hover:bg-royal-blue group-hover:text-white transition-colors">
+                    <i className="fas fa-book-open"></i>
+                </div>
+                <span className="text-sm font-medium dark:text-gray-200">Ver repertórios</span>
+                <i className="fas fa-chevron-right ml-auto text-xs text-gray-400 group-hover:text-royal-blue"></i>
+            </Link>
+        </div>
+    </div>
+);
+
+const CurrentEventsWidget = ({ events }: { events: CurrentEvent[] }) => (
+    <div className="glass-card p-6 h-full flex flex-col">
+        <h3 className="font-bold text-lg mb-4 dark:text-white flex items-center gap-2">
+            <i className="fas fa-newspaper text-royal-blue"></i> Atualidades
+        </h3>
+        {events.length > 0 ? (
+            <ul className="space-y-3 overflow-y-auto flex-1 pr-1 custom-scrollbar max-h-[250px]">
+                {events.map(event => (
+                    <li key={event.id}>
+                        <a href={event.link} target="_blank" rel="noopener noreferrer" className="block p-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
+                            <p className="font-bold text-sm dark:text-white text-royal-blue mb-1 line-clamp-1">{event.title}</p>
+                            {event.summary && <p className="text-xs text-dark-text-muted line-clamp-2 leading-relaxed">{event.summary}</p>}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        ) : (
+            <div className="flex-1 flex items-center justify-center text-center flex-col text-dark-text-muted p-4">
+                <i className="far fa-newspaper text-4xl mb-2 opacity-50"></i>
+                <p className="text-sm">Nenhuma notícia recente.</p>
+            </div>
+        )}
+    </div>
+);
+
+
+// --- COMPONENTE PRINCIPAL ---
+
+export default function StudentDashboard({ initialEssays, prompts, statistics, streak, rankInfo, frequentErrors, currentEvents, targetExam, examDate }: Props) {
+  const [essays, setEssays] = useState(initialEssays);
+  const [view, setView] = useState<'dashboard' | 'edit' | 'view_correction'>('dashboard');
+  const [currentEssay, setCurrentEssay] = useState<Partial<Essay> | null>(null);
+  const searchParams = useSearchParams();
+
+  const handleSelectEssay = useCallback((essay: Partial<Essay>) => {
+    setCurrentEssay(essay);
+    setView(essay.status === 'corrected' ? 'view_correction' : 'edit');
+  }, []);
+
+  useEffect(() => {
+    const essayIdFromUrl = searchParams.get('essayId');
+    if (essayIdFromUrl) {
+      const essayToOpen = initialEssays.find(e => e.id === essayIdFromUrl);
+      if (essayToOpen) {
+        handleSelectEssay(essayToOpen);
+      }
+    }
+  }, [searchParams, initialEssays, handleSelectEssay]);
+
   const handleCreateNew = () => {
-    setCurrentEssayId(null);
+    setCurrentEssay(null);
     setView('edit');
   };
 
-  const handleViewEssay = (id: string) => {
-      setCurrentEssayId(id);
-      setView('view_correction');
+  const handleBackToDashboard = async () => {
+    const result = await getEssaysForStudent();
+    if (result.data) setEssays(result.data);
+    setView('dashboard');
+    setCurrentEssay(null);
+    window.history.pushState({}, '', '/dashboard/applications/write');
   };
 
-  const handleBack = () => {
-      setView('dashboard');
-      setCurrentEssayId(null);
-  };
-
-  // Renderização Condicional de Telas
-  if (view === 'edit') return <EssayEditor prompts={prompts} onBack={handleBack} />;
-  if (view === 'view_correction' && currentEssayId) return <EssayCorrectionView essayId={currentEssayId} onBack={handleBack} />;
+  if (view === 'edit') return <EssayEditor essay={currentEssay} prompts={prompts} onBack={handleBackToDashboard} />;
+  if (view === 'view_correction' && currentEssay?.id) return <EssayCorrectionView essayId={currentEssay.id} onBack={handleBackToDashboard} />;
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
-        
-        {/* --- 1. HERO SECTION (Novo Design) --- */}
-        <div className="relative bg-gradient-to-r from-[#1a0b2e] via-[#2e0259] to-[#42047e] p-8 sm:p-10 rounded-[2rem] text-white shadow-2xl overflow-hidden border border-[#ffffff]/10">
-             {/* Efeitos de Fundo */}
-             <div className="absolute top-0 right-0 w-96 h-96 bg-[#07f49e] blur-[150px] opacity-20 rounded-full pointer-events-none -mr-20 -mt-20"></div>
-             <div className="relative z-10 flex flex-col lg:flex-row justify-between items-end gap-6">
-                <div>
-                    <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full text-xs font-bold text-[#07f49e] mb-3">
-                        <i className="fas fa-fire"></i> Sequência: {streak} dias
+    <div className="pb-8">
+       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div>
+            <h1 className="text-3xl font-bold text-dark-text dark:text-white-text">Redação</h1>
+            <p className="text-text-muted dark:text-gray-400">Acompanhe seu progresso e pratique sua escrita.</p>
+        </div>
+        <button onClick={handleCreateNew} className="bg-royal-blue text-white font-bold py-3 px-6 rounded-xl hover:bg-opacity-90 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex items-center gap-2">
+          <i className="fas fa-plus"></i> Nova Redação
+        </button>
+      </div>
+      
+      {/* --- LINHA SUPERIOR DE CARDS --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="lg:col-span-1">
+            <StatCard 
+                title="Sequência (Streak)" 
+                value={streak} 
+                valueDescription={`dia${streak === 1 ? '' : 's'}`} 
+                icon="fa-fire" 
+            />
+        </div>
+        <div className="lg:col-span-1">
+            <StatCard 
+                title={`Ranking ${rankInfo?.state || ''}`} 
+                value={rankInfo?.rank ? `#${rankInfo.rank}` : 'N/A'}
+                valueDescription=""
+                icon="fa-trophy" 
+            />
+        </div>
+        <div className="lg:col-span-2">
+            <div className="glass-card p-0 h-full overflow-hidden">
+                <CountdownWidget targetExam={targetExam} examDate={examDate} />
+            </div>
+        </div>
+      </div>
+
+      {/* --- LINHA DO MEIO DE CARDS --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <div className="lg:col-span-2">
+            {statistics ? (
+                <div className="h-full">
+                     <ProgressionChart data={statistics.progression} />
+                </div>
+            ) : (
+                <div className="glass-card h-full flex flex-col items-center justify-center p-8 text-center min-h-[300px]">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-white/10 rounded-full flex items-center justify-center mb-4 text-gray-400 text-2xl">
+                        <i className="fas fa-chart-line"></i>
                     </div>
-                    <h1 className="text-4xl font-black mb-2 leading-tight tracking-tight">Central de Redação</h1>
-                    <p className="text-white/70 max-w-lg text-lg">
-                        Pronto para evoluir? Sua média atual é <strong className="text-white">{statistics?.averages.avg_final_grade.toFixed(0) || 0}</strong>. 
-                        A IA sugere focar na <strong>Competência 1</strong> hoje.
-                    </p>
+                    <p className="font-bold text-dark-text dark:text-white mb-1">Sem dados suficientes</p>
+                    <p className="text-sm text-dark-text-muted">Envie sua primeira redação para ver sua progressão aqui.</p>
                 </div>
-                <div className="flex gap-3 w-full lg:w-auto">
-                    <button onClick={handleCreateNew} className="flex-1 lg:flex-none bg-[#07f49e] text-[#1a0b2e] font-black py-3.5 px-8 rounded-xl shadow-[0_0_20px_rgba(7,244,158,0.4)] hover:shadow-[0_0_30px_rgba(7,244,158,0.6)] hover:scale-105 transition-all flex items-center justify-center gap-2 group">
-                        <i className="fas fa-pen group-hover:rotate-12 transition-transform"></i> Escrever Redação
-                    </button>
-                </div>
-             </div>
+            )}
         </div>
-
-        {/* --- 2. ESTATÍSTICAS E GRÁFICOS (Restaurados e Melhorados) --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Coluna Esquerda: Gráfico de Progressão */}
-            <div className="lg:col-span-2 bg-white dark:bg-gray-900 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 h-[420px] flex flex-col">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-bold text-xl dark:text-white flex items-center gap-2">
-                        <i className="fas fa-chart-line text-[#42047e]"></i> Evolução da Nota
-                    </h3>
-                </div>
-                <div className="flex-1 w-full h-full">
-                    {statistics?.progression ? (
-                        <ProgressionChart data={statistics.progression} />
-                    ) : (
-                        <div className="flex items-center justify-center h-full text-gray-400">Sem dados suficientes.</div>
-                    )}
-                </div>
-            </div>
-
-            {/* Coluna Direita: Widget de Estatísticas Detalhado (Antigo restaurado) */}
-            <div className="lg:col-span-1 h-[420px]">
-                <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 h-full overflow-hidden">
-                    <StatisticsWidget stats={statistics} frequentErrors={frequentErrors} />
-                </div>
+        
+        <div className="lg:col-span-1">
+            <div className="glass-card p-6 h-full">
+                {statistics ? <StatisticsWidget stats={statistics} frequentErrors={frequentErrors}/> : (
+                    <div className="flex flex-col items-center justify-center h-full text-center p-4 min-h-[300px]">
+                        <div className="w-16 h-16 bg-gray-100 dark:bg-white/10 rounded-full flex items-center justify-center mb-4 text-gray-400 text-2xl">
+                            <i className="fas fa-chart-pie"></i>
+                        </div>
+                        <p className="font-bold text-dark-text dark:text-white mb-1">Estatísticas vazias</p>
+                        <p className="text-sm text-dark-text-muted">Suas médias por competência aparecerão aqui após a primeira correção.</p>
+                    </div>
+                )}
             </div>
         </div>
+      </div>
 
-        {/* --- 3. LISTA DE REDAÇÕES (Funcionalidade Antiga com Design Novo) --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Lista Principal */}
-            <div className="lg:col-span-2 bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
-                <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
-                    <h3 className="font-bold text-xl dark:text-white">Minhas Redações</h3>
-                    <span className="bg-gray-100 dark:bg-gray-800 text-xs font-bold px-2 py-1 rounded text-gray-600 dark:text-gray-400">{essays.length} Total</span>
+      {/* --- NOVA LINHA INFERIOR DE CARDS --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* HISTÓRICO DE REDAÇÕES */}
+        <div className="lg:col-span-2">
+            <div className="glass-card p-6 h-full flex flex-col">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-dark-text dark:text-white-text">Minhas Redações</h2>
+                    <span className="text-xs font-medium bg-gray-100 dark:bg-white/10 px-2 py-1 rounded text-gray-600 dark:text-gray-300">
+                        {essays.length} total
+                    </span>
                 </div>
                 
-                <div className="max-h-[500px] overflow-y-auto custom-scrollbar p-4">
+                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar max-h-[400px]">
                     {essays.length > 0 ? (
-                        <div className="space-y-3">
-                            {essays.map((essay) => (
-                                <div 
-                                    key={essay.id} 
-                                    onClick={() => handleViewEssay(essay.id!)}
-                                    className="group flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-transparent hover:border-[#42047e]/30 hover:bg-white dark:hover:bg-gray-800 transition-all cursor-pointer"
-                                >
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg shadow-sm ${essay.status === 'corrected' ? 'bg-[#07f49e]/20 text-[#07f49e]' : 'bg-yellow-100 text-yellow-600'}`}>
-                                            <i className={`fas ${essay.status === 'corrected' ? 'fa-check' : 'fa-clock'}`}></i>
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-gray-800 dark:text-white group-hover:text-[#42047e] transition-colors line-clamp-1">
-                                                {essay.title || "Sem título"}
-                                            </h4>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                Enviado em {new Date(essay.submitted_at!).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="text-right">
-                                        {essay.status === 'corrected' ? (
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-xs font-bold text-gray-400 uppercase">Nota</span>
-                                                <span className="text-xl font-black text-[#42047e] dark:text-[#07f49e]">{essay.final_grade}</span>
-                                            </div>
-                                        ) : (
-                                            <span className="text-xs font-bold bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full">
-                                                Em Análise
-                                            </span>
-                                        )}
-                                    </div>
+                        <ul className="space-y-3">
+                            {essays.map(essay => (
+                              <li key={essay.id} onClick={() => handleSelectEssay(essay)} className="p-4 hover:bg-gray-50 dark:hover:bg-white/5 border border-gray-100 dark:border-white/10 rounded-xl cursor-pointer flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 transition-all duration-200 group">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                      <div className={`w-2 h-2 rounded-full flex-shrink-0 ${essay.status === 'corrected' ? 'bg-green-500' : essay.status === 'submitted' ? 'bg-yellow-500' : 'bg-gray-400'}`}></div>
+                                      <p className="font-bold text-dark-text dark:text-white-text truncate group-hover:text-royal-blue transition-colors" title={essay.title || "Sem título"}>
+                                          {essay.title || "Redação sem título"}
+                                      </p>
+                                  </div>
+                                  <p className="text-xs text-gray-500 dark:text-dark-text-muted pl-4">
+                                    {essay.status === 'draft' 
+                                        ? 'Editado recentemente' 
+                                        : `Enviada em: ${new Date(essay.submitted_at!).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'})}`}
+                                  </p>
                                 </div>
+                                
+                                <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pl-4 sm:pl-0">
+                                    <span className={`px-3 py-1 text-xs font-bold rounded-full whitespace-nowrap ${
+                                        essay.status === 'corrected' ? 'bg-green-100 text-green-700 border border-green-200' : 
+                                        essay.status === 'submitted' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' : 
+                                        'bg-gray-100 text-gray-600 border border-gray-200'
+                                    }`}>
+                                      {essay.status === 'corrected' ? 'Corrigida' : essay.status === 'submitted' ? 'Em Análise' : 'Rascunho'}
+                                    </span>
+                                    <i className="fas fa-chevron-right text-gray-300 group-hover:text-royal-blue transition-colors"></i>
+                                </div>
+                              </li>
                             ))}
-                        </div>
+                        </ul>
                     ) : (
-                        <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                            <i className="fas fa-folder-open text-4xl mb-3 opacity-50"></i>
-                            <p>Nenhuma redação encontrada.</p>
+                        <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+                            <div className="w-20 h-20 bg-gray-50 dark:bg-white/5 rounded-full flex items-center justify-center mb-4">
+                                <i className="fas fa-pen-alt text-3xl text-gray-300"></i>
+                            </div>
+                            <p className="text-dark-text font-medium mb-2">Nenhuma redação encontrada</p>
+                            <p className="text-sm text-gray-500 mb-6 max-w-xs mx-auto">Comece a praticar hoje mesmo para melhorar sua escrita e alcançar a nota 1000.</p>
+                            <button onClick={handleCreateNew} className="text-royal-blue font-bold text-sm hover:underline">Criar primeira redação</button>
                         </div>
                     )}
                 </div>
             </div>
-
-            {/* Widgets Laterais (Countdown e Atalhos) */}
-            <div className="lg:col-span-1 flex flex-col gap-6">
-                <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-0 overflow-hidden">
-                     <CountdownWidget targetExam={targetExam} examDate={examDate} />
-                </div>
-                
-                {/* Atualidades (Restaurado) */}
-                <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 flex-1">
-                    <h3 className="font-bold text-lg mb-4 dark:text-white flex items-center gap-2">
-                        <i className="fas fa-globe-americas text-[#07f49e]"></i> Atualidades
-                    </h3>
-                    <ul className="space-y-4">
-                        {currentEvents.length > 0 ? currentEvents.map((event, idx) => (
-                            <li key={idx}>
-                                <a href={event.link} target="_blank" className="block group">
-                                    <h5 className="text-sm font-bold text-gray-700 dark:text-gray-300 group-hover:text-[#42047e] transition-colors">{event.title}</h5>
-                                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{event.summary}</p>
-                                </a>
-                            </li>
-                        )) : <p className="text-sm text-gray-400">Nenhuma notícia hoje.</p>}
-                    </ul>
-                </div>
+        </div>
+        
+        <div className="lg:col-span-1 flex flex-col gap-6">
+            <div className="flex-1 min-h-[200px]">
+                <ActionShortcuts />
+            </div>
+            <div className="flex-1 min-h-[300px]">
+                <CurrentEventsWidget events={currentEvents} />
             </div>
         </div>
+      </div>
+
     </div>
   );
 }

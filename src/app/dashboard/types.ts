@@ -1,4 +1,3 @@
-// Define a estrutura de um perfil de utilizador, como vem da base de dados.
 export type UserProfile = {
   id: string;
   fullName: string | null;
@@ -8,7 +7,7 @@ export type UserProfile = {
   pronoun: string | null;
   birthDate: string | null;
   schoolName: string | null;
-  organization_id: string | null; // Garanta que esta linha existe
+  organization_id: string | null;
   target_exam: string | null;
   active_modules: string[] | null;
   verification_badge: string | null;
@@ -16,21 +15,25 @@ export type UserProfile = {
   role?: 'student' | 'teacher';
 };
 
-// Define a estrutura de uma organização/escola.
+// --- ADICIONADO: Tipo para estatísticas do usuário ---
+export type UserStats = {
+  streak: number;
+  points: number;
+  rank?: number;
+};
+
 export type Organization = {
     id: string;
     name: string;
     cnpj: string | null;
 };
 
-// Define a estrutura de uma turma.
 export type SchoolClass = {
     id: string;
     name: string;
     organization_id: string;
 };
 
-// Define a estrutura de uma atualização da plataforma (usado no admin).
 export type Update = {
   id: string;
   created_at: string;
@@ -41,7 +44,6 @@ export type Update = {
   category: 'Nova Funcionalidade' | 'Melhoria' | 'Correção' | null;
 };
 
-// Define a estrutura de um tema de redação (usado no admin e no módulo write).
 export type EssayPrompt = {
     id: string;
     title: string;

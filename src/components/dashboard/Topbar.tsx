@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useRef, useTransition } from 'react';
 import Link from 'next/link';
-import type { UserProfile } from '@/app/dashboard/types';
+import Image from 'next/image';
+import type { UserProfile, UserStats } from '@/app/dashboard/types'; // Importando UserStats
 import { useTheme } from '@/components/ThemeProvider';
 import createClient from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
-import AccountBadge from './AccountBadge'; // IMPORTAÇÃO NOVA
+import { VerificationBadge } from '@/components/VerificationBadge';
 
-// ... (código do ModuleManager mantém-se igual)
-// ... (código do ModuleManager mantém-se igual)
 const modulesData = [
   { slug: 'edu', icon: 'fa-graduation-cap', title: 'Edu' },
   { slug: 'games', icon: 'fa-gamepad', title: 'Games' },
@@ -28,6 +27,7 @@ const modulesData = [
 type TopbarProps = {
   userProfile: UserProfile;
   toggleSidebar: () => void;
+  stats?: UserStats; // Agora é opcional, mas aceita os dados
 };
 
 type Notification = {
@@ -39,6 +39,7 @@ type Notification = {
   created_at: string;
 };
 
+// ... (ModuleManager mantém-se igual) ...
 const ModuleManager = ({ userProfile, onClose }: { userProfile: UserProfile; onClose: () => void; }) => {
     const [selectedModules, setSelectedModules] = useState(userProfile.active_modules || []);
     const [isPending, startTransition] = useTransition();
@@ -50,7 +51,6 @@ const ModuleManager = ({ userProfile, onClose }: { userProfile: UserProfile; onC
             alert("O módulo Edu é essencial para diretores e não pode ser desativado.");
             return;
         }
-
         setSelectedModules(prev =>
             prev.includes(slug) ? prev.filter(m => m !== slug) : [...prev, slug]
         );
@@ -109,14 +109,14 @@ const ModuleManager = ({ userProfile, onClose }: { userProfile: UserProfile; onC
     );
 };
 
-export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
+export default function Topbar({ userProfile, toggleSidebar, stats }: TopbarProps) {
   const [isProfileOpen, setProfileOpen] = useState(false);
   const [isGridOpen, setGridOpen] = useState(false);
   const [isNotificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isPending, startTransition] = useTransition();
   
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const router = useRouter();
   
   const gridRef = useRef<HTMLDivElement>(null);
@@ -137,7 +137,6 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
         setNotifications(data);
       }
     };
-
     fetchNotifications();
 
     const channel = supabase
@@ -172,13 +171,11 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
     if (!notification.is_read) {
         setNotifications(current => current.map(n => n.id === notification.id ? { ...n, is_read: true } : n));
     }
-    
     startTransition(async () => {
         if (!notification.is_read) {
             await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
         }
     });
-
     if (notification.link) {
         router.push(notification.link);
     }
@@ -187,7 +184,6 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
 
   const handleMarkAllAsRead = () => {
     setNotifications(current => current.map(n => ({ ...n, is_read: true })));
-    
     startTransition(async () => {
       const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
       if (unreadIds.length > 0) {
@@ -197,7 +193,7 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
   };
 
   return (
-    <header className="bg-light-gray border-b border-gray-200 p-4 flex items-center justify-between flex-shrink-0 dark:bg-gray-800 dark:border-gray-700 z-50">
+    <header className="bg-light-gray border-b border-gray-200 p-4 flex items-center justify-between flex-shrink-0 dark:bg-gray-800 dark:border-gray-700">
       <div className="flex items-center gap-4">
         <button onClick={toggleSidebar} className="text-gray-500 hover:text-royal-blue text-xl lg:hidden">
             <i className="fas fa-bars"></i>
@@ -209,6 +205,15 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
       </div>
       
       <div className="flex items-center gap-4 md:gap-6">
+        
+        {/* --- VISUALIZAÇÃO DE STATS (STREAK) --- */}
+        {stats && stats.streak > 0 && (
+          <div className="hidden md:flex items-center gap-2 bg-orange-100 text-orange-600 px-3 py-1 rounded-full border border-orange-200" title="Sua sequência de dias estudando!">
+             <i className="fas fa-fire animate-pulse"></i>
+             <span className="font-bold text-sm">{stats.streak}</span>
+          </div>
+        )}
+
         <div className="relative" ref={gridRef}>
             <button onClick={() => setGridOpen(!isGridOpen)} className="text-gray-500 hover:text-royal-blue text-xl dark:text-gray-400">
                 <i className="fas fa-th"></i>
@@ -241,14 +246,22 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
             )}
         </div>
 
-        {/* Componente AccountBadge substituindo o botão anterior */}
         <div className="relative" ref={profileRef}>
-          <div onClick={() => setProfileOpen(!isProfileOpen)}>
-             <AccountBadge userProfile={userProfile} />
-          </div>
+          <button onClick={() => setProfileOpen(!isProfileOpen)} className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-royal-blue dark:bg-gray-600 relative overflow-hidden">
+                {userProfile.avatarUrl ? (<Image src={userProfile.avatarUrl} alt="Avatar" fill className="object-cover" />) : (<span>{userProfile.fullName?.charAt(0)}</span>)}
+            </div>
+            <div className="text-left hidden md:block dark:text-white">
+                <div className="flex items-center gap-2">
+                    <p className="font-bold text-sm truncate max-w-[100px]">{userProfile.fullName?.split(' ')[0]}</p>
+                    <VerificationBadge badge={userProfile.verification_badge} size="10px" />
+                </div>
+              <p className="text-xs text-gray-500 capitalize dark:text-gray-400">{userProfile.userCategory}</p>
+            </div>
+          </button>
 
           {isProfileOpen && (
-            <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border z-10 dark:bg-gray-700 dark:border-gray-600 animate-fade-in-right">
+            <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border z-10 dark:bg-gray-700 dark:border-gray-600">
               <ul>
                 <li><Link href="/dashboard/profile" className="block px-4 py-2 text-sm hover:bg-gray-100 dark:text-white dark:hover:bg-gray-600">Meu Perfil</Link></li>
                 <li><Link href="/dashboard/settings" className="block px-4 py-2 text-sm hover:bg-gray-100 dark:text-white dark:hover:bg-gray-600">Configurações</Link></li>

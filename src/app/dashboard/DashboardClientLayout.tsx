@@ -2,34 +2,32 @@
 
 import { useState } from 'react';
 import type { UserProfile } from './types';
-import type { UserStats } from './data-access'; // Importar tipo
 import Sidebar from '@/components/dashboard/Sidebar';
 import Topbar from '@/components/dashboard/Topbar';
-import OnboardingFlow from './onboarding/OnboardingFlow'; 
+import Onboarding from './onboarding/OnboardingFlow';
 import { ToastProvider } from '@/contexts/ToastContext';
 
 type LayoutProps = {
   userProfile: UserProfile;
-  stats: UserStats; // Nova prop
   children: React.ReactNode;
 };
 
-export default function DashboardClientLayout({ userProfile, stats, children }: LayoutProps) {
+export default function DashboardClientLayout({ userProfile, children }: LayoutProps) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [isDesktopCollapsed, setDesktopCollapsed] = useState(true);
+  const [isDesktopCollapsed, setDesktopCollapsed] = useState(false);
 
-  // Se onboarding incompleto, mostra fluxo de entrada
+  // Se o onboarding não foi concluído, mostra a página de seleção
   if (!userProfile.has_completed_onboarding) {
     return (
       <ToastProvider>
-        <OnboardingFlow userProfile={userProfile} />
+        <Onboarding userProfile={userProfile} />
       </ToastProvider>
     );
   }
 
   return (
     <ToastProvider>
-      <div className="flex h-screen bg-brand-purple">
+      <div className="flex h-screen bg-background-light dark:bg-gray-900">
         <Sidebar 
           userProfile={userProfile} 
           isMobileOpen={isSidebarOpen} 
@@ -37,22 +35,13 @@ export default function DashboardClientLayout({ userProfile, stats, children }: 
           isDesktopCollapsed={isDesktopCollapsed}
           setIsDesktopCollapsed={setDesktopCollapsed}
         />
-        
-        {/* Adicionamos 'relative' para que elementos absolutos dentro da Topbar/Main 
-           fiquem contidos aqui se necessário.
-        */}
-        <div className={`flex-1 flex flex-col overflow-hidden 
-                       bg-bg-secondary dark:bg-bg-primary 
-                       transition-all duration-300
-                       md:rounded-l-3xl md:my-3 md:ml-0 relative`}
-        >
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Removido 'stats={stats}' para corrigir o erro de tipo se Topbar não o esperar, ou se stats não for passado para o Layout */}
           <Topbar 
             userProfile={userProfile} 
             toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
-            stats={stats} // Passamos os dados cacheados
           />
-          
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 scroll-smooth">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
             {children}
           </main>
         </div>
