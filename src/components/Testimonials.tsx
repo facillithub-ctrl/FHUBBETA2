@@ -1,7 +1,7 @@
 import Image from 'next/image';
 
 const testimonialsData = [
-  { name: 'João Silva', role: 'Estudante', text: 'O Facillit Hub organizou minha vida acadêmica de uma forma que nenhum outro app conseguiu.', img: '1' },
+  { name: 'João Silva', role: 'Estudante', text: 'O Facillit Hub transformou a maneira como organizo meus estudos. Tudo em um só lugar!', img: '1' },
   { name: 'Maria Oliveira', role: 'Diretora', text: 'A facilidade de gestão escolar com o módulo Edu é incomparável. Economizamos horas por semana.', img: '2' },
   { name: 'Carlos Souza', role: 'Empresário', text: 'Centralizar a comunicação e tarefas da empresa no Hub aumentou nossa produtividade em 30%.', img: '3' },
   { name: 'Ana Pereira', role: 'Vestibulanda', text: 'Os simulados e a correção de redação foram essenciais para minha aprovação.', img: '4' },
@@ -18,7 +18,8 @@ const TestimonialCard = ({ name, role, text, img }: any) => (
         <span className="text-xs text-brand-purple font-semibold">{role}</span>
       </div>
     </div>
-    <p className="text-gray-600 text-sm italic leading-relaxed">"{text}"</p>
+    {/* CORREÇÃO: Usando &quot; para aspas seguras */}
+    <p className="text-gray-600 text-sm italic leading-relaxed">&quot;{text}&quot;</p>
   </div>
 );
 
@@ -41,4 +42,4 @@ export default function Testimonials() {
       </div>
     </section>
   );
-}
+} 
