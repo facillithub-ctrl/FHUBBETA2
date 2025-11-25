@@ -1,176 +1,250 @@
-/* eslint-disable react/no-unescaped-entities */
 "use client";
 
-import { useEffect, useState, ReactElement, useTransition } from 'react';
-import { getEssayDetails, getCorrectionForEssay, saveStudyPlan, Annotation } from '../actions';
-import { useToast } from '@/contexts/ToastContext';
+import { useEffect, useState, ReactElement } from 'react';
+import Image from 'next/image';
+import { 
+    Essay, 
+    EssayCorrection, 
+    Annotation, 
+    getEssayDetails, 
+    getCorrectionForEssay, 
+    AIFeedback 
+} from '../actions';
+import FeedbackTabs from './FeedbackTabs';
+// Componente importado mas não usado no JSX atual, mantido para evitar quebra se for necessário depois
+import { VerificationBadge } from '@/components/VerificationBadge'; 
 
-const cleanHtml = (html: string) => { 
-    if (typeof window === 'undefined') return html; 
-    const doc = new DOMParser().parseFromString(html, 'text/html'); 
-    return doc.body.textContent || ""; 
+// --- TIPOS E SUB-COMPONENTES ---
+
+// CORREÇÃO 1: Usamos Omit para evitar conflito na propriedade 'ai_feedback' e permitimos profiles ser null
+type CorrectionWithDetails = Omit<EssayCorrection, 'ai_feedback'> & {
+  profiles: { full_name: string | null; verification_badge: string | null } | null;
+  ai_feedback: AIFeedback | null;
 };
 
-const markerStyles = { 
-    erro: { bg: 'bg-red-100 dark:bg-red-900/30', border: 'border-b-2 border-red-500', text: 'text-red-600' }, 
-    acerto: { bg: 'bg-green-100 dark:bg-green-900/30', border: 'border-b-2 border-green-500', text: 'text-green-600' }, 
-    sugestao: { bg: 'bg-blue-100 dark:bg-blue-900/30', border: 'border-b-2 border-blue-500', text: 'text-blue-600' } 
+type FullEssayDetails = Essay & {
+  correction: CorrectionWithDetails | null;
+  profiles: { full_name: string | null } | null;
 };
 
-const renderAnnotatedText = (content: string, annotations: Annotation[] | null | undefined): ReactElement => {
-    if (!content) return <p>Texto indisponível.</p>;
-    if (!annotations || annotations.length === 0) return <div className="whitespace-pre-wrap leading-relaxed text-lg text-gray-700 dark:text-gray-300 font-serif" dangerouslySetInnerHTML={{ __html: content }} />;
+// Detalhes estáticos sobre as competências da redação
+const competencyDetails = [
+  { title: "Competência 1: Domínio da Escrita Formal", description: "Avalia o domínio da modalidade escrita formal da língua portuguesa e da norma-padrão." },
+  { title: "Competência 2: Compreensão do Tema e Estrutura", description: "Avalia a compreensão da proposta de redação e a aplicação de conceitos de várias áreas do conhecimento para desenvolver o tema, dentro da estrutura do texto dissertativo-argumentativo." },
+  { title: "Competência 3: Argumentação", description: "Avalia a capacidade de selecionar, relacionar, organizar e interpretar informações, fatos e opiniões em defesa de um ponto de vista." },
+  { title: "Competência 4: Coesão e Coerência", description: "Avalia o uso de mecanismos linguísticos (conjunções, preposições, etc.) para construir uma argumentação coesa e coerente." },
+  { title: "Competência 5: Proposta de Intervenção", description: "Avalia a elaboração de uma proposta de intervenção para o problema abordado, que respeite os direitos humanos." },
+];
+
+const markerStyles = {
+    erro: { flag: 'text-red-500', highlight: 'bg-red-200 dark:bg-red-500/30 border-b-2 border-red-400' },
+    acerto: { flag: 'text-green-500', highlight: 'bg-green-200 dark:bg-green-500/30' },
+    sugestao: { flag: 'text-blue-500', highlight: 'bg-blue-200 dark:bg-blue-500/30' },
+};
+
+/**
+ * Renderiza o texto da redação com anotações destacadas e tooltips.
+ */
+const renderAnnotatedText = (text: string, annotations: Annotation[] | null | undefined): ReactElement => {
+    const textAnnotations = annotations?.filter(a => a.type === 'text' && a.selection) || [];
     
-    const plainText = cleanHtml(content);
-    let parts: (string | ReactElement)[] = [plainText];
-    const textAnnotations = annotations.filter(a => a.type === 'text' && a.selection);
+    if (!text || textAnnotations.length === 0) {
+        return <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: text.replace(/\n/g, '<br />') }} />;
+    }
+
+    let result: (string | ReactElement)[] = [text];
 
     textAnnotations.forEach((anno, i) => {
-        const newParts: (string | ReactElement)[] = [];
-        parts.forEach((part) => {
-            if (typeof part !== 'string') { newParts.push(part); return; }
-            const split = part.split(anno.selection!);
-            for (let j = 0; j < split.length; j++) {
-                newParts.push(split[j]);
-                if (j < split.length - 1) {
-                    newParts.push(
-                        <span key={`${anno.id}-${j}`} className={`relative group cursor-help ${markerStyles[anno.marker].bg} ${markerStyles[anno.marker].border} px-0.5 rounded-t`}>
+        const newResult: (string | ReactElement)[] = [];
+        result.forEach((node) => {
+            if (typeof node !== 'string') {
+                newResult.push(node);
+                return;
+            }
+            const parts = node.split(anno.selection!);
+            for (let j = 0; j < parts.length; j++) {
+                newResult.push(parts[j]);
+                if (j < parts.length - 1) {
+                    newResult.push(
+                        <mark key={`${anno.id}-${i}-${j}`} className={`${markerStyles[anno.marker].highlight} relative group cursor-pointer px-1 rounded-sm`}>
                             {anno.selection}
-                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-[#1A1A1D] text-white text-xs rounded-xl shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 border border-white/10">
-                                <strong className={`block mb-1 uppercase text-[10px] font-bold`}>{anno.marker}</strong> {anno.comment}
-                            </span>
-                        </span>
+                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-black text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">{anno.comment}</span>
+                        </mark>
                     );
                 }
             }
         });
-        parts = newParts;
+        result = newResult;
     });
-    return <div className="whitespace-pre-wrap leading-loose text-lg text-gray-700 dark:text-gray-300 font-serif">{parts}</div>;
+
+    return (
+        <div>
+            {result.map((node, index) =>
+                typeof node === 'string'
+                    ? <span key={index} dangerouslySetInnerHTML={{ __html: node.replace(/\n/g, '<br />') }} />
+                    : node
+            )}
+        </div>
+    );
+};
+
+const CompetencyModal = ({ competencyIndex, onClose }: { competencyIndex: number | null, onClose: () => void }) => {
+    if (competencyIndex === null) return null;
+    const { title, description } = competencyDetails[competencyIndex];
+
+    return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center" onClick={onClose}>
+            <div className="bg-white dark:bg-dark-card p-6 rounded-lg shadow-xl max-w-md w-full mx-4" onClick={e => e.stopPropagation()}>
+                <h3 className="text-lg font-bold mb-2 dark:text-white-text">{title}</h3>
+                <p className="text-sm text-text-muted dark:text-dark-text-muted">{description}</p>
+                <button onClick={onClose} className="mt-4 bg-royal-blue text-white py-2 px-4 rounded-lg text-sm font-bold">Entendi</button>
+            </div>
+        </div>
+    );
 };
 
 export default function EssayCorrectionView({ essayId, onBack }: {essayId: string, onBack: () => void}) {
-    const [details, setDetails] = useState<any>(null);
-    const [showPopup, setShowPopup] = useState(false);
-    const [popupStep, setPopupStep] = useState<'loading' | 'result'>('loading');
-    const { addToast } = useToast();
-    const [isSaving, startSaving] = useTransition();
+    const [details, setDetails] = useState<FullEssayDetails | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [modalCompetency, setModalCompetency] = useState<number | null>(null);
+    const [viewMode, setViewMode] = useState<'corrected' | 'comparison'>('corrected');
 
     useEffect(() => {
-        const load = async () => {
-            const essay = await getEssayDetails(essayId);
-            if (essay.data) {
-                const correction = await getCorrectionForEssay(essayId);
-                setDetails({ ...essay.data, correction: correction.data || null });
+        const fetchDetails = async () => {
+            setIsLoading(true);
+            
+            // Busca detalhes da redação
+            const essayResult = await getEssayDetails(essayId);
+
+            if (essayResult.data) {
+                // Busca detalhes da correção
+                const correctionResult = await getCorrectionForEssay(essayId);
+                
+                // CORREÇÃO 2: Conversão segura dos dados vindos da API para o estado local
+                let compatCorrection: CorrectionWithDetails | null = null;
+
+                if (correctionResult.data) {
+                     // Garantimos que o objeto segue a estrutura CorrectionWithDetails
+                     compatCorrection = {
+                        ...correctionResult.data,
+                        ai_feedback: correctionResult.data.ai_feedback || null,
+                        profiles: correctionResult.data.profiles || null
+                     };
+                }
+
+                // Monta o objeto final
+                const fullDetails: FullEssayDetails = {
+                    ...essayResult.data,
+                    correction: compatCorrection,
+                    // Garante compatibilidade caso profiles venha undefined
+                    profiles: essayResult.data.profiles || null 
+                };
+
+                setDetails(fullDetails);
+            } else {
+                 console.error(`[EssayCorrectionView] Erro ao buscar redação:`, essayResult.error);
             }
+            setIsLoading(false);
         };
-        load();
+        fetchDetails();
     }, [essayId]);
 
-    const handleGeneratePlanClick = () => {
-        setShowPopup(true);
-        setPopupStep('loading');
-        
-        fetch('/api/generate-study-plan', {
-            method: 'POST',
-            body: JSON.stringify({ essayId })
-        }).then(async (res) => {
-            const data = await res.json();
-            if (!res.ok) throw new Error();
-            
-            setDetails((prev: any) => {
-                const correction = prev.correction || {};
-                const ai_feedback = correction.ai_feedback || {};
-                return {
-                    ...prev,
-                    correction: {
-                        ...correction,
-                        ai_feedback: {
-                            ...ai_feedback,
-                            actionable_items: data.tasks.map((t: any) => t.text)
-                        }
-                    }
-                };
-            });
-            setPopupStep('result');
-        }).catch(() => {
-            addToast({ title: 'Erro', message: 'Falha ao gerar plano.', type: 'error' });
-            setShowPopup(false);
-        });
-    };
+    if (isLoading) return <div className="text-center p-8 dark:text-white">A carregar a sua redação...</div>;
+    if (!details) return <div className="text-center p-8 dark:text-white">Não foi possível carregar os detalhes da redação.</div>;
 
-    const handleSaveToDashboard = () => {
-        const items = details?.correction?.ai_feedback?.actionable_items || [];
-        const tasksToSave = items.map((t: string) => ({ id: crypto.randomUUID(), text: t, completed: false }));
-        startSaving(async () => {
-            await saveStudyPlan(essayId, tasksToSave);
-            addToast({ title: 'Plano Salvo!', message: 'Verifique na aba "Meus Planos".', type: 'success' });
-            setShowPopup(false);
-        });
-    };
-
-    if (!details) return <div className="flex h-96 items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-purple border-t-transparent"></div></div>;
-
-    const { correction, content, title } = details;
-    const aiItems = correction?.ai_feedback?.actionable_items || [];
+    const { title, content, correction, image_submission_url } = details;
+    const annotations = correction?.annotations;
+    const isTextView = content && !image_submission_url;
 
     return (
-        <div className="max-w-7xl mx-auto pb-12 relative">
-            {showPopup && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="bg-white dark:bg-[#1A1A1D] w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden border border-white/10 relative">
-                        {popupStep === 'loading' ? (
-                            <div className="p-10 text-center">
-                                <div className="w-24 h-24 mx-auto mb-6 relative flex items-center justify-center">
-                                    <div className="absolute inset-0 border-4 border-brand-purple/20 rounded-full"></div>
-                                    <div className="absolute inset-0 border-4 border-brand-purple border-t-transparent rounded-full animate-spin"></div>
-                                    <span className="text-4xl">🤖</span>
-                                </div>
-                                <h3 className="text-xl font-bold mb-2 dark:text-white">IA Analisando...</h3>
-                                <p className="text-gray-500 text-sm">Identificando erros e criando estratégias.</p>
+        <div>
+            <CompetencyModal competencyIndex={modalCompetency} onClose={() => setModalCompetency(null)} />
+
+            <div className="flex justify-between items-center mb-4">
+                <button onClick={onBack} className="text-sm text-royal-blue font-bold">
+                    <i className="fas fa-arrow-left mr-2"></i> Voltar
+                </button>
+                {isTextView && correction && (
+                    <button
+                        onClick={() => setViewMode(prev => prev === 'corrected' ? 'comparison' : 'corrected')}
+                        className="text-sm bg-gray-200 dark:bg-gray-700 px-3 py-1.5 rounded-md font-semibold dark:text-white"
+                    >
+                       <i className={`fas ${viewMode === 'corrected' ? 'fa-exchange-alt' : 'fa-eye'} mr-2`}></i>
+                       {viewMode === 'corrected' ? 'Comparar Versões' : 'Ver Correção'}
+                    </button>
+                )}
+            </div>
+
+            {viewMode === 'comparison' && isTextView ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h2 className="font-bold text-xl mb-4 dark:text-white-text">Texto Original</h2>
+                        <div className="bg-white dark:bg-dark-card p-6 rounded-lg shadow-md border dark:border-dark-border text-gray-700 dark:text-dark-text-muted whitespace-pre-wrap leading-relaxed">
+                            {content && <div dangerouslySetInnerHTML={{ __html: content.replace(/\n/g, '<br />') }} />}
+                        </div>
+                    </div>
+                    <div>
+                        <h2 className="font-bold text-xl mb-4 dark:text-white-text">Texto Corrigido</h2>
+                        <div className="bg-white dark:bg-dark-card p-6 rounded-lg shadow-md border dark:border-dark-border text-gray-700 dark:text-dark-text-muted leading-relaxed">
+                            {content ? renderAnnotatedText(content, annotations) : <p>Conteúdo não disponível.</p>}
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="bg-white dark:bg-dark-card p-6 rounded-lg shadow-md border dark:border-dark-border">
+                        <h2 className="font-bold text-xl mb-4 dark:text-white-text">{title || "Redação sem Título"}</h2>
+                        {image_submission_url ? (
+                            <div className="relative w-full h-auto">
+                                <Image src={image_submission_url} alt="Redação enviada" width={800} height={1100} className="rounded-lg object-contain"/>
+                                {annotations?.filter(a => a.type === 'image').map(a => (
+                                    <div key={a.id} className="absolute transform -translate-x-1 -translate-y-4 group text-xl" style={{ left: `${a.position?.x}%`, top: `${a.position?.y}%` }}>
+                                        <i className={`fas fa-flag ${markerStyles[a.marker].flag}`}></i>
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-black text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                            {a.comment}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         ) : (
-                            <div className="p-8 animate-fade-in-up">
-                                <div className="flex justify-between items-start mb-6">
-                                    <h3 className="text-xl font-black text-brand-purple"><i className="fas fa-sparkles mr-2"></i> Plano Gerado!</h3>
-                                    <button onClick={() => setShowPopup(false)} className="text-gray-400 hover:text-red-500"><i className="fas fa-times"></i></button>
-                                </div>
-                                <div className="bg-brand-purple/5 p-4 rounded-2xl mb-6 max-h-60 overflow-y-auto custom-scrollbar border border-brand-purple/10">
-                                    <ul className="space-y-3">
-                                        {aiItems.map((item: string, i: number) => (
-                                            <li key={i} className="flex gap-3 text-sm text-gray-700 dark:text-gray-200"><div className="mt-0.5 w-4 h-4 rounded-full border-2 border-brand-purple flex-shrink-0"></div>{item}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <button onClick={handleSaveToDashboard} disabled={isSaving} className="w-full py-3.5 bg-brand-purple text-white font-bold rounded-xl hover:bg-brand-green hover:text-brand-dark transition-all shadow-lg transform hover:-translate-y-0.5">
-                                    {isSaving ? 'Salvando...' : 'Adicionar ao Dashboard'}
-                                </button>
+                            <div className="text-gray-700 dark:text-dark-text-muted leading-relaxed">
+                                {content ? renderAnnotatedText(content, annotations) : <p>Esta redação não possui conteúdo textual para ser exibido.</p>}
                             </div>
+                        )}
+                    </div>
+
+                    <div className="bg-white dark:bg-dark-card p-6 rounded-lg shadow-md border dark:border-dark-border">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="font-bold text-xl dark:text-white-text">Correção</h2>
+                            {correction && <div className="text-2xl font-bold dark:text-white-text">{correction.final_grade}</div>}
+                        </div>
+
+                        {correction ? (
+                            <div className="space-y-4">
+                                {competencyDetails.map((_, i) => (
+                                    <div key={i} className="flex justify-between items-center p-3 rounded-md bg-gray-50 dark:bg-gray-700/50">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium text-sm dark:text-white-text">Competência {i + 1}</span>
+                                            <button onClick={() => setModalCompetency(i)} className="text-xs text-royal-blue">
+                                                <i className="fas fa-info-circle"></i>
+                                            </button>
+                                        </div>
+                                        <span className="font-bold text-sm dark:text-white-text">
+                                            {/* Uso de 'as any' ou keyof para acesso dinâmico seguro */}
+                                            {correction[`grade_c${i + 1}` as keyof EssayCorrection] as React.ReactNode}
+                                        </span>
+                                    </div>
+                                ))}
+                                <div className="border-t dark:border-gray-700 pt-4">
+                                    <FeedbackTabs correction={correction} />
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="text-center text-gray-500 py-8">A sua redação ainda está na fila para ser corrigida ou a correção não foi encontrada.</p>
                         )}
                     </div>
                 </div>
             )}
-
-            <div className="flex justify-between items-center mb-8">
-                <button onClick={onBack} className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-brand-purple transition-colors"><i className="fas fa-arrow-left"></i> Voltar</button>
-                <button onClick={handleGeneratePlanClick} className="px-5 py-2 bg-white text-brand-purple border border-brand-purple font-bold rounded-xl hover:bg-brand-purple hover:text-white transition-colors flex items-center gap-2 shadow-sm"><i className="fas fa-robot"></i> Gerar Plano com IA</button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-[calc(100vh-150px)]">
-                <div className="lg:col-span-7 bg-white dark:bg-dark-card rounded-[2rem] shadow-xl border border-gray-100 dark:border-white/5 overflow-hidden flex flex-col">
-                     <div className="p-6 border-b border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/5"><h1 className="text-xl font-black text-dark-text dark:text-white line-clamp-1">{title}</h1></div>
-                    <div className="p-8 overflow-y-auto flex-1 custom-scrollbar bg-white dark:bg-dark-card">{renderAnnotatedText(content || "", correction?.annotations)}</div>
-                </div>
-                <div className="lg:col-span-5 space-y-6 overflow-y-auto custom-scrollbar pr-2">
-                    <div className="bg-white dark:bg-dark-card p-6 rounded-[2rem] shadow-md border border-gray-100 dark:border-white/5">
-                        <div className="flex justify-between items-end mb-6">
-                            <div><p className="text-xs font-bold text-gray-400 uppercase">Nota Final</p><p className="text-5xl font-black text-brand-purple">{correction?.final_grade || 0}</p></div>
-                            <div className="text-right"><div className="flex gap-1">{[1,2,3,4,5].map(c => (<div key={c} className="w-8 h-16 bg-gray-100 dark:bg-white/10 rounded-lg flex flex-col justify-end items-center overflow-hidden relative"><div className="w-full bg-brand-green opacity-80" style={{ height: `${(correction?.[`grade_c${c}` as keyof EssayCorrection] as number / 200) * 100}%` }}></div><span className="absolute bottom-1 text-[8px] font-bold text-dark-text mix-blend-multiply">C{c}</span></div>))}</div></div>
-                        </div>
-                        <div className="bg-brand-purple/5 p-5 rounded-2xl border border-brand-purple/10"><p className="text-xs font-bold text-brand-purple uppercase mb-2 flex items-center gap-2"><i className="fas fa-comment-alt"></i> Feedback do Corretor</p><p className="text-sm text-gray-700 dark:text-gray-300 italic leading-relaxed">"{correction?.feedback || "Sem feedback disponível."}"</p></div>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }
