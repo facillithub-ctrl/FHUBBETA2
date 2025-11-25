@@ -4,7 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import createClient from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
-import type { UserProfile } from '@/app/dashboard/types';
+// CORREÇÃO 1: Importar UserStats
+import type { UserProfile, UserStats } from '@/app/dashboard/types';
 
 const allNavLinks = [
   { href: '/dashboard', slug: 'dashboard', icon: 'fa-home', label: 'Dashboard' },
@@ -25,13 +26,15 @@ const allNavLinks = [
 
 type SidebarProps = {
   userProfile: UserProfile;
+  stats: UserStats; // CORREÇÃO 2: Adicionar stats à tipagem
   isMobileOpen: boolean;
   setIsMobileOpen: (isOpen: boolean) => void;
   isDesktopCollapsed: boolean;
   setIsDesktopCollapsed: (isCollapsed: boolean) => void;
 };
 
-export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, isDesktopCollapsed, setIsDesktopCollapsed }: SidebarProps) {
+// CORREÇÃO 3: Receber stats nas props
+export default function Sidebar({ userProfile, stats, isMobileOpen, setIsMobileOpen, isDesktopCollapsed, setIsDesktopCollapsed }: SidebarProps) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -42,89 +45,70 @@ export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, is
   };
 
   const activeNavLinks = allNavLinks.filter(link => {
-    if (userProfile.userCategory === 'administrator') return ['dashboard', 'admin'].includes(link.slug);
-    if (userProfile.userCategory === 'diretor') return ['dashboard', 'edu'].includes(link.slug);
+    if (userProfile.userCategory === 'administrator') {
+        return ['dashboard', 'admin'].includes(link.slug);
+    }
+
+    if (userProfile.userCategory === 'diretor') {
+        return ['dashboard', 'edu'].includes(link.slug);
+    }
+    
     if (link.slug === 'dashboard') return true;
     return userProfile.active_modules?.includes(link.slug);
   });
-
-  const sidebarWidthClass = isDesktopCollapsed ? 'lg:w-20' : 'lg:w-64';
-  const textVisibilityClass = isDesktopCollapsed ? 'hidden' : 'block';
-  const itemJustifyClass = isDesktopCollapsed ? 'lg:justify-center' : '';
 
   return (
     <>
       <div
         onClick={() => setIsMobileOpen(false)}
-        className={`fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity ${
             isMobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       />
 
       <aside 
-        className={`fixed lg:relative top-0 left-0 h-full text-white flex flex-col z-50 transition-all duration-300 ease-in-out
-          ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'}
-          ${sidebarWidthClass}
-          overflow-x-hidden shadow-2xl border-r border-white/5
-        `}
-        // CORRIGIDO: Gradiente da Nova Marca
-        style={{ background: 'linear-gradient(160deg, #42047e 0%, #2a0250 100%)' }}
+        className={`fixed lg:relative top-0 left-0 h-full text-white p-4 flex flex-col z-40 transition-all duration-300
+          ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64'}
+          lg:translate-x-0 ${isDesktopCollapsed ? 'lg:w-20' : 'lg:w-64'}`}
+        style={{ background: 'linear-gradient(180deg, #2E14ED, #190894, #5E55F9)' }}
       >
-        {/* Efeito de luz verde sutil no fundo */}
-        <div className="absolute bottom-0 left-0 w-full h-1/3 bg-brand-green/10 blur-3xl pointer-events-none"></div>
-
-        <div className={`flex items-center mb-8 h-16 px-4 relative z-10 ${isDesktopCollapsed ? 'lg:justify-center' : 'justify-between'}`}>
-            <div className="flex items-center gap-3 min-w-0">
-                <div className="relative w-8 h-8 flex-shrink-0">
-                    <Image src="/assets/images/LOGO/png/logoazul.svg" alt="Logo" fill className="object-contain brightness-0 invert" />
-                </div>
-                <span className={`font-bold text-xl whitespace-nowrap transition-opacity duration-200 ${isDesktopCollapsed ? 'lg:opacity-0 lg:w-0 lg:hidden' : 'opacity-100'}`}>
-                    Facillit
-                </span>
+        <div className="flex items-center justify-between mb-8 h-8">
+            <div className={`flex items-center gap-3 ${isDesktopCollapsed ? 'lg:justify-center lg:w-full' : ''}`}>
+                <Image src="/assets/images/LOGO/png/logoazul.svg" alt="Facillit Hub Logo" width={32} height={32} className="brightness-0 invert flex-shrink-0" />
+                <span className={`font-bold text-xl whitespace-nowrap transition-opacity ${isDesktopCollapsed ? 'lg:opacity-0 lg:hidden' : ''}`}>Facillit</span>
             </div>
             <button onClick={() => setIsMobileOpen(false)} className="lg:hidden text-2xl text-white/80 hover:text-white">
                 <i className="fas fa-times"></i>
             </button>
         </div>
         
-        <nav className="flex-1 overflow-y-auto custom-scrollbar px-3 relative z-10">
-          <ul className="space-y-1">
+        {/* Se quiser exibir stats no futuro, você pode usar a variável 'stats' aqui. Ex: stats.streak */}
+
+        <nav className="flex-1">
+          <ul>
             {activeNavLinks.map((link) => (
               <li key={link.href}>
-                <Link 
-                    href={link.href} 
-                    title={isDesktopCollapsed ? link.label : ''}
-                    className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group ${itemJustifyClass}
-                        hover:bg-white/10 hover:text-brand-green
-                    `}
-                >
-                  <i className={`fas ${link.icon} w-6 text-center text-lg flex-shrink-0 transition-colors`}></i>
-                  <span className={`whitespace-nowrap text-sm font-medium ${textVisibilityClass}`}>
-                      {link.label}
-                  </span>
+                <Link href={link.href} title={link.label} className={`flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 transition-colors ${isDesktopCollapsed ? 'lg:justify-center' : ''}`}>
+                  <i className={`fas ${link.icon} w-6 text-center text-lg`}></i>
+                  <span className={isDesktopCollapsed ? 'lg:hidden' : ''}>{link.label}</span>
                 </Link>
               </li>
             ))}
           </ul>
         </nav>
         
-        <div className="p-4 border-t border-white/10 space-y-2 relative z-10">
+        <div className="pt-4 border-t border-white/10">
             <button 
                 onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)} 
                 title={isDesktopCollapsed ? 'Expandir' : 'Recolher'} 
-                className={`hidden lg:flex items-center gap-3 p-3 rounded-xl hover:bg-white/10 transition-colors w-full text-left ${itemJustifyClass}`}
+                className={`hidden lg:flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 transition-colors w-full text-left ${isDesktopCollapsed ? 'lg:justify-center' : ''}`}
             >
-                <i className={`fas ${isDesktopCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'} w-6 text-center text-lg flex-shrink-0`}></i>
-                <span className={`whitespace-nowrap text-sm font-medium ${textVisibilityClass}`}>Recolher</span>
+                <i className={`fas ${isDesktopCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'} w-6 text-center`}></i>
+                <span className={isDesktopCollapsed ? 'hidden' : ''}>Recolher</span>
             </button>
-
-            <button 
-                onClick={handleLogout} 
-                title="Sair" 
-                className={`flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/20 text-red-300 hover:text-red-100 transition-colors w-full text-left ${itemJustifyClass}`}
-            >
-                <i className="fas fa-sign-out-alt w-6 text-center text-lg flex-shrink-0"></i>
-                <span className={`whitespace-nowrap text-sm font-medium ${textVisibilityClass}`}>Sair</span>
+            <button onClick={handleLogout} title="Sair" className={`flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 transition-colors w-full text-left mt-2 ${isDesktopCollapsed ? 'lg:justify-center' : ''}`}>
+                <i className="fas fa-sign-out-alt w-6 text-center"></i>
+                <span className={isDesktopCollapsed ? 'hidden' : ''}>Sair</span>
             </button>
         </div>
       </aside>
