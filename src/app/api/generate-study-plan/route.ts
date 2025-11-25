@@ -1,8 +1,8 @@
-import createClient from '@/utils/supabase/server';
+import createSupabaseServerClient from '@/utils/supabase/server';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
   
   try {
     const apiKey = process.env.AI_API_KEY;
@@ -11,6 +11,7 @@ export async function POST(request: Request) {
     const model = process.env.AI_MODEL || "llama-3.3-70b-versatile";
 
     if (!apiKey) {
+      console.error("AI_API_KEY não configurada no servidor.");
       return NextResponse.json({ error: "Configuração de API Key ausente." }, { status: 500 });
     }
 

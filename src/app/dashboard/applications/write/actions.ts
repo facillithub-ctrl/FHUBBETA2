@@ -263,6 +263,16 @@ export async function getStudentStatistics() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { data: null };
 
+    // Objeto padrão para gráficos vazios
+    const emptyStats = {
+        totalCorrections: 0,
+        averages: { avg_final_grade: 0, avg_c1: 0, avg_c2: 0, avg_c3: 0, avg_c4: 0, avg_c5: 0 },
+        pointToImprove: { name: 'Nenhuma correção', average: 0 },
+        progression: [],
+        errorDistribution: [],
+        writingHabits: []
+    };
+
     // Busca todas as correções para gerar estatísticas
     const { data: corrections } = await supabase
         .from('essay_corrections')
@@ -274,7 +284,7 @@ export async function getStudentStatistics() {
         .eq('essays.student_id', user.id)
         .order('created_at', { ascending: true });
 
-    if (!corrections || corrections.length === 0) return { data: null };
+    if (!corrections || corrections.length === 0) return { data: emptyStats };
 
     const total = corrections.length;
     const sum = (key: string) => corrections.reduce((a, b) => a + (b[key as keyof typeof b] as number || 0), 0);
