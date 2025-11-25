@@ -1,9 +1,8 @@
+// src/app/dashboard/layout.tsx
 import { redirect } from 'next/navigation';
 import createSupabaseServerClient from '@/utils/supabase/server';
-import type { UserProfile } from './types';
+import type { UserProfile, UserStats } from './types'; // Importe UserStats
 import DashboardClientLayout from './DashboardClientLayout';
-// Importamos a nossa nova função de cache
-import { getCachedUserStats } from './data-access';
 
 export default async function DashboardLayout({
   children,
@@ -18,7 +17,6 @@ export default async function DashboardLayout({
     redirect('/login');
   }
   
-  // 1. Buscamos o perfil (Dados essenciais de sessão)
   const { data: profile, error } = await supabase
     .from('profiles')
     .select('id, full_name, user_category, avatar_url, pronoun, nickname, birth_date, school_name, has_completed_onboarding, active_modules, target_exam, verification_badge, organization_id')
@@ -31,10 +29,6 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  // 2. Buscamos os Stats (Dados dinâmicos rápidos via cache)
-  const userStats = await getCachedUserStats(user.id);
-
-  // Construção do objeto UserProfile
   const userProfile: UserProfile = profile ? {
     id: profile.id,
     fullName: profile.full_name,
@@ -65,7 +59,15 @@ export default async function DashboardLayout({
     organization_id: null,
   };
 
-  // Passamos TUDO para o componente cliente
+  // ✅ ADICIONADO: Dados de estatísticas (pode vir do DB futuramente)
+  const userStats: UserStats = {
+    streak: 0, // Implementar lógica real de streak futuramente
+    rank: null,
+    xp: 0,
+    coins: 0
+  };
+
+  // Passamos userStats para o componente cliente
   return (
     <DashboardClientLayout userProfile={userProfile} stats={userStats}>
       {children}

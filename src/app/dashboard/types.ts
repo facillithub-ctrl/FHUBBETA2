@@ -1,3 +1,6 @@
+// src/app/dashboard/types.ts
+
+// Define a estrutura de um perfil de utilizador
 export type UserProfile = {
   id: string;
   fullName: string | null;
@@ -15,11 +18,12 @@ export type UserProfile = {
   role?: 'student' | 'teacher';
 };
 
-// --- ADICIONADO: Tipo para estatísticas do usuário ---
+// ✅ ADICIONADO: Define a estrutura das estatísticas do usuário
 export type UserStats = {
   streak: number;
-  points: number;
-  rank?: number;
+  rank: number | null;
+  xp: number;
+  coins: number;
 };
 
 export type Organization = {

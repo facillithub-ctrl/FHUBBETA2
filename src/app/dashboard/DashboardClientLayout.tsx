@@ -1,22 +1,23 @@
+// src/app/dashboard/DashboardClientLayout.tsx
 "use client";
 
 import { useState } from 'react';
-import type { UserProfile } from './types';
+import type { UserProfile, UserStats } from './types'; // Importe UserStats
 import Sidebar from '@/components/dashboard/Sidebar';
 import Topbar from '@/components/dashboard/Topbar';
-import Onboarding from './onboarding/OnboardingFlow';
+import Onboarding from './onboarding/Onboarding';
 import { ToastProvider } from '@/contexts/ToastContext';
 
 type LayoutProps = {
   userProfile: UserProfile;
+  stats: UserStats; // ✅ ADICIONADO: Propriedade obrigatória
   children: React.ReactNode;
 };
 
-export default function DashboardClientLayout({ userProfile, children }: LayoutProps) {
+export default function DashboardClientLayout({ userProfile, stats, children }: LayoutProps) {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktopCollapsed, setDesktopCollapsed] = useState(false);
 
-  // Se o onboarding não foi concluído, mostra a página de seleção
   if (!userProfile.has_completed_onboarding) {
     return (
       <ToastProvider>
@@ -29,14 +30,14 @@ export default function DashboardClientLayout({ userProfile, children }: LayoutP
     <ToastProvider>
       <div className="flex h-screen bg-background-light dark:bg-gray-900">
         <Sidebar 
-          userProfile={userProfile} 
+          userProfile={userProfile}
+          stats={stats} // ✅ ADICIONADO: Passando stats para a Sidebar
           isMobileOpen={isSidebarOpen} 
           setIsMobileOpen={setSidebarOpen} 
           isDesktopCollapsed={isDesktopCollapsed}
           setIsDesktopCollapsed={setDesktopCollapsed}
         />
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Removido 'stats={stats}' para corrigir o erro de tipo se Topbar não o esperar, ou se stats não for passado para o Layout */}
           <Topbar 
             userProfile={userProfile} 
             toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
