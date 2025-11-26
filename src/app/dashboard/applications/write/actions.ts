@@ -211,7 +211,6 @@ export async function getEssaysForStudent() {
   return { data };
 }
 
-// ✅ CORREÇÃO PRINCIPAL: Alterado 'created_at' para 'submitted_at'
 export async function getLatestEssayForDashboard() {
   const supabase = await createSupabaseServerClient();
   
@@ -232,7 +231,7 @@ export async function getLatestEssayForDashboard() {
             essay_prompts ( title )
         `)
         .eq('student_id', user.id)
-        .order('submitted_at', { ascending: false, nullsFirst: true }) // <--- AQUI ESTAVA O ERRO
+        .order('submitted_at', { ascending: false, nullsFirst: true })
         .limit(1)
         .maybeSingle();
 
@@ -272,7 +271,7 @@ export async function getLatestEssayForDashboard() {
   }
 }
 
-// --- FUNÇÕES PARA PLANOS DE AÇÃO (NECESSÁRIAS PARA O DASHBOARD FUNCIONAR) ---
+// --- FUNÇÕES PARA PLANOS DE AÇÃO ---
 
 export async function getUserActionPlans() {
   const supabase = await createSupabaseServerClient();
@@ -326,7 +325,7 @@ export async function saveStudyPlan(essayId: string, tasks: any[]) {
 }
 
 
-// --- FUNÇÕES DE CORREÇÃO (ESSENCIAIS PARA O FEEDBACK POR LINHA) ---
+// --- FUNÇÕES DE CORREÇÃO ---
 
 type CorrectionQueryBaseResult = Omit<EssayCorrection, 'ai_feedback'> & {
     profiles: { full_name: string | null, verification_badge: string | null } | null;
@@ -337,6 +336,7 @@ type FinalCorrectionData = CorrectionQueryBaseResult & {
     ai_feedback: AIFeedback | null;
 }
 
+// ✅ CORREÇÃO APLICADA: Normalização do objeto 'profiles'
 export async function getCorrectionForEssay(essayId: string): Promise<{ data?: FinalCorrectionData; error?: string }> {
     const supabase = await createSupabaseServerClient();
 
@@ -373,6 +373,19 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: F
         return { data: undefined, error: undefined };
     }
 
+    // Correção de Tipo: Normalizar 'profiles' se for retornado como array
+    let profileData: { full_name: string | null, verification_badge: string | null } | null = null;
+    
+    if (correctionBase.profiles) {
+        if (Array.isArray(correctionBase.profiles)) {
+            // Se for array, pega o primeiro item
+            profileData = correctionBase.profiles[0] || null;
+        } else {
+            // Se já for objeto, usa direto
+            profileData = correctionBase.profiles;
+        }
+    }
+
     const { data: aiFeedbackData, error: aiFeedbackError } = await supabase
         .from('ai_feedback')
         .select('*')
@@ -387,6 +400,7 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: F
 
     const finalData: FinalCorrectionData = {
         ...correctionBase,
+        profiles: profileData, // Usa o dado normalizado
         ai_feedback: aiFeedbackData || null 
     };
 
