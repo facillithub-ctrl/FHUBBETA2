@@ -336,7 +336,6 @@ type FinalCorrectionData = CorrectionQueryBaseResult & {
     ai_feedback: AIFeedback | null;
 }
 
-// ✅ CORREÇÃO APLICADA: Normalização do objeto 'profiles'
 export async function getCorrectionForEssay(essayId: string): Promise<{ data?: FinalCorrectionData; error?: string }> {
     const supabase = await createSupabaseServerClient();
 
@@ -373,18 +372,26 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: F
         return { data: undefined, error: undefined };
     }
 
-    // Correção de Tipo: Normalizar 'profiles' se for retornado como array
+    // 1. Normalizar 'profiles' (pode vir como array)
     let profileData: { full_name: string | null, verification_badge: string | null } | null = null;
     
     if (correctionBase.profiles) {
         if (Array.isArray(correctionBase.profiles)) {
-            // Se for array, pega o primeiro item
             profileData = correctionBase.profiles[0] || null;
         } else {
-            // Se já for objeto, usa direto
             profileData = correctionBase.profiles;
         }
     }
+
+    // 2. ✅ CORREÇÃO APLICADA AQUI: Normalizar 'essay_correction_errors'
+    // O erro do build indica que 'common_errors' dentro de 'essay_correction_errors' vem como array [{error_type: ...}]
+    // mas o tipo espera um objeto {error_type: ...}.
+    const normalizedErrors = correctionBase.essay_correction_errors?.map((item: any) => ({
+        ...item,
+        common_errors: Array.isArray(item.common_errors) 
+            ? item.common_errors[0] || null 
+            : item.common_errors
+    })) || [];
 
     const { data: aiFeedbackData, error: aiFeedbackError } = await supabase
         .from('ai_feedback')
@@ -398,9 +405,11 @@ export async function getCorrectionForEssay(essayId: string): Promise<{ data?: F
         console.error(`Erro ai_feedback:`, aiFeedbackError);
     }
 
+    // 3. Construir objeto final com dados normalizados
     const finalData: FinalCorrectionData = {
         ...correctionBase,
-        profiles: profileData, // Usa o dado normalizado
+        profiles: profileData,
+        essay_correction_errors: normalizedErrors, // Usa a versão normalizada
         ai_feedback: aiFeedbackData || null 
     };
 
