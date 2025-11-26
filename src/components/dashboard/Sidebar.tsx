@@ -2,114 +2,131 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import createClient from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
-// CORREÇÃO 1: Importar UserStats
-import type { UserProfile, UserStats } from '@/app/dashboard/types';
 
-const allNavLinks = [
-  { href: '/dashboard', slug: 'dashboard', icon: 'fa-home', label: 'Dashboard' },
-  { href: '/dashboard/applications/edu', slug: 'edu', icon: 'fa-graduation-cap', label: 'Facillit Edu' },
-  { href: '/dashboard/applications/games', slug: 'games', icon: 'fa-gamepad', label: 'Facillit Games' },
-  { href: '/dashboard/applications/write', slug: 'write', icon: 'fa-pencil-alt', label: 'Facillit Write' },
-  { href: '/dashboard/applications/day', slug: 'day', icon: 'fa-calendar-check', label: 'Facillit Day' },
-  { href: '/dashboard/applications/play', slug: 'play', icon: 'fa-play-circle', label: 'Facillit Play' },
-  { href: '/dashboard/applications/library', slug: 'library', icon: 'fa-book-open', label: 'Facillit Library' },
-  { href: '/dashboard/applications/connect', slug: 'connect', icon: 'fa-users', label: 'Facillit Connect' },
-  { href: '/dashboard/applications/coach-career', slug: 'coach-career', icon: 'fa-bullseye', label: 'Facillit Coach' },
-  { href: '/dashboard/applications/lab', slug: 'lab', icon: 'fa-flask', label: 'Facillit Lab' },
-  { href: '/dashboard/applications/test', slug: 'test', icon: 'fa-file-alt', label: 'Facillit Test' },
-  { href: '/dashboard/applications/task', slug: 'task', icon: 'fa-tasks', label: 'Facillit Task' },
-  { href: '/dashboard/applications/create', slug: 'create', icon: 'fa-lightbulb', label: 'Facillit Create' },
-  { href: '/admin', slug: 'admin', icon: 'fa-user-shield', label: 'Painel Admin' },
+const menuGroups = [
+  {
+    label: "Principal",
+    items: [
+      { name: 'Visão Geral', href: '/dashboard', icon: 'fa-th-large' },
+      { name: 'Meu Perfil', href: '/dashboard/profile', icon: 'fa-user-circle' }, // Mantido como visualização rápida
+    ]
+  },
+  {
+    label: "Aplicações",
+    items: [
+      { name: 'Facillit Edu', href: '/dashboard/applications/edu', icon: 'fa-graduation-cap' },
+      { name: 'Facillit Write', href: '/dashboard/applications/write', icon: 'fa-pen-fancy' },
+      { name: 'Facillit Test', href: '/dashboard/applications/test', icon: 'fa-clipboard-check' },
+      { name: 'Facillit Play', href: '/dashboard/applications/play', icon: 'fa-play-circle' },
+    ]
+  },
+  {
+    label: "Sistema",
+    items: [
+      { name: 'Facillit Account', href: '/dashboard/account', icon: 'fa-shield-alt' }, // Link direto para Account
+      { name: 'Configurações', href: '/dashboard/settings', icon: 'fa-cog' },
+    ]
+  }
 ];
 
-type SidebarProps = {
-  userProfile: UserProfile;
-  stats: UserStats; // CORREÇÃO 2: Adicionar stats à tipagem
-  isMobileOpen: boolean;
-  setIsMobileOpen: (isOpen: boolean) => void;
-  isDesktopCollapsed: boolean;
-  setIsDesktopCollapsed: (isCollapsed: boolean) => void;
-};
-
-// CORREÇÃO 3: Receber stats nas props
-export default function Sidebar({ userProfile, stats, isMobileOpen, setIsMobileOpen, isDesktopCollapsed, setIsDesktopCollapsed }: SidebarProps) {
+export default function Sidebar({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+  const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
-    router.refresh();
   };
-
-  const activeNavLinks = allNavLinks.filter(link => {
-    if (userProfile.userCategory === 'administrator') {
-        return ['dashboard', 'admin'].includes(link.slug);
-    }
-
-    if (userProfile.userCategory === 'diretor') {
-        return ['dashboard', 'edu'].includes(link.slug);
-    }
-    
-    if (link.slug === 'dashboard') return true;
-    return userProfile.active_modules?.includes(link.slug);
-  });
 
   return (
     <>
-      <div
-        onClick={() => setIsMobileOpen(false)}
-        className={`fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity ${
-            isMobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
+      {/* Mobile Overlay */}
+      <div 
+        className={`fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+        onClick={onClose}
       />
 
+      {/* Sidebar Container */}
       <aside 
-        className={`fixed lg:relative top-0 left-0 h-full text-white p-4 flex flex-col z-40 transition-all duration-300
-          ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64'}
-          lg:translate-x-0 ${isDesktopCollapsed ? 'lg:w-20' : 'lg:w-64'}`}
-        style={{ background: 'linear-gradient(180deg, #2E14ED, #190894, #5E55F9)' }}
+        className={`fixed top-0 left-0 h-full w-72 bg-white z-50 transition-transform duration-300 ease-in-out lg:translate-x-0 border-r border-gray-100 shadow-2xl lg:shadow-none flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <div className="flex items-center justify-between mb-8 h-8">
-            <div className={`flex items-center gap-3 ${isDesktopCollapsed ? 'lg:justify-center lg:w-full' : ''}`}>
-                <Image src="/assets/images/LOGO/png/logoazul.svg" alt="Facillit Hub Logo" width={32} height={32} className="brightness-0 invert flex-shrink-0" />
-                <span className={`font-bold text-xl whitespace-nowrap transition-opacity ${isDesktopCollapsed ? 'lg:opacity-0 lg:hidden' : ''}`}>Facillit</span>
+        {/* Logo Area */}
+        <div className="h-24 flex items-center px-8 border-b border-gray-50">
+          <Link href="/dashboard" className="flex items-center gap-3 group">
+            <div className="relative w-8 h-8 transition-transform group-hover:scale-110">
+                <Image src="/assets/images/LOGO/png/logoazul.svg" alt="Logo" fill className="object-contain" />
             </div>
-            <button onClick={() => setIsMobileOpen(false)} className="lg:hidden text-2xl text-white/80 hover:text-white">
-                <i className="fas fa-times"></i>
-            </button>
+            <span className="font-bold text-xl tracking-tight text-gray-800">Facillit Hub</span>
+          </Link>
         </div>
-        
-        {/* Se quiser exibir stats no futuro, você pode usar a variável 'stats' aqui. Ex: stats.streak */}
 
-        <nav className="flex-1">
-          <ul>
-            {activeNavLinks.map((link) => (
-              <li key={link.href}>
-                <Link href={link.href} title={link.label} className={`flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 transition-colors ${isDesktopCollapsed ? 'lg:justify-center' : ''}`}>
-                  <i className={`fas ${link.icon} w-6 text-center text-lg`}></i>
-                  <span className={isDesktopCollapsed ? 'lg:hidden' : ''}>{link.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        
-        <div className="pt-4 border-t border-white/10">
-            <button 
-                onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)} 
-                title={isDesktopCollapsed ? 'Expandir' : 'Recolher'} 
-                className={`hidden lg:flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 transition-colors w-full text-left ${isDesktopCollapsed ? 'lg:justify-center' : ''}`}
-            >
-                <i className={`fas ${isDesktopCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'} w-6 text-center`}></i>
-                <span className={isDesktopCollapsed ? 'hidden' : ''}>Recolher</span>
-            </button>
-            <button onClick={handleLogout} title="Sair" className={`flex items-center gap-4 p-3 rounded-lg hover:bg-white/10 transition-colors w-full text-left mt-2 ${isDesktopCollapsed ? 'lg:justify-center' : ''}`}>
-                <i className="fas fa-sign-out-alt w-6 text-center"></i>
-                <span className={isDesktopCollapsed ? 'hidden' : ''}>Sair</span>
-            </button>
+        {/* Scrollable Menu */}
+        <div className="flex-1 overflow-y-auto py-6 px-4 space-y-8 custom-scrollbar">
+          
+          {menuGroups.map((group, idx) => (
+            <div key={idx}>
+              <h3 className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">
+                {group.label}
+              </h3>
+              <ul className="space-y-1">
+                {group.items.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <li key={item.name}>
+                      <Link 
+                        href={item.href}
+                        onClick={() => window.innerWidth < 1024 && onClose()}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group
+                          ${isActive 
+                            ? 'bg-brand-purple text-white shadow-lg shadow-brand-purple/20' 
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-brand-purple'
+                          }`}
+                      >
+                        <div className={`w-6 flex justify-center transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-brand-purple'}`}>
+                          <i className={`fas ${item.icon}`}></i>
+                        </div>
+                        {item.name}
+                        
+                        {/* Indicador ativo (bolinha) */}
+                        {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-4 border-t border-gray-50">
+          <div className="bg-gray-50 rounded-2xl p-4 mb-2">
+             <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-full bg-brand-gradient flex items-center justify-center text-white text-xs">
+                    <i className="fas fa-crown"></i>
+                </div>
+                <div>
+                    <p className="text-xs font-bold text-gray-800">Plano Student</p>
+                    <p className="text-[10px] text-gray-500">Free Tier</p>
+                </div>
+             </div>
+             <Link href="/precos" className="block w-full py-2 text-center text-xs font-bold bg-white border border-gray-200 rounded-lg text-brand-purple hover:bg-brand-purple hover:text-white transition-colors">
+                Fazer Upgrade
+             </Link>
+          </div>
+
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
+          >
+            <i className="fas fa-sign-out-alt"></i>
+            Sair da Conta
+          </button>
         </div>
       </aside>
     </>

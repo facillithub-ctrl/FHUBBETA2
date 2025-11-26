@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import createClient from '@/utils/supabase/client';
 
-// Tipo para os dados do formulário expandido
+// Tipo para os dados do formulário
 type FormData = {
     fullName: string;
     email: string;
@@ -65,9 +65,9 @@ export default function RegisterPage() {
       // Máscara simples para CEP
       if (name === 'cep') {
           const masked = value.replace(/\D/g, '').substring(0, 8);
-          setFormData({ ...formData, [name]: masked });
+          setFormData(prev => ({ ...prev, [name]: masked }));
       } else {
-          setFormData({ ...formData, [name]: value });
+          setFormData(prev => ({ ...prev, [name]: value }));
       }
   };
 
@@ -98,8 +98,10 @@ export default function RegisterPage() {
     }
 
     if (user) {
-        // 2. Criação do Perfil Completo
-        const { error: profileError } = await supabase.from('profiles').insert({
+        // 2. Criação/Atualização do Perfil
+        // AQUI ESTÁ A CORREÇÃO: Usamos .upsert() em vez de .insert()
+        // Isso previne erros se o perfil já tiver sido criado por um trigger do banco de dados.
+        const { error: profileError } = await supabase.from('profiles').upsert({
             id: user.id,
             full_name: fullName,
             pronoun: pronoun,
@@ -110,14 +112,15 @@ export default function RegisterPage() {
             address_neighborhood: neighborhood,
             address_city: city,
             address_state: state,
-            user_category: 'aluno', // Padrão
+            user_category: 'aluno', // Padrão para registo público
             has_completed_onboarding: false,
             updated_at: new Date().toISOString(),
         });
 
         if (profileError) {
-            console.error("Erro ao criar perfil:", profileError);
-            setError("Conta criada, mas houve um erro ao salvar os dados do perfil. Contacte o suporte.");
+            console.error("Erro ao salvar perfil:", profileError);
+            // Mesmo com erro no perfil, o user foi criado, então tentamos redirecionar ou avisar
+            setError("Conta criada, mas houve um erro ao salvar os detalhes do perfil. Tente fazer login.");
         } else {
             router.push('/login?registered=true');
         }

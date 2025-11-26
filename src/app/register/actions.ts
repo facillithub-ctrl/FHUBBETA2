@@ -1,25 +1,33 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
 
 export async function signup(data: any) {
   const supabase = await createClient()
 
-  const { email, password, fullName, nickname, pronoun, addressCep, addressStreet, addressNumber, addressComplement, addressNeighborhood, addressCity, addressState, birthDate } = data
+  // Extrair dados correspondentes ao formulário da página
+  const { 
+    email, 
+    password, 
+    fullName, 
+    pronoun, 
+    cep, 
+    street, 
+    number, 
+    complement, 
+    neighborhood, 
+    city, 
+    state 
+  } = data
 
-  // 1. Criar utilizador no Auth com metadados
+  // 1. Criar utilizador no Auth com metadados básicos
   const { error: authError, data: authData } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
         full_name: fullName,
-        nickname: nickname,
         pronoun: pronoun,
-        // Podemos salvar o endereço nos metadados também, ou apenas no perfil
-        address_city: addressCity,
-        address_state: addressState
       },
     },
   })
@@ -29,29 +37,29 @@ export async function signup(data: any) {
   }
 
   if (authData.user) {
-    // 2. (Opcional) Inserir dados completos na tabela 'profiles' se o Trigger automático não cobrir todos os campos
-    // Se você já tem um trigger que cria o perfil ao criar o user, use o update
+    // 2. Inserir ou Atualizar dados na tabela 'profiles'
+    // Usamos upsert para garantir que se o perfil foi criado via Trigger, apenas atualizamos
     const { error: profileError } = await supabase
       .from('profiles')
       .upsert({
         id: authData.user.id,
         full_name: fullName,
-        nickname: nickname,
         pronoun: pronoun,
-        birth_date: birthDate,
-        address_cep: addressCep,
-        address_street: addressStreet,
-        address_number: addressNumber,
-        address_complement: addressComplement,
-        address_neighborhood: addressNeighborhood,
-        address_city: addressCity,
-        address_state: addressState,
+        address_cep: cep,
+        address_street: street,
+        address_number: number,
+        address_complement: complement,
+        address_neighborhood: neighborhood,
+        address_city: city,
+        address_state: state,
+        user_category: 'aluno',
+        has_completed_onboarding: false,
         updated_at: new Date().toISOString(),
       })
 
     if (profileError) {
-       console.error("Erro ao atualizar perfil:", profileError)
-       // Não retornamos erro fatal aqui pois o user foi criado, mas idealmente tratamos isso
+       console.error("Erro ao atualizar perfil (Server Action):", profileError)
+       // Opcional: Retornar erro específico se necessário, mas o user auth foi criado
     }
   }
 

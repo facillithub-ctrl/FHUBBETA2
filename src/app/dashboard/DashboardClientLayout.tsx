@@ -1,56 +1,28 @@
 "use client";
 
 import { useState } from 'react';
-import type { UserProfile, UserStats } from './types';
 import Sidebar from '@/components/dashboard/Sidebar';
 import Topbar from '@/components/dashboard/Topbar';
-// CORREÇÃO: O nome do arquivo é OnboardingFlow, não Onboarding
-import Onboarding from './onboarding/OnboardingFlow'; 
-import { ToastProvider } from '@/contexts/ToastContext';
 
-type LayoutProps = {
-  userProfile: UserProfile;
-  stats: UserStats;
-  children: React.ReactNode;
-};
-
-export default function DashboardClientLayout({ userProfile, stats, children }: LayoutProps) {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [isDesktopCollapsed, setDesktopCollapsed] = useState(false);
-
-  // Verifica se o usuário precisa passar pelo Onboarding
-  if (!userProfile.has_completed_onboarding) {
-    return (
-      <ToastProvider>
-        {/* Renderiza o fluxo de Onboarding se não estiver completo */}
-        <Onboarding userProfile={userProfile} />
-      </ToastProvider>
-    );
-  }
+export default function DashboardClientLayout({ children }: { children: React.ReactNode }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <ToastProvider>
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-        <Sidebar 
-          userProfile={userProfile}
-          stats={stats}
-          isMobileOpen={isSidebarOpen} 
-          setIsMobileOpen={setSidebarOpen} 
-          isDesktopCollapsed={isDesktopCollapsed}
-          setIsDesktopCollapsed={setDesktopCollapsed}
-        />
+    <div className="min-h-screen bg-gray-50 font-inter">
+      {/* Sidebar (Fixed Left) */}
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+
+      {/* Content Wrapper */}
+      <div className="lg:pl-72 transition-all duration-300">
         
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Topbar 
-            userProfile={userProfile} 
-            toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
-          />
-          
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+        {/* Topbar (Fixed Top, width ajustado pelo lg:left-72 no componente Topbar) */}
+        <Topbar onMenuClick={() => setIsSidebarOpen(true)} />
+
+        {/* Main Content Area */}
+        <main className="pt-28 px-6 md:px-10 pb-10">
             {children}
-          </main>
-        </div>
+        </main>
       </div>
-    </ToastProvider>
+    </div>
   );
-} 
+}
