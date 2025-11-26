@@ -38,6 +38,7 @@ const recursos = [
   { title: "Avisos Legais", href: "/recursos/legal", icon: "fa-scale-balanced" },
   { title: "Acessibilidade", href: "/recursos/acessibilidade", icon: "fa-universal-access" },
   { title: "Trabalhe Conosco", href: "/recursos/carreiras", icon: "fa-briefcase" },
+  { title: "Atualizações", href: "/recursos/atualizacoes", icon: "fa-share  " },
   { title: "Blog", href: "/recursos/blog", icon: "fa-newspaper" },
 ];
 

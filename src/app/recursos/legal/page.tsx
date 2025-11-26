@@ -79,7 +79,7 @@ export default function LegalHubPage() {
           </div>
 
           {/* Rodapé da Secção */}
-          <div className="mt-16 text-center p-8 bg-brand-dark rounded-3xl text-white relative overflow-hidden">
+          <div className="mt-16 text-center p-8 bg-brand-gradient rounded-3xl text-white relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-full bg-brand-gradient opacity-10"></div>
             <div className="relative z-10">
                 <h3 className="text-2xl font-bold mb-4">Dúvidas sobre os nossos termos?</h3>
