@@ -1,205 +1,261 @@
-"use client"; // <--- CORRIGIDO (sem o '=')
+"use client";
 
 import { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import createClient from '@/utils/supabase/client';
 
+// Tipo para os dados do formulário expandido
+type FormData = {
+    fullName: string;
+    email: string;
+    password: string;
+    pronoun: string;
+    cep: string;
+    street: string;
+    number: string;
+    complement: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+};
+
 export default function RegisterPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [cepLoading, setCepLoading] = useState(false);
+  
+  const [formData, setFormData] = useState<FormData>({
+      fullName: '', email: '', password: '', pronoun: 'Ele/Dele',
+      cep: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: ''
+  });
+  
   const router = useRouter();
   const supabase = createClient();
 
-  /**
-   * Função de registo (ETAPA 1 do seu plano) - SIMPLIFICADA
-   * 1. Apenas cria o utilizador no 'auth.users'.
-   * 2. Um Trigger no Supabase (que já existe) trata de criar
-   * o "Perfil Mínimo" em 'public.profiles' automaticamente.
-   */
-  const handleRegister = async (e: React.FormEvent) => {
+  // Função para buscar endereço pelo CEP
+  const handleCepBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+      const cep = e.target.value.replace(/\D/g, '');
+      if (cep.length !== 8) return;
+
+      setCepLoading(true);
+      try {
+          const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+          const data = await response.json();
+          
+          if (!data.erro) {
+              setFormData(prev => ({
+                  ...prev,
+                  street: data.logradouro,
+                  neighborhood: data.bairro,
+                  city: data.localidade,
+                  state: data.uf
+              }));
+          }
+      } catch (err) {
+          console.error("Erro ao buscar CEP", err);
+      } finally {
+          setCepLoading(false);
+      }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      // Máscara simples para CEP
+      if (name === 'cep') {
+          const masked = value.replace(/\D/g, '').substring(0, 8);
+          setFormData({ ...formData, [name]: masked });
+      } else {
+          setFormData({ ...formData, [name]: value });
+      }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      setError("As senhas não coincidem.");
-      return;
-    }
-    
     setIsLoading(true);
     setError(null);
 
-    // 1. Criar o utilizador no serviço de Autenticação (ETAPA 1)
-    const { data: authData, error: signUpError } = await supabase.auth.signUp({ 
-      email, 
-      password 
+    const { fullName, email, password, pronoun, cep, street, number, complement, neighborhood, city, state } = formData;
+
+    if (!email || !password || !fullName || !cep || !number) {
+        setError("Por favor, preencha todos os campos obrigatórios.");
+        setIsLoading(false);
+        return;
+    }
+
+    // 1. Criação do utilizador no Supabase Auth
+    const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName } }
     });
 
     if (signUpError) {
-      setError(signUpError.message === 'User already registered' ? 'Este e-mail já está em uso.' : signUpError.message);
-      setIsLoading(false);
-      return;
+        setError(signUpError.message);
+        setIsLoading(false);
+        return;
     }
 
-    // 2. VERIFICAÇÃO DE SUCESSO
-    // Se o 'signUp' funcionou e retornou um utilizador...
-    if (authData.user) {
-      // ... o Trigger já criou o perfil.
-      // O 'has_completed_onboarding' já está 'false' por default no DB.
-      // Não precisamos de fazer mais nada no 'profiles'.
-      
-      // 3. Sucesso!
-      setIsLoading(false);
-      setSuccess(true);
-    } else {
-      setError("Ocorreu um erro inesperado. Por favor, tente novamente.");
-      setIsLoading(false);
+    if (user) {
+        // 2. Criação do Perfil Completo
+        const { error: profileError } = await supabase.from('profiles').insert({
+            id: user.id,
+            full_name: fullName,
+            pronoun: pronoun,
+            address_cep: cep,
+            address_street: street,
+            address_number: number,
+            address_complement: complement,
+            address_neighborhood: neighborhood,
+            address_city: city,
+            address_state: state,
+            user_category: 'aluno', // Padrão
+            has_completed_onboarding: false,
+            updated_at: new Date().toISOString(),
+        });
+
+        if (profileError) {
+            console.error("Erro ao criar perfil:", profileError);
+            setError("Conta criada, mas houve um erro ao salvar os dados do perfil. Contacte o suporte.");
+        } else {
+            router.push('/login?registered=true');
+        }
     }
+    setIsLoading(false);
   };
-  
-  // Ecrã de Sucesso
-  if (success) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-brand-purple to-brand-green">
-        <div className="w-full max-w-lg bg-bg-primary rounded-2xl shadow-2xl p-10 m-4 text-center">
-          <div className="mx-auto bg-green-100 text-green-600 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-            <i className="fas fa-check text-3xl"></i>
-          </div>
-          <h1 className="text-2xl font-bold text-text-primary mb-2">Conta criada com sucesso!</h1>
-          <p className="text-text-secondary mb-6">
-            Enviámos um e-mail de confirmação. Por favor, verifique a sua caixa de entrada para ativar a sua conta.
-          </p>
-          <Link 
-            href="/login" 
-            className="w-full mt-2 py-4 px-4 bg-gradient-to-r from-brand-purple to-brand-green text-white rounded-xl font-bold inline-block"
-          >
-            Ir para o Login
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
-  // Ecrã de Registo
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-brand-purple to-brand-green">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-gray-50 font-inter">
       
-      {/* Cartão de Autenticação Branco */}
-      <div className="w-full max-w-lg bg-bg-primary rounded-2xl shadow-2xl p-10 m-4">
+      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row border border-gray-100">
         
-        {/* Cabeçalho do Cartão */}
-        <div className="flex justify-between items-center mb-6 border-b border-gray-200 pb-4">
-          <Image 
-            src="/assets/images/accont.svg" // Logo Facillit Account
-            alt="Facillit Account Logo" 
-            width={140} 
-            height={30} 
-          />
-          <p className="text-xs text-text-secondary text-right">
-            Para saber mais informações sobre o Facillit Account 
-            <Link href="/recursos/ajuda" className="font-bold text-text-primary hover:underline ml-1">
-              clique aqui
-            </Link>
-          </p>
+        {/* Lado Esquerdo: Banner/Info */}
+        <div className="hidden md:flex w-1/3 bg-brand-purple text-white p-10 flex-col justify-between relative overflow-hidden">
+             <div className="absolute top-0 left-0 w-full h-full bg-brand-gradient opacity-90 z-0"></div>
+             <div className="relative z-10">
+                 <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center mb-6">
+                     <i className="fas fa-user-plus text-2xl"></i>
+                 </div>
+                 <h2 className="text-3xl font-bold mb-4">Junte-se ao Facillit Hub</h2>
+                 <p className="text-white/80 mb-6">Crie o seu Facillit Account para ter acesso a ferramentas que transformam o seu potencial em resultados reais.</p>
+                 
+                 <ul className="space-y-3 text-sm">
+                     <li className="flex items-center gap-2"><i className="fas fa-check text-brand-green"></i> Correção de Redação IA</li>
+                     <li className="flex items-center gap-2"><i className="fas fa-check text-brand-green"></i> Simulados Inteligentes</li>
+                     <li className="flex items-center gap-2"><i className="fas fa-check text-brand-green"></i> Gestão de Tarefas</li>
+                 </ul>
+             </div>
+             <div className="relative z-10 text-xs text-white/50 mt-8">
+                 © 2025 Facillit Hub. Todos os direitos reservados.
+             </div>
         </div>
 
-        {/* Isologo "F" preto */}
-        <div className="text-center my-8">
-          <Image 
-            src="/assets/images/LOGO/isologo/preto.png" 
-            alt="Facillit Hub Isologo" 
-            width={40} 
-            height={40} 
-            className="mx-auto"
-          />
-        </div>
-        
-        {/* Títulos */}
-        <h1 className="text-2xl font-bold text-text-primary mb-2">
-          Novo por aqui?
-        </h1>
-        <p className="text-text-secondary mb-8 text-sm">
-          Primeiro, vamos precisar de algumas informações para criar sua conta
-        </p>
-        
-        {/* Formulário de Registo */}
-        <form onSubmit={handleRegister} className="space-y-5">
-          <div>
-            <label htmlFor="email" className="sr-only">E-mail</label>
-            <input 
-              type="email" 
-              name="email" 
-              id="email" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              required 
-              placeholder="Digite aqui um email de acesso..."
-              className="w-full p-4 border border-gray-300 rounded-xl text-sm" 
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="password" className="sr-only">Senha</label>
-            <input 
-              type="password" 
-              name="password" 
-              id="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              required 
-              placeholder="Crie uma senha..."
-              className="w-full p-4 border border-gray-300 rounded-xl text-sm" 
-            />
-          </div>
+        {/* Lado Direito: Formulário Completo */}
+        <div className="flex-1 p-8 md:p-10 overflow-y-auto max-h-[90vh]">
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold text-gray-800">Criar Conta</h1>
+                <Link href="/login" className="text-sm text-brand-purple font-bold hover:underline">Já tenho conta</Link>
+            </div>
 
-          <div>
-            <label htmlFor="confirmPassword" className="sr-only">Repita a senha</label>
-            <input 
-              type="password" 
-              name="confirmPassword" 
-              id="confirmPassword" 
-              value={confirmPassword} 
-              onChange={(e) => setConfirmPassword(e.target.value)} 
-              required 
-              placeholder="Repita a sua senha..."
-              className="w-full p-4 border border-gray-300 rounded-xl text-sm" 
-            />
-          </div>
-          
-          {error && (<p className="text-red-500 text-sm text-center">{error}</p>)}
-          
-          <div>
-            <button 
-              type="submit" 
-              disabled={isLoading} 
-              className="w-full mt-2 py-4 px-4 bg-gradient-to-r from-brand-purple to-brand-green text-white rounded-xl font-bold hover:opacity-90 transition disabled:opacity-50"
-            >
-              {isLoading ? 'Criando...' : 'Criar conta'}
-            </button>
-          </div>
-        </form>
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Secção: Dados Pessoais */}
+                <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase mb-3 border-b pb-1">Dados de Acesso</h3>
+                    <div className="grid grid-cols-1 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+                            <input type="text" name="fullName" onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-purple focus:outline-none" placeholder="Seu nome" required />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                                <input type="email" name="email" onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-purple focus:outline-none" placeholder="seu@email.com" required />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Palavra-passe</label>
+                                <input type="password" name="password" onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-purple focus:outline-none" placeholder="Min. 8 caracteres" required minLength={8} />
+                            </div>
+                        </div>
+                        <div>
+                             <label className="block text-sm font-medium text-gray-700 mb-1">Como quer ser tratado? (Pronome)</label>
+                             <select name="pronoun" value={formData.pronoun} onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-purple focus:outline-none">
+                                 <option value="Ele/Dele">Ele / Dele</option>
+                                 <option value="Ela/Dela">Ela / Dela</option>
+                                 <option value="Elu/Delu">Elu / Delu</option>
+                                 <option value="Outro">Prefiro não informar</option>
+                             </select>
+                        </div>
+                    </div>
+                </div>
 
-        {/* Divisor */}
-        <hr className="my-8 border-gray-300" />
+                {/* Secção: Endereço */}
+                <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase mb-3 border-b pb-1 mt-2">Endereço</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">CEP</label>
+                            <div className="relative">
+                                <input 
+                                    type="text" 
+                                    name="cep" 
+                                    value={formData.cep} 
+                                    onChange={handleChange} 
+                                    onBlur={handleCepBlur} 
+                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-purple focus:outline-none" 
+                                    placeholder="00000000" 
+                                    required 
+                                    maxLength={8}
+                                />
+                                {cepLoading && <span className="absolute right-3 top-3 text-brand-purple"><i className="fas fa-spinner fa-spin"></i></span>}
+                            </div>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Rua / Logradouro</label>
+                            <input type="text" name="street" value={formData.street} onChange={handleChange} className="w-full p-3 bg-gray-100 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-purple focus:outline-none text-gray-600" readOnly={!!formData.street} required />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div className="col-span-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Número</label>
+                            <input type="text" name="number" onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-purple focus:outline-none" required />
+                        </div>
+                         <div className="col-span-1 md:col-span-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                            <input type="text" name="complement" onChange={handleChange} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-purple focus:outline-none" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Bairro</label>
+                            <input type="text" name="neighborhood" value={formData.neighborhood} onChange={handleChange} className="w-full p-3 bg-gray-100 border border-gray-200 rounded-lg text-gray-600" readOnly={!!formData.neighborhood} required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
+                            <input type="text" name="city" value={formData.city} onChange={handleChange} className="w-full p-3 bg-gray-100 border border-gray-200 rounded-lg text-gray-600" readOnly={!!formData.city} required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                            <input type="text" name="state" value={formData.state} onChange={handleChange} className="w-full p-3 bg-gray-100 border border-gray-200 rounded-lg text-gray-600" readOnly={!!formData.state} required />
+                        </div>
+                    </div>
+                </div>
 
-        {/* Link de Login */}
-        <div className="text-center">
-          <Link href="/login" className="font-bold text-text-primary hover:text-brand-purple hover:underline">
-            Acessar minha conta
-          </Link>
-        </div>
+                {error && <p className="text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">{error}</p>}
 
-        {/* Rodapé do Cartão */}
-        <div className="mt-10 border-t border-gray-200 pt-6">
-          <p className="text-xs text-text-secondary text-center font-medium">
-            A Facillit Account faz parte do nosso ecossistema de soluções integradas.
-          </p>
-          <p className="text-xs text-text-secondary text-center mt-3">
-            Com a Facillit Account, você acessa serviços e experiências oferecidas pela nossa plataforma, reunindo funcionalidades, integrações e recursos pensados para facilitar a gestão e otimizar o seu dia a dia — tudo em um só lugar.
-          </p>
+                <div className="pt-4">
+                    <button 
+                        type="submit" 
+                        disabled={isLoading}
+                        className="w-full py-4 bg-brand-gradient text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all duration-300 disabled:opacity-70"
+                    >
+                        {isLoading ? 'A criar a sua conta...' : 'Finalizar Registo'}
+                    </button>
+                    <p className="text-xs text-center text-gray-400 mt-4">
+                        Ao criar conta, concorda com os nossos <Link href="/recursos/uso" className="underline">Termos de Uso</Link> e <Link href="/recursos/privacidade" className="underline">Política de Privacidade</Link>.
+                    </p>
+                </div>
+            </form>
         </div>
       </div>
     </div>
