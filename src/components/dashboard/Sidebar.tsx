@@ -10,11 +10,10 @@ import {
   PlayCircle, BookOpen, Users, Target, FlaskConical, 
   FileText, ListTodo, Lightbulb, ShieldAlert, 
   ChevronLeft, ChevronRight, LogOut, Settings, 
-  Sparkles, LifeBuoy, Command
+  Sparkles, LifeBuoy
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-// Definição rica dos menus
 const menuStructure = [
   {
     category: "Principal",
@@ -75,7 +74,6 @@ export default function Sidebar({
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
-  const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -83,7 +81,6 @@ export default function Sidebar({
     router.refresh();
   };
 
-  // Filtra os links com base nas permissões do usuário
   const filteredMenu = menuStructure.map(group => ({
     ...group,
     items: group.items.filter(link => {
@@ -94,12 +91,8 @@ export default function Sidebar({
     })
   })).filter(group => group.items.length > 0);
 
-  // Determina se deve expandir ao passar o mouse (opcional, desativado por padrão para UX mais estável)
-  // const shouldExpand = isDesktopCollapsed && isHoveringSidebar;
-
   return (
     <>
-      {/* Overlay Mobile (Fundo escuro com blur) */}
       <div
         onClick={() => setIsMobileOpen(false)}
         className={`fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-500 ${
@@ -107,7 +100,6 @@ export default function Sidebar({
         }`}
       />
 
-      {/* Sidebar Container Principal */}
       <aside 
         className={`
           fixed lg:relative inset-y-0 left-0 z-50 flex flex-col h-full bg-white border-r border-gray-100 shadow-[4px_0_24px_rgba(0,0,0,0.02)]
@@ -116,22 +108,15 @@ export default function Sidebar({
           lg:translate-x-0 
           ${isDesktopCollapsed ? 'lg:w-[88px]' : 'lg:w-[280px]'}
         `}
-        onMouseEnter={() => setIsHoveringSidebar(true)}
-        onMouseLeave={() => setIsHoveringSidebar(false)}
       >
-        {/* 1. Header da Marca */}
         <div className="h-24 flex items-center px-6 relative">
           <div className={`flex items-center gap-4 w-full transition-all duration-300 ${isDesktopCollapsed ? 'justify-center' : 'justify-start'}`}>
-            
-            {/* Logo Ícone */}
             <div className="relative group cursor-pointer">
                 <div className="absolute -inset-2 bg-gradient-to-tr from-[#42047e]/20 to-[#07f49e]/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-[#42047e] to-[#07f49e] flex items-center justify-center text-white font-bold text-xl shadow-sm">
                     F
                 </div>
             </div>
-            
-            {/* Logo Texto (Escondido no modo colapsado) */}
             <div className={`flex flex-col overflow-hidden whitespace-nowrap transition-all duration-300 ${
               isDesktopCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'
             }`}>
@@ -139,18 +124,15 @@ export default function Sidebar({
                 Facillit<span className="text-[#07f49e]">.</span>
               </span>
               <span className="text-[10px] font-semibold text-gray-400 tracking-widest uppercase mt-1">
-                Hub Educacional
+                Education Hub
               </span>
             </div>
           </div>
         </div>
 
-        {/* 2. Navegação Principal */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2 px-4 custom-scrollbar space-y-8">
           {filteredMenu.map((group, idx) => (
             <div key={idx} className="relative">
-              
-              {/* Título da Categoria */}
               {!isDesktopCollapsed && (
                 <h3 className="px-3 mb-3 text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                   {group.category}
@@ -158,7 +140,6 @@ export default function Sidebar({
                 </h3>
               )}
               
-              {/* Separador visual quando colapsado */}
               {isDesktopCollapsed && idx > 0 && (
                  <div className="mx-auto w-10 h-px bg-gray-100 my-4" />
               )}
@@ -182,12 +163,10 @@ export default function Sidebar({
                           }
                         `}
                       >
-                        {/* Indicador Ativo (Barra lateral) */}
                         {isActive && (
                           <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-lg bg-gradient-to-b from-[#42047e] to-[#07f49e] transition-all duration-300 ${isDesktopCollapsed ? 'h-6' : 'h-8'}`} />
                         )}
 
-                        {/* Ícone */}
                         <Icon 
                           size={22} 
                           strokeWidth={isActive ? 2.5 : 2}
@@ -197,21 +176,15 @@ export default function Sidebar({
                           `}
                         />
 
-                        {/* Texto e Descrição (Expandido) */}
                         <div className={`ml-3.5 flex flex-col overflow-hidden whitespace-nowrap transition-all duration-300 ${
                           isDesktopCollapsed ? 'hidden opacity-0 w-0' : 'block opacity-100'
                         }`}>
                           <span className="text-sm font-medium leading-none">{item.label}</span>
-                          {/* Descrição opcional para dar mais contexto */}
-                          {/* <span className="text-[10px] text-gray-400 mt-1 truncate">{item.description}</span> */}
                         </div>
 
-                        {/* Tooltip Sofisticado (Colapsado) */}
                         {isDesktopCollapsed && (
                           <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 px-4 py-2.5 bg-gray-900 text-white rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 shadow-xl translate-x-[-10px] group-hover:translate-x-0 min-w-max">
                             <div className="font-semibold text-xs">{item.label}</div>
-                            <div className="text-[10px] text-gray-400 font-medium">{item.description}</div>
-                            {/* Seta do Tooltip */}
                             <div className="absolute left-0 top-1/2 -translate-y-1/2 -ml-1 w-2 h-2 bg-gray-900 rotate-45"></div>
                           </div>
                         )}
@@ -224,7 +197,6 @@ export default function Sidebar({
           ))}
         </nav>
 
-        {/* 3. Rodapé da Conta (Perfil Rico) */}
         <div className="p-4 border-t border-gray-100 bg-white z-10">
             <div className={`
                 relative overflow-hidden transition-all duration-500
@@ -233,7 +205,6 @@ export default function Sidebar({
                     : 'rounded-2xl bg-gradient-to-b from-white to-gray-50 border border-gray-100 shadow-sm p-3'
                 }
             `}>
-                {/* Botão de Colapso (Visível apenas quando expandido, no topo do card) */}
                 {!isDesktopCollapsed && (
                     <button 
                         onClick={() => setIsDesktopCollapsed(true)}
@@ -243,10 +214,8 @@ export default function Sidebar({
                     </button>
                 )}
 
-                {/* Área do Usuário */}
                 <div className={`flex items-center ${isDesktopCollapsed ? 'justify-center flex-col gap-4' : 'gap-3'}`}>
                     
-                    {/* Avatar com Anel de Status */}
                     <Link href="/dashboard/account" className="relative flex-shrink-0 group">
                         <div className="w-10 h-10 rounded-full p-[2px] bg-gradient-to-tr from-[#42047e] to-[#07f49e] shadow-md group-hover:shadow-lg transition-shadow">
                             <div className="w-full h-full rounded-full bg-white p-[2px] overflow-hidden">
@@ -259,11 +228,9 @@ export default function Sidebar({
                                 )}
                             </div>
                         </div>
-                        {/* Indicador Online */}
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                     </Link>
 
-                    {/* Info Text (Expandido) */}
                     <div className={`flex-1 min-w-0 transition-all duration-300 ${isDesktopCollapsed ? 'hidden opacity-0' : 'block opacity-100'}`}>
                         <Link href="/dashboard/account" className="block group-hover:text-[#42047e]">
                             <p className="text-sm font-bold text-gray-900 truncate leading-tight">
@@ -279,7 +246,6 @@ export default function Sidebar({
                     </div>
                 </div>
 
-                {/* Ações Rápidas (Expandido) */}
                 {!isDesktopCollapsed && (
                     <div className="flex items-center justify-between border-t border-gray-200/60 mt-3 pt-2">
                         <Link href="/dashboard/settings">
@@ -298,7 +264,6 @@ export default function Sidebar({
                     </div>
                 )}
 
-                {/* Botão Expandir (Colapsado) */}
                 {isDesktopCollapsed && (
                     <button 
                         onClick={() => setIsDesktopCollapsed(false)}

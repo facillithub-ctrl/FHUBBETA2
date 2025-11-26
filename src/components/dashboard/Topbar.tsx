@@ -13,12 +13,10 @@ type TopbarProps = {
   toggleSidebar: () => void;
 };
 
-// Breadcrumbs Inteligentes
 const Breadcrumbs = () => {
   const pathname = usePathname();
   const paths = pathname.split('/').filter(Boolean);
 
-  // Mapa para nomes amigáveis
   const pathMap: Record<string, string> = {
     dashboard: 'Hub',
     applications: 'Apps',
@@ -59,7 +57,6 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
   const supabase = createClient();
   const router = useRouter();
 
-  // Fecha dropdowns ao clicar fora
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) setShowNotifications(false);
@@ -72,7 +69,6 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between h-[80px] px-6 sm:px-8 bg-white/80 backdrop-blur-xl border-b border-gray-100/80 transition-all duration-500">
       
-      {/* Esquerda: Menu Mobile & Breadcrumbs */}
       <div className="flex items-center gap-5">
         <button 
           onClick={toggleSidebar} 
@@ -84,10 +80,8 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
         <Breadcrumbs />
       </div>
 
-      {/* Direita: Ferramentas e Perfil */}
       <div className="flex items-center gap-3 sm:gap-5">
         
-        {/* Barra de Pesquisa Global */}
         <div className={`
             hidden md:flex items-center relative transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]
             ${isSearchFocused ? 'w-[340px]' : 'w-[240px]'}
@@ -110,7 +104,6 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
             `}
           />
           
-          {/* Atalho Visual */}
           <div className={`absolute right-3 pointer-events-none transition-opacity duration-300 ${isSearchFocused ? 'opacity-0' : 'opacity-100'}`}>
             <kbd className="hidden lg:flex items-center h-6 px-2 text-[10px] font-bold text-gray-400 bg-white border border-gray-200 rounded-lg shadow-sm">
                 <Command size={10} className="mr-1" /> K
@@ -118,18 +111,13 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
           </div>
         </div>
 
-        {/* Divisor Vertical */}
         <div className="hidden sm:block w-px h-8 bg-gray-200/60 mx-1"></div>
 
-        {/* Ações Rápidas */}
         <div className="flex items-center gap-2">
-            
-            {/* Grid de Apps */}
             <button className="p-2.5 text-gray-400 hover:text-[#42047e] hover:bg-gray-50 rounded-xl transition-all" title="Módulos">
                 <Grid size={20} />
             </button>
 
-            {/* Notificações */}
             <div className="relative" ref={notifRef}>
                 <button 
                     onClick={() => setShowNotifications(!showNotifications)}
@@ -142,7 +130,6 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
                     <span className="absolute top-2.5 right-2.5 h-2 w-2 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>
                 </button>
 
-                {/* Dropdown de Notificações */}
                 {showNotifications && (
                     <div className="absolute top-full right-0 mt-4 w-[380px] bg-white rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right z-50">
                         <div className="flex items-center justify-between p-4 border-b border-gray-50 bg-gray-50/50 backdrop-blur-sm">
@@ -166,13 +153,11 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
             </div>
         </div>
 
-        {/* Menu de Perfil */}
         <div className="relative pl-1" ref={profileRef}>
             <button 
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
                 className="flex items-center gap-3 group pl-2 pr-1 py-1 rounded-full border border-transparent hover:border-gray-100 hover:bg-gray-50 transition-all duration-300"
             >
-                {/* Texto do Perfil (Desktop) */}
                 <div className="hidden lg:flex flex-col items-end mr-1">
                     <span className="text-sm font-bold text-gray-700 group-hover:text-[#42047e] transition-colors leading-none">
                         {userProfile.fullName?.split(' ')[0]}
@@ -182,7 +167,6 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
                     </span>
                 </div>
                 
-                {/* Avatar */}
                 <div className="relative w-10 h-10 rounded-full p-[2px] bg-gradient-to-br from-[#42047e] to-[#07f49e] shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all">
                     <div className="w-full h-full rounded-full bg-white p-[2px] overflow-hidden">
                         {userProfile.avatarUrl ? (
@@ -196,7 +180,6 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
                 </div>
             </button>
 
-            {/* Dropdown do Perfil */}
             {showProfileMenu && (
                 <div className="absolute top-full right-0 mt-4 w-64 bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] border border-gray-100 p-2 animate-in fade-in zoom-in-95 duration-200 origin-top-right z-50">
                     <div className="px-3 py-3 mb-2 flex items-center gap-3 bg-gray-50 rounded-xl border border-gray-50">

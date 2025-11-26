@@ -211,16 +211,17 @@ export async function getEssaysForStudent() {
   return { data };
 }
 
-// ✅ FUNÇÃO CORRIGIDA: Usa submitted_at em vez de created_at
+// ✅ CORREÇÃO PRINCIPAL: Alterado 'created_at' para 'submitted_at'
 export async function getLatestEssayForDashboard() {
   const supabase = await createSupabaseServerClient();
   
   try {
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
-      if (authError || !user) return { data: null };
+      if (authError || !user) {
+          return { data: null };
+      }
 
-      // CORREÇÃO: Ordenando por 'submitted_at' pois 'created_at' não existe no schema
       const { data, error } = await supabase
         .from('essays')
         .select(`
@@ -231,20 +232,21 @@ export async function getLatestEssayForDashboard() {
             essay_prompts ( title )
         `)
         .eq('student_id', user.id)
-        .order('submitted_at', { ascending: false, nullsFirst: true }) // Ordena pelo envio mais recente (ou rascunho recente se nullsFirst)
+        .order('submitted_at', { ascending: false, nullsFirst: true }) // <--- AQUI ESTAVA O ERRO
         .limit(1)
         .maybeSingle();
 
         if (error) {
-            // Log apenas, não retorna erro para não quebrar o dashboard
-            console.error("Erro silencioso ao buscar última redação:", JSON.stringify(error, null, 2));
+            console.error("Erro (Supabase) ao buscar redação:", JSON.stringify(error, null, 2));
             return { data: null };
         }
 
-        if (!data) return { data: null };
+        if (!data) {
+            return { data: null };
+        }
 
-        // Mapeamento seguro
         let promptTitle: string | null = null;
+        
         if (data.essay_prompts) {
             if (Array.isArray(data.essay_prompts)) {
                 promptTitle = data.essay_prompts[0]?.title || null;
@@ -258,26 +260,25 @@ export async function getLatestEssayForDashboard() {
             ...data,
             final_grade: data.essay_corrections?.[0]?.final_grade ?? null,
             prompts: promptTitle ? { title: promptTitle } : null,
-            essay_corrections: undefined,
-            essay_prompts: undefined 
+            essay_corrections: undefined, 
+            essay_prompts: undefined      
         };
 
         return { data: adaptedData };
 
   } catch (e) {
-      console.error("Exceção em getLatestEssayForDashboard:", e);
+      console.error("Exceção não tratada em getLatestEssayForDashboard:", e);
       return { data: null };
   }
 }
 
-// ✅ FUNÇÕES PARA PLANOS DE AÇÃO (ADICIONADAS)
+// --- FUNÇÕES PARA PLANOS DE AÇÃO (NECESSÁRIAS PARA O DASHBOARD FUNCIONAR) ---
 
 export async function getUserActionPlans() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { data: [] };
 
-  // Busca segura (caso a tabela não exista, retorna vazio)
   try {
       const { data, error } = await supabase
         .from('study_plans')
@@ -325,7 +326,7 @@ export async function saveStudyPlan(essayId: string, tasks: any[]) {
 }
 
 
-// --- FUNÇÕES DE CORREÇÃO ---
+// --- FUNÇÕES DE CORREÇÃO (ESSENCIAIS PARA O FEEDBACK POR LINHA) ---
 
 type CorrectionQueryBaseResult = Omit<EssayCorrection, 'ai_feedback'> & {
     profiles: { full_name: string | null, verification_badge: string | null } | null;

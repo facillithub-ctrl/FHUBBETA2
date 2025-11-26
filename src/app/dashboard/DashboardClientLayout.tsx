@@ -13,9 +13,10 @@ type LayoutProps = {
 };
 
 export default function DashboardClientLayout({ userProfile, children }: LayoutProps) {
-  const [isSidebarOpen, setSidebarOpen] = useState(false); // Mobile
-  const [isDesktopCollapsed, setDesktopCollapsed] = useState(false); // Desktop
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktopCollapsed, setDesktopCollapsed] = useState(false);
 
+  // Se o onboarding não foi concluído, mostra a página de seleção
   if (!userProfile.has_completed_onboarding) {
     return (
       <ToastProvider>
@@ -26,8 +27,8 @@ export default function DashboardClientLayout({ userProfile, children }: LayoutP
 
   return (
     <ToastProvider>
-      <div className="flex h-screen bg-background-light dark:bg-gray-900 overflow-hidden">
-        {/* Sidebar recebe o estado e a função para alterar */}
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+        {/* Sidebar controla sua própria largura via classes CSS baseadas nas props */}
         <Sidebar 
           userProfile={userProfile} 
           isMobileOpen={isSidebarOpen} 
@@ -36,13 +37,14 @@ export default function DashboardClientLayout({ userProfile, children }: LayoutP
           setIsDesktopCollapsed={setDesktopCollapsed}
         />
         
-        {/* Conteúdo Principal (flex-1 faz ele ocupar o espaço restante) */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-300">
+        {/* Conteúdo Principal: flex-1 para ocupar o restante */}
+        <div className="flex-1 flex flex-col h-full w-full relative transition-all duration-300">
           <Topbar 
             userProfile={userProfile} 
             toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
           />
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
+          
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 scroll-smooth">
             {children}
           </main>
         </div>
