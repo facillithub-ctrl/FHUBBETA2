@@ -7,7 +7,7 @@ export default function DireitoAutoralPage() {
         <>
             <Header />
             <main>
-                <section className="bg-royal-blue text-white pt-32 pb-20 text-center">
+                <section className="bg-brand-gradient text-white pt-32 pb-20 text-center">
                     <div className="container mx-auto px-6 text-center">
                         <h1 className="text-4xl md:text-5xl font-black text-white-text mb-4">Termo de Consentimento para Uso de Texto</h1>
                         <p className="text-lg text-text-white">Última Atualização: 02 de Outubro de 2025</p>

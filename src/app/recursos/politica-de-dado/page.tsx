@@ -55,7 +55,7 @@ export default function PoliticaDeDadosPage() {
         <>
             <Header />
             <main>
-                <section className="bg-royal-blue text-white pt-32 pb-20 text-center">
+                <section className="bg-brand-gradient text-white pt-32 pb-20 text-center">
                     <div className="container mx-auto px-6">
                         <h1 className="text-4xl md:text-5xl font-black">Detalhamento do Tratamento de Dados por Módulo</h1>
                         <p className="text-xl opacity-90 max-w-3xl mx-auto mt-4">Anexo à Política de Privacidade da Plataforma Facillit HUB</p>
