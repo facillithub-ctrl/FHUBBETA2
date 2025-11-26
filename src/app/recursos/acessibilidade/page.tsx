@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import Link from 'next/link';
 
 export default function AccessibilityPage() {
   // Estado apenas para demonstração visual dos botões na página
@@ -169,7 +168,7 @@ export default function AccessibilityPage() {
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-3">Suporte Cognitivo</h3>
                 <p className="text-gray-600 text-sm leading-relaxed">
-                    O <strong>Facillit Write</strong> e o <strong>Facillit Edu</strong> possuem modos de "Leitura Simplificada" e "Foco Imersivo", removendo distrações visuais para auxiliar utilizadores com TDAH ou dificuldades de concentração.
+                    O <strong>Facillit Write</strong> e o <strong>Facillit Edu</strong> possuem modos de &quot;Leitura Simplificada&quot; e &quot;Foco Imersivo&quot;, removendo distrações visuais para auxiliar utilizadores com TDAH ou dificuldades de concentração.
                 </p>
             </div>
 
