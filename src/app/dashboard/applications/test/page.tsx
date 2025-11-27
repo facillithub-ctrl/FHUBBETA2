@@ -14,13 +14,14 @@ import type { UserProfile } from '../../types';
 
 export default async function TestPage() {
   const supabase = await createClient();
+  
+  // 1. Verificação de Auth
   const { data: { user } } = await supabase.auth.getUser();
-
   if (!user) {
     redirect('/login');
   }
 
-  // 1. Busca o perfil para determinar o tipo de usuário e permissões
+  // 2. Busca de Perfil
   const { data: profileData } = await supabase
     .from('profiles')
     .select('*')
@@ -30,14 +31,15 @@ export default async function TestPage() {
   const userProfile = profileData as UserProfile;
   const userRole = userProfile?.user_category;
 
-  // 2. Lógica para PROFESSORES / DIRETORES
+  // 3. Renderização Condicional baseada no Cargo
+  
+  // --- PROFESSOR / DIRETOR ---
   if (['professor', 'diretor', 'administrator'].includes(userRole || '')) {
     const teacherData = await getTeacherDashboardData();
     return <TeacherTestDashboard dashboardData={teacherData} />;
   }
 
-  // 3. Lógica para ALUNOS
-  // Usamos Promise.all para carregar todas as seções do dashboard em paralelo (Performance)
+  // --- ALUNO (Carregamento Paralelo para Performance) ---
   const [
     dashboardData, 
     availableTests, 
@@ -56,7 +58,7 @@ export default async function TestPage() {
     <StudentTestDashboard
       dashboardData={dashboardData}
       globalTests={availableTests}
-      classTests={[]} // Futuramente: implementar getTestsForClass(classId)
+      classTests={[]} // Futuramente: carregar testes específicos da turma do aluno
       knowledgeTests={knowledgeTests}
       campaigns={campaigns}
       consentedCampaignIds={consentedCampaignIds}

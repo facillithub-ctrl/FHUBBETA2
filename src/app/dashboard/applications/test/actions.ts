@@ -7,23 +7,23 @@ import {
   StudentDashboardData, 
   TestWithQuestions, 
   StudentCampaign,
-  QuestionContent
 } from "./types";
 
-// --- UTILITÁRIOS ---
+// --- TIPOS EXPORTADOS PARA O CLIENTE ---
+export type StudentAnswerPayload = {
+  question_id: string;
+  answer: string | number | boolean; // O valor da resposta
+  time_spent_seconds?: number;
+};
 
-/**
- * Converte strings vazias, undefined ou "undefined" em NULL.
- * Isso é CRUCIAL para evitar erros de constraint no PostgreSQL
- * quando um campo opcional não é preenchido.
- */
+// --- UTILITÁRIOS ---
 const sanitize = (value: any) => {
   if (value === "" || value === undefined || value === "undefined") return null;
   if (typeof value === 'string' && value.trim() === '') return null;
   return value;
 };
 
-// --- FUNÇÕES DO PROFESSOR ---
+// --- 1. DASHBOARD DO PROFESSOR ---
 
 export async function getTeacherDashboardData() {
   const supabase = await createClient();
@@ -31,14 +31,12 @@ export async function getTeacherDashboardData() {
 
   if (!user) return { activeTests: [], classes: [], isInstitutional: false };
 
-  // 1. Busca testes criados pelo professor
   const { data: tests } = await supabase
     .from('tests')
     .select('*, test_attempts(count)')
     .eq('created_by', user.id)
     .order('created_at', { ascending: false });
 
-  // 2. Busca perfil para verificar vínculo institucional
   const { data: profile } = await supabase
     .from('profiles')
     .select('organization_id, user_category')
@@ -48,7 +46,6 @@ export async function getTeacherDashboardData() {
   const isInstitutional = !!profile?.organization_id;
   let classes: any[] = [];
 
-  // 3. Se for institucional, busca as turmas
   if (isInstitutional && profile.organization_id) {
       const { data: classesData } = await supabase
           .from('school_classes')
@@ -57,14 +54,9 @@ export async function getTeacherDashboardData() {
       classes = classesData || [];
   }
 
-  return { 
-      activeTests: tests || [], 
-      classes, 
-      isInstitutional 
-  };
+  return { activeTests: tests || [], classes, isInstitutional };
 }
 
-// Alias para manter compatibilidade com componentes que usam o nome antigo
 export const getTestsForTeacher = getTeacherDashboardData;
 
 export async function createFullTest(testData: any, questions: Question[]) {
@@ -74,12 +66,10 @@ export async function createFullTest(testData: any, questions: Question[]) {
   if (!user) return { error: "Usuário não autenticado." };
 
   try {
-      // A. Inserir/Atualizar o Cabeçalho do Teste
-      // Usamos upsert para permitir edição se o ID for passado
       const { data: test, error: testError } = await supabase
         .from('tests')
         .upsert({
-          id: testData.id, // Se vier ID, é edição
+          id: testData.id,
           title: testData.title,
           description: sanitize(testData.description),
           subject: testData.subject,
@@ -88,12 +78,12 @@ export async function createFullTest(testData: any, questions: Question[]) {
           test_type: testData.test_type,
           cover_image_url: sanitize(testData.cover_image_url),
           created_by: user.id,
-          class_id: sanitize(testData.class_id), // NULL se for público global
+          class_id: sanitize(testData.class_id),
           collection: sanitize(testData.collection),
           serie: sanitize(testData.serie),
           question_count: questions.length,
           points: testData.test_type === 'avaliativo' ? questions.reduce((acc, q) => acc + (q.points || 0), 0) : 0,
-          is_public: !testData.class_id, // Público se não tiver turma vinculada
+          is_public: !testData.class_id,
           is_knowledge_test: !!testData.is_knowledge_test,
           related_prompt_id: sanitize(testData.related_prompt_id)
         })
@@ -102,21 +92,16 @@ export async function createFullTest(testData: any, questions: Question[]) {
 
       if (testError) throw new Error(`Erro ao salvar teste: ${testError.message}`);
 
-      // B. Gerenciar Questões
-      // Se for edição, removemos as antigas para reinserir (estratégia simples e segura para integridade)
       if (testData.id || test.id) {
           await supabase.from('questions').delete().eq('test_id', test.id);
       }
 
-      // Preparar payload das questões com SANITIZAÇÃO
       const questionsToInsert = questions.map(q => ({
         test_id: test.id,
         question_type: q.question_type,
         content: q.content,
         points: testData.test_type === 'avaliativo' ? (q.points || 1) : 0,
         thematic_axis: sanitize(q.thematic_axis),
-        
-        // CAMPOS CRÍTICOS: sanitize() garante NULL se vazio, evitando erro de constraint
         bloom_taxonomy: sanitize(q.metadata?.bloom_taxonomy),
         cognitive_skill: sanitize(q.metadata?.cognitive_skill),
         difficulty_level: sanitize(q.metadata?.difficulty_level),
@@ -129,7 +114,6 @@ export async function createFullTest(testData: any, questions: Question[]) {
         .insert(questionsToInsert);
 
       if (questionsError) {
-        // Rollback manual: se falhar ao criar as questões de um teste novo, apaga o teste
         if (!testData.id) await supabase.from('tests').delete().eq('id', test.id);
         throw new Error(`Erro ao salvar questões: ${questionsError.message}`);
       }
@@ -142,12 +126,9 @@ export async function createFullTest(testData: any, questions: Question[]) {
       return { error: err.message };
   }
 }
-
-// Alias para o componente CreateTestModal antigo
 export const createOrUpdateTest = createFullTest;
 
-
-// --- FUNÇÕES DO ALUNO (ESTATÍSTICAS & GAMIFICAÇÃO) ---
+// --- 2. FUNÇÕES DO ALUNO (ESTATÍSTICAS & GAMIFICAÇÃO) ---
 
 export async function getStudentTestDashboardData(): Promise<StudentDashboardData | null> {
   const supabase = await createClient();
@@ -155,14 +136,12 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
 
   if (!user) return null;
 
-  // 1. Perfil e Gamificação
   const { data: profile } = await supabase
     .from('profiles')
     .select('level, current_xp, next_level_xp, streak_days, badges')
     .eq('id', user.id)
     .single();
 
-  // 2. Histórico de Tentativas
   const { data: attempts } = await supabase
     .from('test_attempts')
     .select(`
@@ -172,16 +151,12 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
     .eq('student_id', user.id)
     .order('completed_at', { ascending: false });
 
-  // 3. Insights
   const { data: insights } = await supabase
     .from('student_insights')
     .select('*')
     .eq('student_id', user.id)
     .eq('is_active', true);
 
-  // --- Processamento de Dados ---
-  
-  // Performance por Matéria
   const subjectMap = new Map<string, { total: number; count: number }>();
   attempts?.forEach((att: any) => {
     const subject = att.tests?.subject || 'Geral';
@@ -198,13 +173,11 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
     simulados: data.count
   }));
 
-  // Histórico Temporal
   const history = attempts?.slice(0, 10).map((att: any) => ({
     date: new Date(att.completed_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
     avgScore: att.score || 0
   })).reverse() || [];
 
-  // Mapa de Competências (Mock inteligente baseado nas matérias)
   const competencyMap = [
     { axis: 'Interpretação', score: performanceBySubject.find(p => p.materia === 'Português')?.nota || 70, fullMark: 100 },
     { axis: 'Raciocínio', score: performanceBySubject.find(p => p.materia === 'Matemática')?.nota || 65, fullMark: 100 },
@@ -213,7 +186,6 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
     { axis: 'Memorização', score: 80, fullMark: 100 }
   ];
 
-  // Médias Gerais
   const totalTests = attempts?.length || 0;
   const globalAverage = totalTests > 0 
     ? attempts!.reduce((acc, curr) => acc + (curr.score || 0), 0) / totalTests 
@@ -243,10 +215,110 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
     recentAttempts: attempts?.slice(0, 5) || []
   };
 }
-
-// Alias
 export const getStudentDashboardData = getStudentTestDashboardData;
 
+// --- 3. EXECUÇÃO E CORREÇÃO DE TESTE (A FUNÇÃO QUE FALTAVA) ---
+
+export async function submitTestAttempt(
+  testId: string, 
+  answers: StudentAnswerPayload[], 
+  totalTimeSeconds: number
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Usuário não autenticado." };
+
+  // 1. Buscar Teste e Gabarito para Correção
+  const { data: testData, error: testError } = await supabase
+    .from('tests')
+    .select(`
+        id, 
+        test_type,
+        questions (
+            id, 
+            points, 
+            question_type, 
+            content
+        )
+    `)
+    .eq('id', testId)
+    .single();
+
+  if (testError || !testData) return { error: "Teste não encontrado ou indisponível." };
+
+  let totalScore = 0;
+  let maxScore = 0;
+  
+  const answersMap = new Map(answers.map(a => [a.question_id, a.answer]));
+
+  // 2. Calcular Nota
+  const processedAnswers = testData.questions.map((q: any) => {
+      const studentAnswer = answersMap.get(q.id);
+      let isCorrect = false;
+      let points = 0;
+
+      // Correção automática para Múltipla Escolha e V/F
+      if (testData.test_type === 'avaliativo' && (q.question_type === 'multiple_choice' || q.question_type === 'true_false')) {
+          // content.correct_option deve ser comparado com a resposta do aluno
+          // Convertendo para string para garantir comparação segura
+          if (studentAnswer !== undefined && String(studentAnswer) === String(q.content.correct_option)) {
+              isCorrect = true;
+              points = q.points || 1;
+          }
+      } 
+      // Dissertativas requerem correção manual futura ou IA
+
+      totalScore += points;
+      maxScore += (q.points || 1);
+
+      return {
+          question_id: q.id,
+          student_id: user.id,
+          answer: { value: studentAnswer }, // Salva como JSONB
+          is_correct: isCorrect,
+          points_earned: points
+      };
+  });
+
+  const finalScore = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+
+  // 3. Salvar Tentativa
+  const { data: attempt, error: attemptError } = await supabase
+      .from('test_attempts')
+      .insert({
+          test_id: testId,
+          student_id: user.id,
+          score: finalScore,
+          time_spent_seconds: totalTimeSeconds,
+          status: 'completed',
+          completed_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+  if (attemptError) return { error: "Erro ao salvar tentativa: " + attemptError.message };
+
+  // 4. Salvar Respostas Individuais
+  const answersToInsert = processedAnswers.map(pa => ({
+      attempt_id: attempt.id,
+      question_id: pa.question_id,
+      student_id: pa.student_id,
+      answer: pa.answer,
+      is_correct: pa.is_correct,
+      time_spent_seconds: 0
+  }));
+
+  const { error: answersError } = await supabase
+      .from('student_answers')
+      .insert(answersToInsert);
+
+  if (answersError) console.error("Erro ao salvar detalhes das respostas:", answersError);
+
+  revalidatePath('/dashboard/applications/test');
+  
+  return { success: true, attemptId: attempt.id, score: finalScore };
+}
 
 // --- 4. LISTAGEM DE TESTES E CAMPANHAS ---
 
@@ -255,13 +327,12 @@ export async function getAvailableTestsForStudent() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  // Busca testes públicos e testes da turma do aluno (lógica simplificada: is_public = true)
   const { data, error } = await supabase
     .from('tests')
     .select(`
       id, title, subject, question_count, duration_minutes, 
       difficulty, test_type, created_at, cover_image_url, 
-      class_id, collection
+      class_id, collection, points
     `)
     .eq('is_public', true)
     .eq('is_knowledge_test', false)
@@ -272,11 +343,19 @@ export async function getAvailableTestsForStudent() {
     return [];
   }
 
+  // Verifica tentativas
+  const { data: attempts } = await supabase
+    .from('test_attempts')
+    .select('test_id')
+    .eq('student_id', user.id);
+    
+  const attemptedIds = new Set(attempts?.map(a => a.test_id));
+
   return data.map(t => ({
       ...t,
       avg_score: 0,
       total_attempts: 0,
-      hasAttempted: false
+      hasAttempted: attemptedIds.has(t.id)
   }));
 }
 
@@ -343,8 +422,7 @@ export async function submitCampaignConsent(campaignId: string) {
     return { success: true };
 }
 
-
-// --- 5. EXECUÇÃO DE TESTE ---
+// --- 5. DETALHES DE TESTE PARA EXECUÇÃO ---
 
 export async function getTestWithQuestions(testId: string) {
   const supabase = await createClient();
@@ -359,7 +437,6 @@ export async function getTestWithQuestions(testId: string) {
 
   if (error) return { data: null, error: error.message };
 
-  // Verifica tentativa anterior
   const { data: attempt } = await supabase
     .from('test_attempts')
     .select('id, score, completed_at')
@@ -379,7 +456,6 @@ export async function getTestWithQuestions(testId: string) {
 export async function getQuickTest() {
   const supabase = await createClient();
   
-  // Tenta pegar um teste curto aleatório ou marcado como quick
   const { data, error } = await supabase
     .from('tests')
     .select('*, questions(*)')
@@ -408,7 +484,6 @@ export async function getStudentResultsHistory() {
 
   if (error) return { data: null, error: error.message };
 
-  // Normalização para o frontend
   const mappedData = data.map(item => ({
       ...item,
       tests: Array.isArray(item.tests) ? item.tests[0] : item.tests
