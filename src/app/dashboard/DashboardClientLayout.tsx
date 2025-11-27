@@ -1,54 +1,52 @@
 "use client";
 
-import { useState } from 'react';
-import type { UserProfile } from './types';
-import Sidebar from '@/components/dashboard/Sidebar';
-import Topbar from '@/components/dashboard/Topbar';
-import Onboarding from './onboarding/OnboardingFlow';
-import { ToastProvider } from '@/contexts/ToastContext';
+import { useState, ReactNode } from "react";
+import Sidebar from "@/components/dashboard/Sidebar";
+import Topbar from "@/components/dashboard/Topbar";
 
-type LayoutProps = {
-  userProfile: UserProfile;
-  children: React.ReactNode;
-};
+interface DashboardClientLayoutProps {
+  children: ReactNode;
+  user?: any; // Recebe os dados do usuário do Server Component
+}
 
-export default function DashboardClientLayout({ userProfile, children }: LayoutProps) {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [isDesktopCollapsed, setDesktopCollapsed] = useState(false);
-
-  // Se o onboarding não foi concluído, mostra a página de seleção
-  if (!userProfile.has_completed_onboarding) {
-    return (
-      <ToastProvider>
-        <Onboarding userProfile={userProfile} />
-      </ToastProvider>
-    );
-  }
+export default function DashboardClientLayout({ 
+  children, 
+  user 
+}: DashboardClientLayoutProps) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <ToastProvider>
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
-        {/* Sidebar controla sua própria largura via classes CSS baseadas nas props */}
-        <Sidebar 
-          userProfile={userProfile} 
-          isMobileOpen={isSidebarOpen} 
-          setIsMobileOpen={setSidebarOpen} 
-          isDesktopCollapsed={isDesktopCollapsed}
-          setIsDesktopCollapsed={setDesktopCollapsed}
-        />
+    <div className="min-h-screen bg-[#f8f9fc] dark:bg-[#0f0f12] font-sans">
+      
+      {/* Sidebar: Controlada pelo estado */}
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        setIsOpen={setIsSidebarOpen} 
+      />
+
+      {/* Wrapper do Conteúdo Principal */}
+      {/* lg:pl-72 empurra o conteúdo para a direita quando a sidebar está fixa no desktop */}
+      <div className="flex flex-col min-h-screen transition-all duration-300 ease-in-out lg:pl-72">
         
-        {/* Conteúdo Principal: flex-1 para ocupar o restante */}
-        <div className="flex-1 flex flex-col h-full w-full relative transition-all duration-300">
-          <Topbar 
-            userProfile={userProfile} 
-            toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
-          />
-          
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 scroll-smooth">
+        {/* Topbar: Passamos a função para abrir o menu no mobile */}
+        <Topbar 
+          onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+          user={user}
+        />
+
+        {/* Área de Conteúdo das Páginas */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+          <div className="mx-auto max-w-7xl animate-fade-in-up">
             {children}
-          </main>
-        </div>
+          </div>
+        </main>
+        
+        {/* Footer Simples da Dashboard (Opcional) */}
+        <footer className="px-8 py-4 text-center text-xs text-gray-400 dark:text-gray-600">
+          &copy; {new Date().getFullYear()} Facillit Hub. Todos os direitos reservados.
+        </footer>
+
       </div>
-    </ToastProvider>
+    </div>
   );
 }

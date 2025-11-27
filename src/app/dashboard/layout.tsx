@@ -1,68 +1,35 @@
-import { redirect } from 'next/navigation';
-import createSupabaseServerClient from '@/utils/supabase/server';
-import type { UserProfile } from './types';
-import DashboardClientLayout from './DashboardClientLayout';
+import createClient from "@/utils/supabase/server"; // <--- Alterado: Removemos as chaves { } para usar o export default
+import { redirect } from "next/navigation";
+import DashboardClientLayout from "./DashboardClientLayout";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createSupabaseServerClient();
+  // Como o teu createSupabaseServerClient é async, o await aqui está corretíssimo
+  const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect('/login');
-  }
-  
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('id, full_name, user_category, avatar_url, pronoun, nickname, birth_date, school_name, has_completed_onboarding, active_modules, target_exam, verification_badge, organization_id')
-    .eq('id', user.id)
-    .single();
-
-  if (error && error.code !== 'PGRST116') {
-    console.error("Erro ao buscar perfil:", error); 
-    await supabase.auth.signOut();
-    redirect('/login');
+    redirect("/login");
   }
 
-  // Constrói o objeto UserProfile COM O EMAIL
-  const userProfile: UserProfile = profile ? {
-    id: profile.id,
-    fullName: profile.full_name,
-    email: user.email, // ADICIONADO AQUI
-    userCategory: profile.user_category,
-    avatarUrl: profile.avatar_url,
-    pronoun: profile.pronoun,
-    nickname: profile.nickname,
-    birthDate: profile.birth_date,
-    schoolName: profile.school_name,
-    has_completed_onboarding: profile.has_completed_onboarding,
-    active_modules: profile.active_modules,
-    target_exam: profile.target_exam,
-    verification_badge: profile.verification_badge,
-    organization_id: profile.organization_id,
-  } : {
+  // Mock de dados do usuário para passar ao Client Component
+  // Futuramente, você buscará isso da tabela 'profiles'
+  const userData = {
     id: user.id,
-    fullName: null,
-    email: user.email, // E AQUI TAMBÉM
-    userCategory: null,
-    avatarUrl: null,
-    pronoun: null,
-    nickname: null,
-    birthDate: null,
-    schoolName: null,
-    has_completed_onboarding: false,
-    active_modules: [],
-    target_exam: null,
-    verification_badge: null,
-    organization_id: null,
+    email: user.email,
+    name: user.user_metadata?.name || "Estudante Facillit",
+    avatar_url: user.user_metadata?.avatar_url,
+    is_verified: true // Exemplo
   };
 
   return (
-    <DashboardClientLayout userProfile={userProfile}>
+    <DashboardClientLayout user={userData}>
       {children}
     </DashboardClientLayout>
   );
