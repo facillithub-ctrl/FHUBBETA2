@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, ReactNode } from 'react';
 import { Essay, EssayCorrection, Annotation, getEssayDetails, getCorrectionForEssay, saveAIFeedback, AIFeedback } from '../actions';
 import Image from 'next/image';
 import { VerificationBadge } from '@/components/VerificationBadge';
@@ -23,7 +23,7 @@ const AIApprovalModal = ({ feedback, onSave, onCancel, isSaving }: { feedback: A
                     </div>
                     <div>
                         <h3 className="font-bold text-lg">Análise Inteligente</h3>
-                        <p className="text-xs opacity-90">Revise o feedback gerado pela IA.</p>
+                        <p className="text-xs opacity-90">Revise o feedback gerado antes de salvar.</p>
                     </div>
                 </div>
                 <button onClick={onCancel} className="text-white/80 hover:text-white transition-colors"><i className="fas fa-times text-xl"></i></button>
@@ -66,9 +66,9 @@ const ContestModal = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (r
                 </div>
                 
                 <div className="p-6">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Motivo</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Motivo da Contestação</label>
                     <textarea 
-                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl mb-4 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm resize-none"
+                        className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl mb-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none text-sm resize-none"
                         rows={4}
                         placeholder="Ex: A nota da competência 3 não reflete meus argumentos..."
                         value={reason}
@@ -124,7 +124,6 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
     const [isLoading, setIsLoading] = useState(true);
     const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null);
     
-    // Estados
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
     const [tempAIFeedback, setTempAIFeedback] = useState<AIFeedback | null>(null);
     const [showAIModal, setShowAIModal] = useState(false);
@@ -156,6 +155,7 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
         setIsGeneratingAI(true);
         try {
             const cleanText = details.content ? details.content.replace(/<[^>]+>/g, '\n') : "";
+            
             const response = await fetch('/api/generate-feedback', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -194,14 +194,15 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
     };
 
     const handleDownload = () => window.print();
+    
     const handleShare = async () => {
-        try { await navigator.share({ title: 'Minha Redação', text: `Nota: ${details?.correction?.final_grade}`, url: window.location.href }); } 
+        try { await navigator.share({ title: 'Minha Redação', text: `Minha nota: ${details?.correction?.final_grade}`, url: window.location.href }); } 
         catch (e) { if(addToast) addToast({ type: 'info', message: 'Link copiado.' }); }
     };
 
     const handleContestSubmit = (reason: string) => {
         console.log("Contestação:", reason);
-        if(addToast) addToast({ type: 'success', message: 'Contestação enviada!' });
+        if(addToast) addToast({ type: 'success', message: 'Contestação enviada com sucesso.' });
         setShowContestModal(false);
     };
 
@@ -213,6 +214,7 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
         }
 
         const annotations = details.correction?.annotations || [];
+        // Limpa o HTML para evitar quebra de layout ao renderizar spans
         const clean = details.content.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '');
         
         if (annotations.length === 0) {
@@ -265,9 +267,7 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
     if (isLoading) return <div className="h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#42047e]"></div></div>;
     if (!details) return <div className="p-10 text-center text-red-500">Redação não encontrada.</div>;
 
-    // DEFINIÇÃO CRÍTICA PARA EVITAR O REFERENCE ERROR
     const activeAnnotation = details.correction?.annotations?.find(a => a.id === activeAnnotationId);
-    
     const finalGrade = details.correction?.final_grade || 0;
     const gradePercent = Math.min((finalGrade / 1000) * 100, 100);
     const gradeColor = finalGrade >= 900 ? 'text-[#07f49e]' : finalGrade >= 700 ? 'text-green-500' : finalGrade >= 500 ? 'text-yellow-500' : 'text-red-500';
@@ -282,7 +282,7 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
                 <ContestModal onClose={() => setShowContestModal(false)} onSubmit={handleContestSubmit} />
             )}
 
-            {/* STICKY TOPBAR FLUTUANTE */}
+            {/* TOPBAR FLUTUANTE */}
             <div className="sticky top-4 z-50 max-w-6xl mx-auto bg-white/90 dark:bg-dark-card/95 backdrop-blur-lg border border-gray-200 dark:border-dark-border px-6 py-3 flex justify-between items-center shadow-lg rounded-2xl transition-all animate-in fade-in slide-in-from-top-4">
                 <div className="flex items-center gap-4">
                     <button onClick={onBack} className="text-gray-500 hover:text-[#42047e] font-bold flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
@@ -295,7 +295,7 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
                 <div className="flex items-center gap-3">
                     <div className="hidden md:flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
                         <button onClick={() => setViewMode('corrected')} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'corrected' ? 'bg-white shadow text-[#42047e] dark:bg-gray-700 dark:text-white' : 'text-gray-500'}`}>Correção</button>
-                        <button onClick={() => setViewMode('clean')} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'clean' ? 'bg-white shadow text-[#42047e] dark:bg-gray-700 dark:text-white' : 'text-gray-500'}`}>Limpo</button>
+                        <button onClick={() => setViewMode('clean')} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${viewMode === 'clean' ? 'bg-white shadow text-[#42047e] dark:bg-gray-700 dark:text-white' : 'text-gray-500'}`}>Original</button>
                     </div>
                     <div className="flex gap-1">
                         <button onClick={handleDownload} className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-xl transition-colors" title="Baixar"><i className="fas fa-print"></i></button>
@@ -314,7 +314,6 @@ export default function EssayCorrectionView({ essayId, onBack }: {essayId: strin
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 p-6 items-start mt-4">
                 <div className="xl:col-span-7 bg-white dark:bg-dark-card p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-dark-border min-h-[600px] relative">
-                    {/* ANOTAÇÃO FLUTUANTE */}
                     {activeAnnotation && (
                         <div className="sticky top-24 z-30 mb-4" onClick={e => e.stopPropagation()}>
                             <AnnotationDetail annotation={activeAnnotation} onClose={() => setActiveAnnotationId(null)} />

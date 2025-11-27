@@ -2,17 +2,18 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Essay, EssayPrompt, getEssaysForStudent, getUserActionPlans, getSavedFeedbacks, ActionPlan } from '../actions';
 import EssayEditor from './EssayEditor';
 import EssayCorrectionView from './EssayCorrectionView';
 import StatisticsWidget from './StatisticsWidget';
 import ProgressionChart from './ProgressionChart';
-import PracticePlanWidget from './PracticePlanWidget'; // IMPORTADO
+import PracticePlanWidget from './PracticePlanWidget';
+import FunctionalShortcuts from './FunctionalShortcuts'; // NOVO
+import PromptLibrary from './PromptLibrary'; // NOVO
 import CountdownWidget from '@/components/dashboard/CountdownWidget';
 
-// ... (Mantenha os Types Stats, RankInfo, etc definidos anteriormente) ...
+// --- TIPOS ---
 type Stats = {
     totalCorrections: number;
     averages: { avg_final_grade: number; avg_c1: number; avg_c2: number; avg_c3: number; avg_c4: number; avg_c5: number; };
@@ -40,30 +41,15 @@ const GradientText = ({ children }: { children: React.ReactNode }) => (
     <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#42047e] to-[#07f49e]">{children}</span>
 );
 
-const NewsCard = ({ event }: { event: CurrentEvent }) => {
-    const isExternal = event.link.startsWith('http');
-    const icon = event.type === 'notice' ? 'fa-bell' : 'fa-newspaper';
-    return (
-        <a href={event.link} target={isExternal ? "_blank" : "_self"} className="flex gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 transition-all group">
-            <div className="w-10 h-10 rounded-full bg-[#42047e]/10 text-[#42047e] flex items-center justify-center flex-shrink-0">
-                <i className={`fas ${icon}`}></i>
-            </div>
-            <div>
-                <h5 className="font-bold text-sm text-gray-800 dark:text-white group-hover:text-[#42047e] transition-colors">{event.title}</h5>
-                {event.summary && <p className="text-xs text-gray-500 line-clamp-2">{event.summary}</p>}
-            </div>
-        </a>
-    );
-};
-
 export default function StudentDashboard({ initialEssays, prompts, statistics, streak, rankInfo, frequentErrors, currentEvents, targetExam, examDate }: Props) {
   const [essays, setEssays] = useState(initialEssays);
-  const [view, setView] = useState<'dashboard' | 'edit' | 'view_correction'>('dashboard');
-  const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'feedbacks' | 'analytics'>('overview');
+  // VIEW STATES: 'dashboard' | 'edit' | 'view_correction' | 'prompts_library'
+  const [view, setView] = useState<'dashboard' | 'edit' | 'view_correction' | 'prompts_library'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'overview' | 'history' | 'comments' | 'analytics'>('overview');
+  const [commentSubTab, setCommentSubTab] = useState<'ai' | 'human'>('ai'); // Sub-aba para comentários
   const [currentEssay, setCurrentEssay] = useState<Partial<Essay> | null>(null);
   
-  // Estados para dados assíncronos
-  const [actionPlans, setActionPlans] = useState<ActionPlan[]>([]);
+  const [actionPlans, setActionPlans] = useState<any[]>([]);
   const [savedFeedbacks, setSavedFeedbacks] = useState<any[]>([]);
   
   const searchParams = useSearchParams();
@@ -79,9 +65,19 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
       loadData();
   }, []);
 
-  const handleSelectEssay = useCallback((essay: Partial<Essay>) => {
+  // CORREÇÃO DO BUG DE REDIRECIONAMENTO
+  const handleSelectEssay = useCallback((essay: any) => {
     setCurrentEssay(essay);
-    setView(essay.status === 'corrected' ? 'view_correction' : 'edit');
+    
+    // Verifica se tem feedback de IA (array não vazio ou objeto) OU status 'corrected'
+    const hasAIFeedback = essay.ai_feedback && (Array.isArray(essay.ai_feedback) ? essay.ai_feedback.length > 0 : true);
+    const isCorrected = essay.status === 'corrected';
+
+    if (isCorrected || hasAIFeedback) {
+        setView('view_correction');
+    } else {
+        setView('edit');
+    }
   }, []);
 
   useEffect(() => {
@@ -93,26 +89,30 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
   }, [searchParams, initialEssays, handleSelectEssay]);
 
   const handleCreateNew = () => { setCurrentEssay(null); setView('edit'); };
+  const handleOpenLibrary = () => { setView('prompts_library'); };
 
   const handleBackToDashboard = async () => {
     const result = await getEssaysForStudent();
     if (result.data) setEssays(result.data);
-    // Recarrega planos pois a nova redação pode ter gerado novos itens
     const plans = await getUserActionPlans();
     if (plans.data) setActionPlans(plans.data);
+    const feeds = await getSavedFeedbacks();
+    if (feeds.data) setSavedFeedbacks(feeds.data);
     
     setView('dashboard');
     setCurrentEssay(null);
     window.history.pushState({}, '', '/dashboard/applications/write');
   };
 
+  // ROTEAMENTO DE VIEWS
   if (view === 'edit') return <EssayEditor essay={currentEssay} prompts={prompts} onBack={handleBackToDashboard} />;
   if (view === 'view_correction' && currentEssay?.id) return <EssayCorrectionView essayId={currentEssay.id} onBack={handleBackToDashboard} />;
+  if (view === 'prompts_library') return <PromptLibrary prompts={prompts} onSelectPrompt={(p) => { setCurrentEssay({ prompt_id: p.id, title: p.title }); setView('edit'); }} onBack={() => setView('dashboard')} />;
 
   return (
     <div className="space-y-8 animate-fade-in pb-10">
         
-        {/* HEADER */}
+       {/* HEADER */}
        <header className="bg-white dark:bg-dark-card p-8 rounded-3xl shadow-lg border border-gray-100 dark:border-dark-border relative overflow-hidden">
             <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex items-center gap-5">
@@ -126,9 +126,14 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
                         <p className="text-gray-500 font-medium">Laboratório de Redação Inteligente</p>
                     </div>
                 </div>
-                <button onClick={handleCreateNew} className="bg-[#42047e] hover:bg-[#360368] text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:-translate-y-1 flex items-center gap-2">
-                    <i className="fas fa-plus"></i> Nova Redação
-                </button>
+                <div className="flex gap-3">
+                    <button onClick={handleOpenLibrary} className="bg-white border border-gray-200 hover:border-[#42047e] text-gray-700 font-bold py-3 px-6 rounded-xl shadow-sm transition-all flex items-center gap-2">
+                        <i className="fas fa-book"></i> Temas
+                    </button>
+                    <button onClick={handleCreateNew} className="bg-[#42047e] hover:bg-[#360368] text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all hover:-translate-y-1 flex items-center gap-2">
+                        <i className="fas fa-plus"></i> Nova Redação
+                    </button>
+                </div>
             </div>
       </header>
 
@@ -136,8 +141,8 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
       <div className="flex flex-wrap justify-center md:justify-start gap-2">
           {[
               { id: 'overview', label: 'Visão Geral', icon: 'fa-home' },
-              { id: 'history', label: 'Minhas Redações', icon: 'fa-file-alt' },
-              { id: 'feedbacks', label: 'Biblioteca IA', icon: 'fa-robot' },
+              { id: 'history', label: 'Histórico', icon: 'fa-file-alt' },
+              { id: 'comments', label: 'Comentários', icon: 'fa-comments' }, // RENOMEADO
               { id: 'analytics', label: 'Estatísticas', icon: 'fa-chart-bar' }
           ].map(tab => (
               <button 
@@ -157,7 +162,7 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
       {/* CONTEÚDO: VISÃO GERAL */}
       {activeTab === 'overview' && (
           <div className="space-y-8 animate-fade-in">
-              {/* Grid Superior de Stats */}
+              {/* Grid Stats (Ranking e Sequência Restaurados) */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="bg-white dark:bg-dark-card p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border">
                       <div className="flex justify-between mb-4"><div className="p-3 bg-purple-100 rounded-xl text-[#42047e]"><i className="fas fa-fire text-xl"></i></div><span className="text-xs font-bold text-gray-400 uppercase">Sequência</span></div>
@@ -180,17 +185,16 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
                   </div>
               </div>
 
+              {/* Atalhos Funcionais (NOVO COMPONENTE) */}
+              <div className="my-8">
+                 <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-4">Atalhos do Ecossistema</h3>
+                 <FunctionalShortcuts />
+              </div>
+
               {/* Grid Principal */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  {/* Coluna Esquerda (2/3) */}
                   <div className="lg:col-span-2 space-y-8">
-                      
-                      {/* WIDGET PLANO DE PRÁTICA */}
-                      <div className="h-[350px]">
-                          <PracticePlanWidget plans={actionPlans} />
-                      </div>
-
-                      {/* Gráfico */}
+                      <div className="h-[350px]"><PracticePlanWidget plans={actionPlans} /></div>
                       <div className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border">
                           <div className="flex justify-between items-center mb-6">
                               <h3 className="font-bold text-lg text-gray-800 dark:text-white">Evolução de Notas</h3>
@@ -201,15 +205,16 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
                           </div>
                       </div>
                   </div>
-
-                  {/* Coluna Direita (1/3) */}
-                  <div className="lg:col-span-1 space-y-8">
-                      {/* Notícias */}
-                      <div className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border h-full flex flex-col">
+                  <div className="lg:col-span-1">
+                      <div className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border h-full">
                           <h3 className="font-bold text-lg mb-4 text-gray-800 dark:text-white">Atualidades</h3>
-                          <div className="space-y-3 flex-1 overflow-y-auto max-h-[400px] custom-scrollbar pr-1">
-                              {currentEvents.map(evt => <NewsCard key={evt.id} event={evt} />)}
-                              {currentEvents.length === 0 && <p className="text-gray-400 text-center py-4">Sem notícias.</p>}
+                          <div className="space-y-3 overflow-y-auto max-h-[600px] pr-2 custom-scrollbar">
+                              {currentEvents.map(evt => (
+                                  <a key={evt.id} href={evt.link} target="_blank" className="block p-3 rounded-xl bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 transition-colors">
+                                      <h5 className="font-bold text-sm text-[#42047e] mb-1">{evt.title}</h5>
+                                      <p className="text-xs text-gray-500 line-clamp-2">{evt.summary}</p>
+                                  </a>
+                              ))}
                           </div>
                       </div>
                   </div>
@@ -217,49 +222,53 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
           </div>
       )}
 
-      {/* ... (Outras abas History, Feedbacks e Analytics mantidas como no anterior) ... */}
-      {/* Aba Feedbacks (Visualização) */}
-      {activeTab === 'feedbacks' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-              {savedFeedbacks.length > 0 ? (
-                  savedFeedbacks.map(fb => (
-                      <div key={fb.id} className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all">
-                          <div className="flex justify-between mb-4">
-                              <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-[#42047e]"><i className="fas fa-robot"></i></div>
-                              <span className="text-xs text-gray-400">{new Date(fb.ai_feedback.created_at).toLocaleDateString()}</span>
-                          </div>
-                          <h4 className="font-bold text-gray-800 dark:text-white mb-2 line-clamp-1">{fb.title || "Sem título"}</h4>
-                          <button onClick={() => handleSelectEssay(fb)} className="w-full py-2 bg-gray-50 hover:bg-[#42047e] hover:text-white rounded-lg text-sm font-bold text-gray-600 transition-colors">Ver Análise</button>
-                      </div>
-                  ))
+      {/* === ABA: COMENTÁRIOS (NOVA ESTRUTURA) === */}
+      {activeTab === 'comments' && (
+          <div className="animate-fade-in">
+              <div className="flex justify-center mb-8">
+                  <div className="bg-gray-100 dark:bg-gray-800 p-1 rounded-xl flex gap-1">
+                      <button onClick={() => setCommentSubTab('ai')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${commentSubTab === 'ai' ? 'bg-white dark:bg-dark-card shadow text-[#42047e]' : 'text-gray-500'}`}>Feedback IA</button>
+                      <button onClick={() => setCommentSubTab('human')} className={`px-6 py-2 rounded-lg text-sm font-bold transition-all ${commentSubTab === 'human' ? 'bg-white dark:bg-dark-card shadow text-[#42047e]' : 'text-gray-500'}`}>Correção Humana</button>
+                  </div>
+              </div>
+
+              {commentSubTab === 'ai' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {savedFeedbacks.filter(f => f.ai_feedback).length > 0 ? savedFeedbacks.filter(f => f.ai_feedback).map(fb => {
+                         const ai = Array.isArray(fb.ai_feedback) ? fb.ai_feedback[0] : fb.ai_feedback;
+                         return (
+                             <div key={fb.id} className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-100 hover:border-[#42047e] transition-all group">
+                                 <div className="flex justify-between mb-3"><div className="w-10 h-10 bg-purple-50 rounded-full flex items-center justify-center text-[#42047e]"><i className="fas fa-robot"></i></div><span className="text-xs text-gray-400">{new Date(ai.created_at).toLocaleDateString()}</span></div>
+                                 <h4 className="font-bold text-gray-800 dark:text-white mb-2 line-clamp-1">{fb.title}</h4>
+                                 <p className="text-xs text-gray-500 mb-4 line-clamp-2">Análise automática das 5 competências.</p>
+                                 <button onClick={() => handleSelectEssay(fb)} className="w-full py-2 bg-gray-50 hover:bg-[#42047e] hover:text-white rounded-lg text-sm font-bold text-gray-600 transition-colors">Ver Completo</button>
+                             </div>
+                         )
+                    }) : <div className="col-span-full text-center py-12 text-gray-400">Nenhum feedback de IA salvo.</div>}
+                  </div>
               ) : (
-                  <div className="col-span-full text-center py-20 text-gray-400">
-                      <i className="fas fa-robot text-4xl mb-3"></i>
-                      <p>Nenhum feedback de IA salvo ainda.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {essays.filter(e => e.status === 'corrected').length > 0 ? essays.filter(e => e.status === 'corrected').map(e => (
+                           <div key={e.id} className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-100 hover:border-green-500 transition-all group">
+                                <div className="flex justify-between mb-3"><div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center text-green-600"><i className="fas fa-user-check"></i></div><span className="text-xs text-gray-400">{e.submitted_at ? new Date(e.submitted_at).toLocaleDateString() : ''}</span></div>
+                                <h4 className="font-bold text-gray-800 dark:text-white mb-1 line-clamp-1">{e.title}</h4>
+                                <div className="text-2xl font-black text-green-600 mb-4">{e.final_grade}</div>
+                                <button onClick={() => handleSelectEssay(e)} className="w-full py-2 bg-gray-50 hover:bg-green-600 hover:text-white rounded-lg text-sm font-bold text-gray-600 transition-colors">Ver Correção</button>
+                           </div>
+                      )) : <div className="col-span-full text-center py-12 text-gray-400">Nenhuma correção humana recebida ainda.</div>}
                   </div>
               )}
           </div>
       )}
       
-      {/* Abas History e Analytics são as mesmas do código anterior */}
+      {/* Abas History e Analytics (Mantidas com ajustes) */}
       {activeTab === 'history' && (
-          /* ... código da tabela de histórico ... */
           <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border p-6 animate-fade-in">
-              <h3 className="font-bold text-lg mb-4">Histórico de Redações</h3>
+              <h3 className="font-bold text-lg mb-4">Histórico Completo</h3>
               <div className="overflow-x-auto">
                   <table className="w-full text-left">
                       <thead className="text-xs text-gray-400 uppercase border-b"><tr><th className="py-3">Título</th><th className="py-3">Status</th><th className="py-3">Nota</th><th className="py-3">Data</th><th className="py-3"></th></tr></thead>
-                      <tbody className="text-sm">
-                          {essays.map(e => (
-                              <tr key={e.id} onClick={() => handleSelectEssay(e)} className="border-b hover:bg-gray-50 cursor-pointer">
-                                  <td className="py-3 font-medium">{e.title || "Sem título"}</td>
-                                  <td className="py-3"><span className={`px-2 py-1 rounded text-xs font-bold ${e.status === 'corrected' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{e.status}</span></td>
-                                  <td className="py-3 font-bold">{e.final_grade || '-'}</td>
-                                  <td className="py-3 text-gray-500">{new Date(e.submitted_at!).toLocaleDateString()}</td>
-                                  <td className="py-3 text-right"><i className="fas fa-chevron-right text-gray-300"></i></td>
-                              </tr>
-                          ))}
-                      </tbody>
+                      <tbody className="text-sm">{essays.map(e => (<tr key={e.id} onClick={() => handleSelectEssay(e)} className="border-b hover:bg-gray-50 cursor-pointer"><td className="py-3 font-medium">{e.title || "Sem título"}</td><td className="py-3"><span className={`px-2 py-1 rounded text-xs font-bold ${e.status === 'corrected' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{e.status === 'corrected' ? 'Corrigida' : 'Em análise'}</span></td><td className="py-3 font-bold">{e.final_grade || '-'}</td><td className="py-3 text-gray-500">{e.submitted_at ? new Date(e.submitted_at).toLocaleDateString() : '-'}</td><td className="py-3 text-right"><i className="fas fa-chevron-right text-gray-300"></i></td></tr>))}</tbody>
                   </table>
               </div>
           </div>
@@ -270,7 +279,6 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
               <StatisticsWidget stats={statistics} frequentErrors={frequentErrors} />
           </div>
       )}
-
     </div>
   );
 }
