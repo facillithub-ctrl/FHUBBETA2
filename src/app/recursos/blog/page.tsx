@@ -11,12 +11,14 @@ export const metadata: Metadata = {
   description: 'Explore artigos, tutoriais e insights do universo Facillit.',
 }
 
+// Revalidação a cada 60 segundos para garantir dados frescos (ISR)
+export const revalidate = 60; 
+
 async function getData(search: string = '', category: string = '') {
   let filter = `_type == "post"`
   if (search) filter += ` && (title match "*${search}*" || body[].children[].text match "*${search}*")`
   if (category) filter += ` && $category in categories[]->title`
 
-  // Query para buscar Posts + Destaque + Trending + Sugestões
   const query = `{
     "posts": *[${filter}] | order(publishedAt desc) {
       title, slug, excerpt, mainImage, publishedAt,
@@ -35,23 +37,34 @@ async function getData(search: string = '', category: string = '') {
     "categories": *[_type == "category"] {title, _id}
   }`
 
-  return client.fetch(query, { category })
+  try {
+    return await client.fetch(query, { category })
+  } catch (error) {
+    console.error("Erro ao buscar dados do Sanity:", error);
+    // Retorna estrutura vazia para não quebrar a página inteira
+    return { posts: [], featured: null, categories: [], trending: [], forYou: [] };
+  }
 }
 
 export default async function BlogPage({ searchParams }: { searchParams: Promise<{ q: string, cat: string }> }) {
   const { q, cat } = await searchParams
   const data = await getData(q, cat)
-  const { posts, featured, categories, trending, forYou } = data
+  
+  // Garantir que os arrays existam mesmo se data for null (fallback de segurança)
+  const posts = data?.posts || []
+  const featured = data?.featured || null
+  const categories = data?.categories || []
+  const trending = data?.trending || []
+  const forYou = data?.forYou || []
 
-  // Filtrar o destaque da lista principal para não repetir
-  const listPosts = posts.filter((p: any) => p.slug.current !== featured?.slug.current)
+  // Filtrar o destaque da lista principal para não repetir (com verificação de segurança)
+  const listPosts = posts.filter((p: any) => p?.slug?.current !== featured?.slug?.current)
 
   return (
     <div className="min-h-screen bg-white font-inter selection:bg-brand-purple selection:text-white">
       
       {/* --- HERO SECTION CLEAN & ANIMATED --- */}
       <div className="relative pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden">
-        {/* Background Animado */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
             <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-brand-purple/5 rounded-full blur-[100px] animate-pulse"></div>
             <div className="absolute bottom-[10%] left-[-10%] w-[500px] h-[500px] bg-brand-green/5 rounded-full blur-[80px]"></div>
@@ -59,7 +72,6 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
 
         <div className="container mx-auto px-4 relative z-10">
             <div className="flex flex-col lg:flex-row items-center gap-12">
-                {/* Texto Hero */}
                 <div className="flex-1 text-center lg:text-left">
                     <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-gray-50 border border-gray-200 text-brand-purple text-xs font-bold uppercase tracking-wider mb-6 hover:bg-brand-purple/5 transition-colors cursor-default">
                         <Sparkles size={14} className="text-brand-green" /> Blog Oficial Facillit
@@ -72,13 +84,11 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                         Um espaço dedicado a inovação, produtividade e tecnologia. Descubra como potencializar seus resultados.
                     </p>
                     
-                    {/* Barra de Busca Integrada na Hero */}
                     <div className="max-w-md mx-auto lg:mx-0 shadow-xl shadow-brand-purple/5 rounded-2xl">
                         <BlogControls categories={categories} simpleMode={true} />
                     </div>
                 </div>
 
-                {/* Visual Hero */}
                 <div className="flex-1 relative w-full max-w-lg hidden lg:block">
                     <div className="relative z-10 bg-white rounded-3xl p-4 shadow-2xl shadow-gray-200/50 border border-gray-100 transform rotate-2 hover:rotate-0 transition-all duration-500">
                         {featured?.mainImage && (
@@ -104,7 +114,6 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
             <div className="container mx-auto px-4 max-w-7xl">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     
-                    {/* Card "Em Alta" */}
                     <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 bg-red-50 text-red-500 rounded-lg">
@@ -126,7 +135,6 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                         </div>
                     </div>
 
-                    {/* Card "Para Você" */}
                     <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 bg-blue-50 text-blue-500 rounded-lg">
@@ -144,7 +152,6 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                         </div>
                     </div>
 
-                    {/* Card "Newsletter" */}
                     <div className="bg-brand-dark p-6 rounded-2xl shadow-sm text-white relative overflow-hidden flex flex-col justify-center">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-brand-purple rounded-full blur-3xl opacity-30 -mr-10 -mt-10"></div>
                         <h3 className="font-bold text-lg mb-2 relative z-10 flex items-center gap-2"><Zap size={18} className="text-brand-green" /> Weekly Insights</h3>
@@ -164,12 +171,10 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
         <div className="flex flex-col lg:flex-row gap-12">
             
             <div className="flex-1">
-                {/* Categorias (Sticky) */}
                 <div className="sticky top-24 z-20 bg-white/90 backdrop-blur-md py-4 mb-8 border-b border-gray-100 -mx-4 px-4 lg:mx-0 lg:px-0 lg:rounded-xl">
                     <BlogControls categories={categories} onlyCategories={true} />
                 </div>
 
-                {/* Grid de Artigos */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {listPosts.length > 0 ? listPosts.map((post: any) => (
                         <Link href={`/recursos/blog/${post.slug.current}`} key={post.slug.current} className="group flex flex-col h-full">
@@ -224,7 +229,6 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
                 </div>
             </div>
 
-            {/* Sidebar Sticky */}
             <aside className="w-full lg:w-80 space-y-8 hidden lg:block">
                 <div className="sticky top-40 space-y-8">
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">

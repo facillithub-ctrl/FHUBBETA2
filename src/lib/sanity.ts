@@ -1,5 +1,5 @@
 import { createClient } from 'next-sanity'
-import { createImageUrlBuilder } from '@sanity/image-url' // ADICIONADO { } AQUI
+import imageUrlBuilder from '@sanity/image-url' // CORREÇÃO: Importação padrão (sem chaves)
 
 export const client = createClient({
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID,
@@ -8,7 +8,8 @@ export const client = createClient({
   useCdn: false,
 })
 
-const builder = createImageUrlBuilder(client)
+// Inicializa o builder corretamente com a importação padrão
+const builder = imageUrlBuilder(client)
 
 export function urlFor(source: any) {
   return builder.image(source)
