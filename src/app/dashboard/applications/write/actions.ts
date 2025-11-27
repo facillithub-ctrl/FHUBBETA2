@@ -55,7 +55,6 @@ export type EssayCorrection = {
     annotations?: Annotation[] | null;
     ai_feedback?: AIFeedback | null;
     created_at?: string;
-    // Novos campos
     badge?: string | null;
     additional_link?: string | null;
     profiles?: { full_name: string | null, verification_badge: string | null } | null;
@@ -91,9 +90,6 @@ export type ActionPlan = {
 // 2. FUNÇÕES DE ALUNO E GERAIS
 // =============================================================================
 
-/**
- * Salva ou atualiza uma redação (Rascunho ou Envio).
- */
 export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -106,7 +102,6 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
     if (!essayData.consent_to_ai_training) {
       return { error: 'É obrigatório consentir com os termos para enviar a redação.' };
     }
-    // Verifica duplicidade
     if (essayData.prompt_id && !essayData.id) {
       const { data: existingEssay } = await supabase
         .from('essays')
@@ -140,7 +135,6 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
 
   if (upsertError) return { error: `Erro ao salvar: ${upsertError.message}` };
 
-  // Versionamento de rascunhos
   if (upsertedEssay && essayData.status === 'draft' && essayData.content) {
     const { count } = await supabase
       .from('essay_versions')
@@ -199,43 +193,90 @@ export async function getEssayDetails(essayId: string) {
 // =============================================================================
 
 /**
- * Função REAL de IA: Chama a API Route local que processa o texto.
+ * Função Legada (mantida para compatibilidade)
  */
 export async function generateAIAnalysis(text: string) {
     try {
-        // URL base absoluta necessária para fetch no servidor
         const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'; 
-        
         const response = await fetch(`${baseUrl}/api/generate-feedback`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text }),
-            cache: 'no-store' // Garante que não cacheia resultados antigos
+            body: JSON.stringify({ essayContent: text, essayTitle: 'Sem Título' }),
+            cache: 'no-store'
         });
-
-        if (!response.ok) {
-            throw new Error(`Erro na API de IA: ${response.status} ${response.statusText}`);
-        }
-
+        if (!response.ok) throw new Error(`Erro na API de IA: ${response.status}`);
         const data = await response.json();
         return { data };
     } catch (error: any) {
         console.error("Erro ao gerar análise de IA:", error);
-        return { error: error.message || "Falha ao comunicar com a IA." };
+        return { error: error.message };
+    }
+}
+
+/**
+ * NOVA FUNÇÃO: Gera a análise via API Route e SALVA no banco de dados.
+ * Usada pelo botão "Gerar Análise com IA" na interface.
+ */
+export async function generateAndSaveAIAnalysis(essayId: string, essayContent: string, essayTitle: string) {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: 'Sessão expirada.' };
+
+    try {
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        
+        // 1. Chama a API Route
+        const response = await fetch(`${baseUrl}/api/generate-feedback`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ essayContent, essayTitle }),
+            cache: 'no-store'
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Falha na IA (${response.status}): ${errText}`);
+        }
+
+        const aiData = await response.json();
+
+        // 2. Salva no Supabase (Tabela ai_feedback)
+        const { data: savedData, error: saveError } = await supabase
+            .from('ai_feedback')
+            .upsert({
+                essay_id: essayId,
+                detailed_feedback: aiData.detailed_feedback,
+                rewrite_suggestions: aiData.rewrite_suggestions,
+                actionable_items: aiData.actionable_items,
+            }, { onConflict: 'essay_id' })
+            .select()
+            .single();
+
+        if (saveError) {
+            console.error("[Action] Erro ao salvar no banco:", saveError);
+            throw new Error("Erro ao salvar análise no banco de dados.");
+        }
+        
+        revalidatePath('/dashboard/applications/write');
+        return { success: true, data: savedData };
+
+    } catch (error: any) {
+        console.error("[Action] Erro Crítico:", error);
+        return { error: error.message || "Não foi possível gerar a análise." };
     }
 }
 
 export async function getCorrectionForEssay(essayId: string) {
     const supabase = await createSupabaseServerClient();
     
-    // Busca correção humana e dados do corretor
+    // Busca correção humana
     const { data: correctionBase } = await supabase
         .from('essay_corrections')
         .select(`*, profiles ( full_name, verification_badge )`)
         .eq('essay_id', essayId)
         .maybeSingle();
     
-    // Busca feedback da IA (separado para garantir que venha mesmo se não houver correção humana)
+    // Busca feedback da IA
     const { data: aiFeedback } = await supabase
         .from('ai_feedback')
         .select('*')
@@ -243,16 +284,16 @@ export async function getCorrectionForEssay(essayId: string) {
         .maybeSingle();
 
     const finalData: EssayCorrection = {
-        ...correctionBase,
+        ...(correctionBase || {}),
         ai_feedback: aiFeedback || null
     } as EssayCorrection;
+
+    // Se não houver nada, retorna null para controle de UI
+    if (!correctionBase && !aiFeedback) return { data: null };
 
     return { data: finalData };
 }
 
-/**
- * Salva o feedback gerado pela IA no banco.
- */
 export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -266,23 +307,16 @@ export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
             detailed_feedback: aiFeedbackData.detailed_feedback,
             rewrite_suggestions: aiFeedbackData.rewrite_suggestions,
             actionable_items: aiFeedbackData.actionable_items,
-            // updated_at: new Date().toISOString() // Descomente se sua tabela tiver updated_at
         }, { onConflict: 'essay_id' })
         .select()
         .single();
 
-    if (error) {
-        console.error("Erro ao salvar IA:", error);
-        return { error: error.message };
-    }
+    if (error) return { error: error.message };
     
     revalidatePath(`/dashboard/applications/write`);
     return { data };
 }
 
-/**
- * Submete a correção do professor (com suporte a Link e Selo).
- */
 export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id' | 'corrector_id' | 'created_at' | 'profiles'>) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -290,13 +324,11 @@ export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id
 
     const { ai_feedback, ...humanData } = correctionData;
 
-    // Insere a correção com os novos campos (badge, additional_link)
     const { data: correction, error } = await supabase
         .from('essay_corrections')
         .insert({ 
             ...humanData, 
             corrector_id: user.id,
-            // Garante que campos opcionais undefined virem null para o banco
             badge: humanData.badge || null,
             additional_link: humanData.additional_link || null
         })
@@ -305,12 +337,10 @@ export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id
 
     if (error) return { error: error.message };
 
-    // Se houver feedback de IA (gerado na interface ou recuperado), salva-o também
     if (ai_feedback) {
         await saveAIFeedback(correctionData.essay_id, ai_feedback);
     }
 
-    // Atualiza o status da redação
     await supabase.from('essays').update({ status: 'corrected' }).eq('id', correctionData.essay_id);
 
     revalidatePath('/dashboard/applications/write');
@@ -426,9 +456,6 @@ export async function getPendingEssaysForTeacher(teacherId: string, organization
         .select('id, title, submitted_at, profiles(full_name)')
         .eq('status', 'submitted');
 
-    // Se for professor institucional, filtra por organização.
-    // Se for global (organizationId null), vê todas (ou apenas as sem org, dependendo da regra).
-    // A regra atual permite globais verem tudo.
     if (organizationId) {
         query = query.eq('organization_id', organizationId);
     }
@@ -453,7 +480,6 @@ export async function getCorrectedEssaysForTeacher(teacherId: string, organizati
     `)
     .eq('status', 'corrected');
     
-  // Filtra para ver apenas as correções feitas por ESTE professor (para histórico pessoal)
   query = query.eq('essay_corrections.corrector_id', teacherId);
 
   const { data, error } = await query.order('submitted_at', { ascending: false });
@@ -465,12 +491,10 @@ export async function getCorrectedEssaysForTeacher(teacherId: string, organizati
 // --- UTILITÁRIOS ---
 
 export async function toggleActionPlanItem(itemId: string, itemText: string, newStatus: boolean) {
-    // Em produção, atualizaria o JSONB no banco
     return { success: true };
 }
 
 export async function checkForPlagiarism(_text: string) {
-    // Simulação de plágio
     await new Promise(resolve => setTimeout(resolve, 1500));
     const hasPlagiarism = Math.random() > 0.8;
     if (hasPlagiarism) {
@@ -484,7 +508,7 @@ export async function checkForPlagiarism(_text: string) {
     return { data: { similarity_percentage: Math.random() * 2, matches: [] } };
 }
 
-// Placeholders para evitar erros de importação em outros arquivos
+// Placeholders mantidos para evitar quebras
 export async function saveStudyPlan(plan: any) { return { success: true }; }
 export async function getLatestEssayForDashboard() { return { data: null }; }
 export async function getAIFeedbackForEssay(essayId: string) { return { data: null }; }
