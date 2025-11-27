@@ -27,6 +27,7 @@ export default async function DashboardLayout({
   }
 
   // Constrói o objeto UserProfile garantindo que não seja undefined
+  // A tipagem agora aceita null, mas garantimos arrays vazios para active_modules
   const userProfile: UserProfile = profile ? {
     id: profile.id,
     fullName: profile.full_name,
@@ -39,8 +40,9 @@ export default async function DashboardLayout({
     organization_id: profile.organization_id,
     target_exam: profile.target_exam,
     verification_badge: profile.verification_badge,
-    active_modules: profile.active_modules,
+    active_modules: profile.active_modules || [], // Garante array
     has_completed_onboarding: profile.has_completed_onboarding,
+    email: user.email
   } : {
     id: user.id,
     fullName: user.email?.split('@')[0] || 'Usuário',
@@ -55,6 +57,7 @@ export default async function DashboardLayout({
     verification_badge: null,
     active_modules: [],
     has_completed_onboarding: false,
+    email: user.email
   };
 
   return (

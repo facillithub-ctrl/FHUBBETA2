@@ -3,7 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import createSupabaseServerClient from '@/utils/supabase/server';
 
-// --- TIPOS DE DADOS ---
+// =============================================================================
+// 1. TIPOS DE DADOS (TYPES)
+// =============================================================================
 
 export type Essay = {
   id: string;
@@ -53,7 +55,7 @@ export type EssayCorrection = {
     annotations?: Annotation[] | null;
     ai_feedback?: AIFeedback | null;
     created_at?: string;
-    // NOVOS CAMPOS PARA PROFESSOR
+    // Novos campos
     badge?: string | null;
     additional_link?: string | null;
     profiles?: { full_name: string | null, verification_badge: string | null } | null;
@@ -85,8 +87,13 @@ export type ActionPlan = {
     source_essay?: string;
 };
 
-// --- FUNÇÕES PRINCIPAIS ---
+// =============================================================================
+// 2. FUNÇÕES DE ALUNO E GERAIS
+// =============================================================================
 
+/**
+ * Salva ou atualiza uma redação (Rascunho ou Envio).
+ */
 export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -99,6 +106,7 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
     if (!essayData.consent_to_ai_training) {
       return { error: 'É obrigatório consentir com os termos para enviar a redação.' };
     }
+    // Verifica duplicidade
     if (essayData.prompt_id && !essayData.id) {
       const { data: existingEssay } = await supabase
         .from('essays')
@@ -132,6 +140,7 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
 
   if (upsertError) return { error: `Erro ao salvar: ${upsertError.message}` };
 
+  // Versionamento de rascunhos
   if (upsertedEssay && essayData.status === 'draft' && essayData.content) {
     const { count } = await supabase
       .from('essay_versions')
@@ -185,10 +194,53 @@ export async function getEssayDetails(essayId: string) {
     return { data: data as (Essay & { profiles: { full_name: string | null } | null }) };
 }
 
+// =============================================================================
+// 3. FUNÇÕES DE CORREÇÃO, FEEDBACK E IA
+// =============================================================================
+
+/**
+ * Função REAL de IA: Chama a API Route local que processa o texto.
+ */
+export async function generateAIAnalysis(text: string) {
+    try {
+        // URL base absoluta necessária para fetch no servidor
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'; 
+        
+        const response = await fetch(`${baseUrl}/api/generate-feedback`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text }),
+            cache: 'no-store' // Garante que não cacheia resultados antigos
+        });
+
+        if (!response.ok) {
+            throw new Error(`Erro na API de IA: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return { data };
+    } catch (error: any) {
+        console.error("Erro ao gerar análise de IA:", error);
+        return { error: error.message || "Falha ao comunicar com a IA." };
+    }
+}
+
 export async function getCorrectionForEssay(essayId: string) {
     const supabase = await createSupabaseServerClient();
-    const { data: correctionBase } = await supabase.from('essay_corrections').select(`*, profiles ( full_name, verification_badge )`).eq('essay_id', essayId).maybeSingle();
-    const { data: aiFeedback } = await supabase.from('ai_feedback').select('*').eq('essay_id', essayId).maybeSingle();
+    
+    // Busca correção humana e dados do corretor
+    const { data: correctionBase } = await supabase
+        .from('essay_corrections')
+        .select(`*, profiles ( full_name, verification_badge )`)
+        .eq('essay_id', essayId)
+        .maybeSingle();
+    
+    // Busca feedback da IA (separado para garantir que venha mesmo se não houver correção humana)
+    const { data: aiFeedback } = await supabase
+        .from('ai_feedback')
+        .select('*')
+        .eq('essay_id', essayId)
+        .maybeSingle();
 
     const finalData: EssayCorrection = {
         ...correctionBase,
@@ -198,7 +250,9 @@ export async function getCorrectionForEssay(essayId: string) {
     return { data: finalData };
 }
 
-// --- SALVAR FEEDBACK IA ---
+/**
+ * Salva o feedback gerado pela IA no banco.
+ */
 export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -212,6 +266,7 @@ export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
             detailed_feedback: aiFeedbackData.detailed_feedback,
             rewrite_suggestions: aiFeedbackData.rewrite_suggestions,
             actionable_items: aiFeedbackData.actionable_items,
+            // updated_at: new Date().toISOString() // Descomente se sua tabela tiver updated_at
         }, { onConflict: 'essay_id' })
         .select()
         .single();
@@ -225,78 +280,46 @@ export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
     return { data };
 }
 
-// --- CORREÇÃO DO PROFESSOR ---
-
-export async function getPendingEssaysForTeacher(teacherId: string, organizationId: string | null) {
-    const supabase = await createSupabaseServerClient();
-
-    let query = supabase
-        .from('essays')
-        .select('id, title, submitted_at, profiles(full_name)')
-        .eq('status', 'submitted');
-
-    if (organizationId) {
-        query = query.eq('organization_id', organizationId);
-    } 
-
-    const { data, error } = await query.order('submitted_at', { ascending: true });
-
-    if (error) return { data: [] };
-    return { data };
-}
-
-export async function getCorrectedEssaysForTeacher(teacherId: string, organizationId: string | null) {
-  const supabase = await createSupabaseServerClient();
-
-  let query = supabase
-    .from('essays')
-    .select(`
-        id,
-        title,
-        submitted_at,
-        profiles ( full_name ),
-        essay_corrections!inner ( final_grade, corrector_id )
-    `)
-    .eq('status', 'corrected');
-    
-  query = query.eq('essay_corrections.corrector_id', teacherId);
-
-  const { data, error } = await query.order('submitted_at', { ascending: false });
-
-  if (error) return { data: [] };
-  return { data };
-}
-
+/**
+ * Submete a correção do professor (com suporte a Link e Selo).
+ */
 export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id' | 'corrector_id' | 'created_at' | 'profiles'>) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
-
     if (!user) return { error: 'Usuário não autenticado.' };
 
     const { ai_feedback, ...humanData } = correctionData;
 
+    // Insere a correção com os novos campos (badge, additional_link)
     const { data: correction, error } = await supabase
         .from('essay_corrections')
         .insert({ 
             ...humanData, 
-            corrector_id: user.id 
+            corrector_id: user.id,
+            // Garante que campos opcionais undefined virem null para o banco
+            badge: humanData.badge || null,
+            additional_link: humanData.additional_link || null
         })
         .select()
         .single();
 
     if (error) return { error: error.message };
 
+    // Se houver feedback de IA (gerado na interface ou recuperado), salva-o também
     if (ai_feedback) {
         await saveAIFeedback(correctionData.essay_id, ai_feedback);
     }
 
+    // Atualiza o status da redação
     await supabase.from('essays').update({ status: 'corrected' }).eq('id', correctionData.essay_id);
 
     revalidatePath('/dashboard/applications/write');
     return { data: correction };
 }
 
-// --- ESTATÍSTICAS ---
+// =============================================================================
+// 4. ESTATÍSTICAS E PLANOS DE AÇÃO
+// =============================================================================
 
 export async function getStudentStatistics() {
     const supabase = await createSupabaseServerClient();
@@ -313,6 +336,7 @@ export async function getStudentStatistics() {
 
     const corrections = essays.map(e => ({ ...e.essay_corrections[0], submitted_at: e.submitted_at }));
     const total = corrections.length;
+    
     const sums = corrections.reduce((acc, c) => ({
         final: acc.final + c.final_grade,
         c1: acc.c1 + c.grade_c1, c2: acc.c2 + c.grade_c2, c3: acc.c3 + c.grade_c3, c4: acc.c4 + c.grade_c4, c5: acc.c5 + c.grade_c5
@@ -325,6 +349,7 @@ export async function getStudentStatistics() {
 
     const comps = [{ name: 'C1', average: averages.avg_c1 }, { name: 'C2', average: averages.avg_c2 }, { name: 'C3', average: averages.avg_c3 }, { name: 'C4', average: averages.avg_c4 }, { name: 'C5', average: averages.avg_c5 }];
     const pointToImprove = comps.sort((a, b) => a.average - b.average)[0];
+    
     const progression = corrections.sort((a, b) => new Date(a.submitted_at!).getTime() - new Date(b.submitted_at!).getTime()).map(c => ({ date: new Date(c.submitted_at!).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }), grade: c.final_grade }));
 
     return { data: { totalCorrections: total, averages, pointToImprove, progression } };
@@ -343,6 +368,7 @@ export async function getUserActionPlans() {
 
     const plans: ActionPlan[] = [];
     const seenItems = new Set();
+
     feedbacks.forEach(fb => {
         const essayTitle = essays.find(e => e.id === fb.essay_id)?.title || 'Redação';
         const items = fb.actionable_items;
@@ -390,11 +416,61 @@ export async function getSavedFeedbacks() {
     return { data: filtered };
 }
 
+// --- FILAS DE CORREÇÃO (PROFESSOR/ADMIN) ---
+
+export async function getPendingEssaysForTeacher(teacherId: string, organizationId: string | null) {
+    const supabase = await createSupabaseServerClient();
+
+    let query = supabase
+        .from('essays')
+        .select('id, title, submitted_at, profiles(full_name)')
+        .eq('status', 'submitted');
+
+    // Se for professor institucional, filtra por organização.
+    // Se for global (organizationId null), vê todas (ou apenas as sem org, dependendo da regra).
+    // A regra atual permite globais verem tudo.
+    if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+    }
+
+    const { data, error } = await query.order('submitted_at', { ascending: true });
+
+    if (error) return { data: [] };
+    return { data };
+}
+
+export async function getCorrectedEssaysForTeacher(teacherId: string, organizationId: string | null) {
+  const supabase = await createSupabaseServerClient();
+
+  let query = supabase
+    .from('essays')
+    .select(`
+        id,
+        title,
+        submitted_at,
+        profiles ( full_name ),
+        essay_corrections!inner ( final_grade, corrector_id )
+    `)
+    .eq('status', 'corrected');
+    
+  // Filtra para ver apenas as correções feitas por ESTE professor (para histórico pessoal)
+  query = query.eq('essay_corrections.corrector_id', teacherId);
+
+  const { data, error } = await query.order('submitted_at', { ascending: false });
+
+  if (error) return { data: [] };
+  return { data };
+}
+
+// --- UTILITÁRIOS ---
+
 export async function toggleActionPlanItem(itemId: string, itemText: string, newStatus: boolean) {
+    // Em produção, atualizaria o JSONB no banco
     return { success: true };
 }
 
 export async function checkForPlagiarism(_text: string) {
+    // Simulação de plágio
     await new Promise(resolve => setTimeout(resolve, 1500));
     const hasPlagiarism = Math.random() > 0.8;
     if (hasPlagiarism) {
@@ -408,6 +484,7 @@ export async function checkForPlagiarism(_text: string) {
     return { data: { similarity_percentage: Math.random() * 2, matches: [] } };
 }
 
+// Placeholders para evitar erros de importação em outros arquivos
 export async function saveStudyPlan(plan: any) { return { success: true }; }
 export async function getLatestEssayForDashboard() { return { data: null }; }
 export async function getAIFeedbackForEssay(essayId: string) { return { data: null }; }
