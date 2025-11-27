@@ -14,12 +14,12 @@ import {
 } from './actions';
 import type { UserProfile } from '../../types';
 
-// Tipos de retorno para o Dashboard do Professor
+// Tipo auxiliar para transformação de dados
 type EssayListItem = {
   id: string;
   title: string | null;
   submitted_at: string | null;
-  profiles: { full_name: string | null; } | null;
+  profiles: { full_name: string | null } | null;
   essay_corrections?: { final_grade: number }[] | null;
 };
 
@@ -41,8 +41,10 @@ export default async function WritePage() {
     redirect('/login');
   }
 
-  // ROTA PARA ALUNO
-  if (['aluno', 'vestibulando', 'student'].includes(profile.user_category || '')) {
+  const userRole = profile.user_category || '';
+
+  // --- 1. ROTA PARA ALUNO ---
+  if (['aluno', 'vestibulando'].includes(userRole)) {
     const [
         essaysResult,
         promptsResult,
@@ -79,9 +81,9 @@ export default async function WritePage() {
       <StudentDashboard
         initialEssays={essaysResult.data || []}
         prompts={promptsResult.data || []}
-        statistics={statsResult.data || null}
+        statistics={statsResult.data ?? null}
         streak={streakResult.data || 0}
-        rankInfo={rankResult.data || null}
+        rankInfo={rankResult.data}
         frequentErrors={frequentErrorsResult.data || []}
         currentEvents={currentEventsResult.data || []}
         targetExam={examDate?.name}
@@ -90,17 +92,23 @@ export default async function WritePage() {
     );
   }
 
-  // ROTA PARA PROFESSOR, GESTOR E ADMIN
-  if (['professor', 'gestor', 'administrator', 'diretor'].includes(profile.user_category || '')) {
+  // --- 2. ROTA PARA PROFESSOR, DIRETOR E ADMINISTRADOR ---
+  // Todos estes perfis devem ver o PAINEL DE CORREÇÃO nesta rota.
+  // O Admin tem funcionalidades extras na rota /admin, mas aqui ele age como corretor "super".
+  if (['professor', 'gestor', 'administrator', 'diretor'].includes(userRole)) {
+     
+     // Busca redações baseadas no ID do usuário e sua organização (ou null se global)
      const [pendingEssaysResult, correctedEssaysResult] = await Promise.all([
         getPendingEssaysForTeacher(user.id, profile.organization_id),
         getCorrectedEssaysForTeacher(user.id, profile.organization_id)
      ]);
      
+    // Função auxiliar para garantir a tipagem correta para o componente
     const transformData = (data: any[] | null): EssayListItem[] => {
       if (!data) return [];
       return data.map(item => ({
         ...item,
+        // Garante que profiles é um objeto único e não array, tratando inconsistências do Supabase
         profiles: Array.isArray(item.profiles) ? item.profiles[0] || null : item.profiles,
       }));
     };
@@ -117,10 +125,11 @@ export default async function WritePage() {
     );
   }
 
+  // Fallback para perfis não reconhecidos
   return (
     <div className="p-8 text-center">
-        <h1 className="text-2xl font-bold mb-4">Acesso Restrito</h1>
-        <p>O seu perfil não tem permissão para acessar este módulo.</p>
+        <h1 className="text-2xl font-bold mb-2">Módulo de Redação</h1>
+        <p className="text-gray-500">O seu perfil ({userRole}) não tem acesso configurado para este módulo.</p>
     </div>
   );
 }

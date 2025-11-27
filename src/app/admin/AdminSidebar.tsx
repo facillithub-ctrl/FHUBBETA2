@@ -4,14 +4,36 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 
-const adminModules = [
-    { name: 'Visão Geral', href: '/admin', icon: 'fa-tachometer-alt' },
-    { name: 'Gerenciar Escolas', href: '/admin/schools', icon: 'fa-school' },
-    { name: 'Atualizações', href: '/admin/updates', icon: 'fa-bullhorn' },
-    { name: 'Write', href: '/admin/write', icon: 'fa-pencil-alt' },
-    { name: 'Task', href: '/admin/task', icon: 'fa-tasks', disabled: true },
-    { name: 'Test', href: '/admin/test', icon: 'fa-file-alt' },
-    { name: 'Games', href: '/admin/games', icon: 'fa-gamepad', disabled: true },
+// Estrutura de menu específica para Admin
+const adminSections = [
+    {
+        title: "Visão Geral",
+        items: [
+            { name: 'Dashboard', href: '/admin', icon: 'fa-chart-line' }
+        ]
+    },
+    {
+        title: "Gestão Institucional",
+        items: [
+            { name: 'Instituições', href: '/admin/schools', icon: 'fa-school' },
+            { name: 'Usuários', href: '/admin/users', icon: 'fa-users', disabled: true }, // Placeholder para futuro
+        ]
+    },
+    {
+        title: "Módulos Pedagógicos",
+        items: [
+            { name: 'Facillit Write', href: '/admin/write', icon: 'fa-pencil-alt' },
+            { name: 'Facillit Test', href: '/admin/test', icon: 'fa-file-alt' },
+            { name: 'Facillit Games', href: '/admin/games', icon: 'fa-gamepad', disabled: true },
+        ]
+    },
+    {
+        title: "Sistema",
+        items: [
+            { name: 'Atualizações (Changelog)', href: '/admin/updates', icon: 'fa-bullhorn' },
+            { name: 'Configurações', href: '/admin/settings', icon: 'fa-cogs', disabled: true }
+        ]
+    }
 ];
 
 type SidebarProps = {
@@ -24,51 +46,68 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }: SidebarP
 
     return (
         <>
+            {/* Overlay Mobile */}
             <div
                 onClick={() => setIsMobileOpen(false)}
                 className={`fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity ${
                     isMobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
             />
+
             <aside 
-                className={`fixed lg:relative top-0 left-0 h-full bg-white dark:bg-dark-card p-4 border-r dark:border-dark-border flex-shrink-0 flex flex-col z-40 transition-transform duration-300
-                ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64'}
-                lg:translate-x-0 lg:w-64`}
+                className={`fixed lg:relative top-0 left-0 h-full bg-slate-900 text-white w-64 flex-shrink-0 flex flex-col z-40 transition-transform duration-300
+                ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'}
+                lg:translate-x-0 border-r border-slate-800 shadow-xl`}
             >
-                <div className="flex items-center justify-between mb-8 h-8">
+                {/* Header da Sidebar */}
+                <div className="flex items-center justify-between h-16 px-6 bg-slate-950 border-b border-slate-800">
                     <div className="flex items-center gap-3">
-                        <Image src="/assets/images/LOGO/png/logoazul.svg" alt="Facillit Hub Logo" width={32} height={32} />
-                        <span className="font-bold text-xl text-dark-text dark:text-white">Admin</span>
+                        <Image src="/assets/images/LOGO/png/logoazul.svg" alt="Facillit Admin" width={28} height={28} className="brightness-0 invert" />
+                        <span className="font-bold text-lg tracking-wide">Admin</span>
                     </div>
-                    <button onClick={() => setIsMobileOpen(false)} className="lg:hidden text-2xl text-gray-500 hover:text-dark-text">
+                    <button onClick={() => setIsMobileOpen(false)} className="lg:hidden text-white/70 hover:text-white">
                         <i className="fas fa-times"></i>
                     </button>
                 </div>
 
-                <h2 className="text-sm font-bold mb-4 px-2 text-gray-500 uppercase tracking-wider">Módulos</h2>
-                <nav className="flex-1">
-                    <ul>
-                        {adminModules.map(mod => {
-                            const isActive = pathname === mod.href;
-                            return (
-                                <li key={mod.href}>
-                                    <Link href={mod.disabled ? '#' : mod.href} className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors
-                                        ${isActive ? 'bg-royal-blue/10 text-royal-blue font-bold' : ''}
-                                        ${mod.disabled ? 'text-gray-400 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`
-                                    }>
-                                        <i className={`fas ${mod.icon} w-5 text-center`}></i>
-                                        <span>{mod.name}</span>
-                                        {mod.disabled && <span className="text-xs ml-auto bg-gray-200 dark:bg-gray-600 px-2 rounded-full">Breve</span>}
-                                    </Link>
-                                </li>
-                            );
-                        })}
-                    </ul>
+                {/* Navegação */}
+                <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-8">
+                    {adminSections.map((section, idx) => (
+                        <div key={idx}>
+                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 px-2">
+                                {section.title}
+                            </h3>
+                            <ul className="space-y-1">
+                                {section.items.map((item) => {
+                                    const isActive = pathname === item.href;
+                                    return (
+                                        <li key={item.name}>
+                                            <Link 
+                                                href={item.disabled ? '#' : item.href}
+                                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+                                                    ${isActive 
+                                                        ? 'bg-royal-blue text-white shadow-md shadow-blue-900/20' 
+                                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'}
+                                                    ${item.disabled ? 'opacity-50 cursor-not-allowed hover:bg-transparent hover:text-slate-400' : ''}
+                                                `}
+                                            >
+                                                <i className={`fas ${item.icon} w-5 text-center ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`}></i>
+                                                <span>{item.name}</span>
+                                                {item.disabled && <span className="ml-auto text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-500">Em breve</span>}
+                                            </Link>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                    ))}
                 </nav>
-                <div className="mt-auto pt-4 border-t dark:border-gray-700">
-                     <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                        <i className="fas fa-arrow-left w-5 text-center"></i>
-                        <span>Voltar ao Hub</span>
+
+                {/* Footer da Sidebar */}
+                <div className="p-4 border-t border-slate-800 bg-slate-950">
+                     <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+                        <i className="fas fa-sign-out-alt w-5 text-center"></i>
+                        <span>Sair do Admin</span>
                     </Link>
                 </div>
             </aside>

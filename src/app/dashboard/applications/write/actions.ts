@@ -34,7 +34,7 @@ export type AIFeedback = {
   essay_id?: string;
   detailed_feedback: { competency: string; feedback: string }[];
   rewrite_suggestions: { original: string; suggestion: string }[];
-  actionable_items: string[]; // Simplificado para string[] para compatibilidade com JSONB
+  actionable_items: string[]; 
   created_at?: string;
 };
 
@@ -202,8 +202,6 @@ export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
     
     if (!user) return { error: 'Não autorizado' };
 
-    // Removemos updated_at do payload se a tabela ainda não tiver sido migrada, 
-    // mas idealmente a coluna deve existir. O código abaixo assume que você rodou o SQL.
     const { data, error } = await supabase
         .from('ai_feedback')
         .upsert({
@@ -211,8 +209,6 @@ export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
             detailed_feedback: aiFeedbackData.detailed_feedback,
             rewrite_suggestions: aiFeedbackData.rewrite_suggestions,
             actionable_items: aiFeedbackData.actionable_items,
-            // Caso a coluna não exista ainda, comente a linha abaixo temporariamente
-            // updated_at: new Date().toISOString()
         }, { onConflict: 'essay_id' })
         .select()
         .single();
@@ -225,6 +221,81 @@ export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
     revalidatePath(`/dashboard/applications/write`);
     return { data };
 }
+
+// --- CORREÇÃO DO PROFESSOR ---
+
+export async function getPendingEssaysForTeacher(teacherId: string, organizationId: string | null) {
+    const supabase = await createSupabaseServerClient();
+
+    let query = supabase
+        .from('essays')
+        .select('id, title, submitted_at, profiles(full_name)')
+        .eq('status', 'submitted');
+
+    // Lógica: Se for professor institucional, filtra pela organização.
+    // Se for GLOBAL (organizationId null), NÃO FILTRA, mostrando todas as redações submetidas.
+    if (organizationId) {
+        query = query.eq('organization_id', organizationId);
+    } 
+    // Se quiser que o global veja SÓ as sem organização, descomente:
+    // else { query = query.is('organization_id', null); }
+
+    const { data, error } = await query.order('submitted_at', { ascending: true });
+
+    if (error) return { data: [] };
+    return { data };
+}
+
+export async function getCorrectedEssaysForTeacher(teacherId: string, organizationId: string | null) {
+    const supabase = await createSupabaseServerClient();
+
+    let query = supabase
+      .from('essays')
+      .select(`
+          id,
+          title,
+          submitted_at,
+          profiles ( full_name ),
+          essay_corrections!inner ( final_grade, corrector_id )
+      `)
+      .eq('status', 'corrected');
+      
+    // Professor vê apenas o que ELE corrigiu para histórico pessoal
+    // OU vê todas da escola se for gestão? Vamos manter "minhas correções" por enquanto.
+    query = query.eq('essay_corrections.corrector_id', teacherId);
+
+    const { data, error } = await query.order('submitted_at', { ascending: false });
+
+    if (error) return { data: [] };
+    return { data };
+}
+
+export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id' | 'corrector_id' | 'created_at' | 'profiles'>) {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: 'Usuário não autenticado.' };
+
+    const { ai_feedback, ...humanData } = correctionData;
+
+    const { data: correction, error } = await supabase
+        .from('essay_corrections')
+        .insert({ ...humanData, corrector_id: user.id })
+        .select()
+        .single();
+
+    if (error) return { error: error.message };
+
+    if (ai_feedback) {
+        await saveAIFeedback(correctionData.essay_id, ai_feedback);
+    }
+
+    await supabase.from('essays').update({ status: 'corrected' }).eq('id', correctionData.essay_id);
+
+    revalidatePath('/dashboard/applications/write');
+    return { data: correction };
+}
+
+// --- ESTATÍSTICAS ---
 
 export async function getStudentStatistics() {
     const supabase = await createSupabaseServerClient();
@@ -275,7 +346,6 @@ export async function getUserActionPlans() {
         const essayTitle = essays.find(e => e.id === fb.essay_id)?.title || 'Redação';
         const items = fb.actionable_items;
         
-        // Tratamento robusto para array de strings ou objetos
         if (Array.isArray(items)) {
             items.forEach((item: any) => {
                 const itemText = typeof item === 'string' ? item : item.text;
@@ -320,15 +390,11 @@ export async function getSavedFeedbacks() {
 }
 
 export async function toggleActionPlanItem(itemId: string, itemText: string, newStatus: boolean) {
-    // Esta função precisaria de uma implementação mais complexa para achar o essay_id correto
-    // Como estamos usando JSONB, retornaremos sucesso simulado para a UI otimista por enquanto
-    // Em produção, você deve passar o essay_id junto com o item para atualizar o registro correto.
     return { success: true };
 }
 
-// --- FUNÇÃO DE PLÁGIO ---
+// --- OUTROS ---
 export async function checkForPlagiarism(_text: string) {
-    // Simulação de delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     const hasPlagiarism = Math.random() > 0.8;
     if (hasPlagiarism) {
@@ -342,35 +408,7 @@ export async function checkForPlagiarism(_text: string) {
     return { data: { similarity_percentage: Math.random() * 2, matches: [] } };
 }
 
-export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id' | 'corrector_id' | 'created_at' | 'profiles'>) {
-    const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: 'Usuário não autenticado.' };
-
-    const { ai_feedback, ...humanData } = correctionData;
-
-    const { data: correction, error } = await supabase
-        .from('essay_corrections')
-        .insert({ ...humanData, corrector_id: user.id })
-        .select()
-        .single();
-
-    if (error) return { error: error.message };
-
-    if (ai_feedback) {
-        await saveAIFeedback(correctionData.essay_id, ai_feedback);
-    }
-
-    await supabase.from('essays').update({ status: 'corrected' }).eq('id', correctionData.essay_id);
-
-    revalidatePath('/dashboard/applications/write');
-    return { data: correction };
-}
-
-// Outros exports
 export async function saveStudyPlan(plan: any) { return { success: true }; }
-export async function getPendingEssaysForTeacher(teacherId: string, organizationId: string | null) { return { data: [] }; }
-export async function getCorrectedEssaysForTeacher(teacherId: string, organizationId: string | null) { return { data: [] }; }
 export async function getLatestEssayForDashboard() { return { data: null }; }
 export async function getAIFeedbackForEssay(essayId: string) { return { data: null }; }
 export async function calculateWritingStreak() { return { data: 0 }; }
