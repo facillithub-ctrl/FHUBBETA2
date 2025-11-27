@@ -2,13 +2,13 @@ import { client, urlFor } from '@/lib/sanity'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Metadata } from 'next'
-import { ArrowRight, Calendar, Clock, Search, TrendingUp, Sparkles, ChevronRight } from 'lucide-react'
+import { ArrowRight, Calendar, Clock, Search, TrendingUp, Sparkles, Zap, Bookmark, Star } from 'lucide-react'
 import { BlogControls } from '@/components/blog/BlogControls'
 import { NewsletterBox } from '@/components/blog/NewsletterBox'
 
 export const metadata: Metadata = {
-  title: 'Blog Facillit | Inovação e Educação',
-  description: 'Artigos, tutoriais e novidades sobre o ecossistema Facillit.',
+  title: 'Blog Facillit | Conhecimento e Inovação',
+  description: 'Explore artigos, tutoriais e insights do universo Facillit.',
 }
 
 async function getData(search: string = '', category: string = '') {
@@ -18,16 +18,18 @@ async function getData(search: string = '', category: string = '') {
 
   const query = `{
     "posts": *[${filter}] | order(publishedAt desc) {
-      title,
-      slug,
-      excerpt,
-      mainImage,
-      publishedAt,
+      title, slug, excerpt, mainImage, publishedAt,
       "categories": categories[]->{title},
       "estimatedReadingTime": round(length(pt::text(body)) / 5 / 180 ) + 1
     },
     "featured": *[_type == "post"][0] {
       title, slug, excerpt, mainImage, publishedAt, "categories": categories[]->{title}
+    },
+    "trending": *[_type == "post"] | order(publishedAt asc)[0...2] {
+       title, slug, mainImage, "categories": categories[]->{title}
+    },
+    "forYou": *[_type == "post"] | order(_createdAt desc)[1...3] {
+       title, slug, mainImage, excerpt
     },
     "categories": *[_type == "category"] {title, _id}
   }`
@@ -38,140 +40,225 @@ async function getData(search: string = '', category: string = '') {
 export default async function BlogPage({ searchParams }: { searchParams: Promise<{ q: string, cat: string }> }) {
   const { q, cat } = await searchParams
   const data = await getData(q, cat)
-  const { posts, featured, categories } = data
+  const { posts, featured, categories, trending, forYou } = data
 
+  // Filtrar o destaque da lista principal para não repetir
   const listPosts = posts.filter((p: any) => p.slug.current !== featured?.slug.current)
 
   return (
-    <div className="min-h-screen bg-gray-50 font-inter">
+    <div className="min-h-screen bg-white font-inter selection:bg-brand-purple selection:text-white">
       
-      {/* --- HERO SECTION PREMIUM --- */}
-      <div className="relative bg-[#0a0a0a] overflow-hidden pt-32 pb-20 lg:pt-40 lg:pb-32">
-        {/* Background Effects */}
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
-            <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-brand-purple/30 rounded-full blur-[120px] animate-pulse"></div>
-            <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] bg-brand-green/20 rounded-full blur-[100px]"></div>
-            <div className="absolute inset-0 bg-[url('/assets/grid.svg')] opacity-[0.03]"></div>
+      {/* --- HERO SECTION CLEAN & ANIMATED --- */}
+      <div className="relative pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden">
+        {/* Background Animado (Blobs) */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+            <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-brand-purple/5 rounded-full blur-[100px] animate-pulse"></div>
+            <div className="absolute bottom-[10%] left-[-10%] w-[500px] h-[500px] bg-brand-green/5 rounded-full blur-[80px]"></div>
+            <div className="absolute top-[20%] left-[20%] w-32 h-32 bg-brand-purple/10 rounded-full blur-2xl animate-bounce duration-[3000ms]"></div>
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
-            <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
-                {/* Coluna Texto */}
+            <div className="flex flex-col lg:flex-row items-center gap-12">
+                {/* Texto Hero */}
                 <div className="flex-1 text-center lg:text-left">
-                    <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-white/5 border border-white/10 text-brand-green text-xs font-bold uppercase tracking-wider mb-6 backdrop-blur-sm">
-                        <Sparkles size={14} /> Central de Conhecimento
+                    <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-gray-50 border border-gray-200 text-brand-purple text-xs font-bold uppercase tracking-wider mb-6 hover:bg-brand-purple/5 transition-colors cursor-default">
+                        <Sparkles size={14} className="text-brand-green" /> Blog Oficial Facillit
                     </div>
-                    <h1 className="text-5xl lg:text-7xl font-black text-white mb-6 leading-tight tracking-tight">
-                        Explore o futuro da <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-brand-green">Educação</span>
+                    <h1 className="text-5xl lg:text-7xl font-black text-gray-900 mb-6 leading-[1.1] tracking-tight">
+                        Transforme sua <br />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-brand-green">Jornada Educacional</span>
                     </h1>
-                    <p className="text-lg text-gray-400 mb-8 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                        Descubra estratégias inovadoras, tutoriais práticos e insights sobre tecnologia para transformar a gestão escolar e corporativa.
+                    <p className="text-lg text-gray-500 mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                        Um espaço dedicado a inovação, produtividade e tecnologia. Descubra como potencializar seus resultados com o ecossistema Facillit.
                     </p>
                     
-                    {/* Botão CTA Hero */}
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                        <Link href="#latest" className="px-8 py-4 bg-brand-gradient text-white rounded-xl font-bold shadow-lg shadow-brand-purple/25 hover:scale-105 transition-transform flex items-center justify-center gap-2">
-                            Começar a Ler <ArrowRight size={18} />
-                        </Link>
+                    {/* Barra de Busca Integrada na Hero */}
+                    <div className="max-w-md mx-auto lg:mx-0 shadow-xl shadow-brand-purple/5 rounded-2xl">
+                        <BlogControls categories={categories} simpleMode={true} />
                     </div>
                 </div>
 
-                {/* Coluna Visual (Card Flutuante 3D effect) */}
-                <div className="flex-1 w-full max-w-lg lg:max-w-none relative hidden md:block">
-                    <div className="relative z-10 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl transform rotate-3 hover:rotate-0 transition-transform duration-500">
-                        {featured?.mainImage ? (
-                             <div className="relative h-64 lg:h-80 w-full rounded-2xl overflow-hidden mb-4">
-                                <Image src={urlFor(featured.mainImage).url()} alt="Destaque" fill className="object-cover" />
-                             </div>
-                        ) : (
-                            <div className="h-64 lg:h-80 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl mb-4"></div>
+                {/* Visual Hero (Ilustração Abstrata CSS/SVG) */}
+                <div className="flex-1 relative w-full max-w-lg hidden lg:block">
+                    <div className="relative z-10 bg-white rounded-3xl p-4 shadow-2xl shadow-gray-200/50 border border-gray-100 transform rotate-2 hover:rotate-0 transition-all duration-500">
+                        {featured?.mainImage && (
+                            <div className="relative h-80 w-full rounded-2xl overflow-hidden">
+                                <Image src={urlFor(featured.mainImage).url()} alt="Destaque" fill className="object-cover hover:scale-105 transition-transform duration-700" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
+                                    <div>
+                                        <span className="bg-brand-green text-brand-dark text-xs font-bold px-2 py-1 rounded mb-2 inline-block">Destaque</span>
+                                        <h3 className="text-white font-bold text-xl">{featured.title}</h3>
+                                    </div>
+                                </div>
+                            </div>
                         )}
-                        <div className="space-y-3">
-                            <div className="h-4 w-1/3 bg-white/10 rounded-full"></div>
-                            <div className="h-8 w-3/4 bg-white/20 rounded-full"></div>
-                            <div className="h-4 w-full bg-white/5 rounded-full"></div>
-                        </div>
                     </div>
-                    {/* Elemento Decorativo Atrás */}
-                    <div className="absolute -inset-4 bg-gradient-to-r from-brand-purple to-brand-green rounded-[2rem] blur-xl opacity-30 -z-10"></div>
+                    {/* Elementos Flutuantes Decorativos */}
+                    <div className="absolute -top-8 -right-8 w-24 h-24 bg-brand-green rounded-2xl rotate-12 opacity-20 blur-xl"></div>
+                    <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-brand-purple rounded-full opacity-10 blur-xl"></div>
                 </div>
             </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 max-w-7xl -mt-8 relative z-20">
-        {/* --- NAVEGAÇÃO STICKY --- */}
-        <BlogControls categories={categories} />
-
-        <div className="flex flex-col lg:flex-row gap-12 mt-12" id="latest">
-            
-            {/* Lista de Posts */}
-            <div className="flex-1">
-                <div className="flex items-center gap-3 mb-8">
-                    <div className="p-2 bg-brand-green/10 text-brand-green rounded-lg">
-                        <TrendingUp size={24} />
+      {/* --- SEÇÃO DE RECOMENDAÇÕES (Cards Especiais) --- */}
+      {!q && !cat && (
+        <div className="bg-gray-50 border-y border-gray-100 py-12">
+            <div className="container mx-auto px-4 max-w-7xl">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    {/* Card "Em Alta" */}
+                    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-red-50 text-red-500 rounded-lg group-hover:bg-red-500 group-hover:text-white transition-colors">
+                                <TrendingUp size={20} />
+                            </div>
+                            <h3 className="font-bold text-gray-900">Em Alta</h3>
+                        </div>
+                        <div className="space-y-4">
+                            {trending.map((post: any) => (
+                                <Link href={`/recursos/blog/${post.slug.current}`} key={post.slug.current} className="flex gap-3 items-center group/item">
+                                    <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                                        {post.mainImage && <Image src={urlFor(post.mainImage).url()} fill className="object-cover" alt={post.title} />}
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-brand-purple font-bold uppercase">{post.categories?.[0]?.title || 'Geral'}</span>
+                                        <h4 className="text-sm font-semibold text-gray-700 leading-tight group-hover/item:text-brand-purple transition-colors line-clamp-2">{post.title}</h4>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900">Últimas Publicações</h3>
+
+                    {/* Card "Para Você" */}
+                    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-blue-50 text-blue-500 rounded-lg group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                                <Star size={20} />
+                            </div>
+                            <h3 className="font-bold text-gray-900">Para Você</h3>
+                        </div>
+                        <div className="space-y-4">
+                             {forYou.map((post: any) => (
+                                <Link href={`/recursos/blog/${post.slug.current}`} key={post.slug.current} className="block group/item">
+                                    <h4 className="text-sm font-semibold text-gray-700 group-hover/item:text-brand-purple transition-colors mb-1">{post.title}</h4>
+                                    <p className="text-xs text-gray-400 line-clamp-2">{post.excerpt}</p>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Card "Newsletter Rápida" */}
+                    <div className="bg-brand-dark p-6 rounded-2xl shadow-sm text-white relative overflow-hidden flex flex-col justify-center">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-purple rounded-full blur-3xl opacity-30 -mr-10 -mt-10"></div>
+                        <h3 className="font-bold text-lg mb-2 relative z-10 flex items-center gap-2"><Zap size={18} className="text-brand-green" /> Weekly Insights</h3>
+                        <p className="text-sm text-gray-300 mb-4 relative z-10">As melhores dicas de produtividade toda semana.</p>
+                        <div className="relative z-10">
+                            <NewsletterBox simple={true} darkTheme={true} />
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* --- FEED PRINCIPAL --- */}
+      <div className="container mx-auto px-4 max-w-7xl py-16">
+        <div className="flex flex-col lg:flex-row gap-12">
+            
+            <div className="flex-1">
+                {/* Categorias (Sticky Top) */}
+                <div className="sticky top-24 z-20 bg-white/90 backdrop-blur-md py-4 mb-8 border-b border-gray-100 -mx-4 px-4 lg:mx-0 lg:px-0 lg:rounded-xl">
+                    <BlogControls categories={categories} onlyCategories={true} />
                 </div>
 
+                {/* Grid de Artigos */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {listPosts.length > 0 ? listPosts.map((post: any) => (
-                        <Link href={`/recursos/blog/${post.slug.current}`} key={post.slug.current} className="group flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl hover:border-brand-purple/30 hover:-translate-y-1 transition-all duration-300 overflow-hidden h-full">
-                            <div className="relative h-56 w-full overflow-hidden">
-                                {post.mainImage && (
-                                    <Image
-                                        src={urlFor(post.mainImage).width(600).height(400).url()}
-                                        alt={post.title}
-                                        fill
-                                        className="object-cover group-hover:scale-110 transition-transform duration-700"
-                                    />
-                                )}
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300"></div>
-                                {post.categories?.[0] && (
-                                    <div className="absolute top-4 left-4 bg-white/95 backdrop-blur px-3 py-1 rounded-full text-xs font-bold text-brand-purple shadow-sm">
-                                        {post.categories[0].title}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="p-6 flex-1 flex flex-col">
-                                <div className="flex items-center gap-4 text-xs text-gray-400 mb-3 font-medium">
-                                    <span className="flex items-center gap-1.5"><Calendar size={12} /> {new Date(post.publishedAt).toLocaleDateString('pt-BR')}</span>
-                                    <span className="flex items-center gap-1.5"><Clock size={12} /> {post.estimatedReadingTime} min leitura</span>
+                        <Link href={`/recursos/blog/${post.slug.current}`} key={post.slug.current} className="group flex flex-col h-full">
+                            <article className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full flex flex-col">
+                                <div className="relative h-60 w-full overflow-hidden">
+                                    {post.mainImage && (
+                                        <Image
+                                            src={urlFor(post.mainImage).width(600).height(400).url()}
+                                            alt={post.title}
+                                            fill
+                                            className="object-cover group-hover:scale-110 transition-transform duration-700"
+                                        />
+                                    )}
+                                    {/* Overlay Gradiente no Hover */}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-brand-dark/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                    
+                                    {post.categories?.[0] && (
+                                        <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-brand-purple shadow-sm">
+                                            {post.categories[0].title}
+                                        </div>
+                                    )}
                                 </div>
-                                <h2 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-brand-purple transition-colors line-clamp-2 leading-tight">
-                                    {post.title}
-                                </h2>
-                                <p className="text-gray-600 text-sm mb-6 flex-1 line-clamp-3 leading-relaxed">
-                                    {post.excerpt}
-                                </p>
-                                <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
-                                    <span className="text-brand-purple font-bold text-sm flex items-center gap-1 group-hover:gap-2 transition-all">
-                                        Ler artigo <ArrowRight size={14} />
-                                    </span>
-                                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-brand-purple group-hover:text-white transition-all">
-                                        <ChevronRight size={14} />
+                                
+                                <div className="p-6 flex-1 flex flex-col">
+                                    <div className="flex items-center gap-4 text-xs text-gray-400 mb-3 font-medium">
+                                        <span className="flex items-center gap-1"><Calendar size={12} /> {new Date(post.publishedAt).toLocaleDateString('pt-BR')}</span>
+                                        <span className="flex items-center gap-1"><Clock size={12} /> {post.estimatedReadingTime} min</span>
+                                    </div>
+                                    
+                                    <h2 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-brand-purple transition-colors line-clamp-2">
+                                        {post.title}
+                                    </h2>
+                                    
+                                    <p className="text-gray-500 text-sm mb-6 flex-1 line-clamp-3 leading-relaxed">
+                                        {post.excerpt}
+                                    </p>
+                                    
+                                    <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
+                                        <span className="text-brand-purple font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform">
+                                            Ler agora <ArrowRight size={16} />
+                                        </span>
+                                        <Bookmark size={18} className="text-gray-300 hover:text-brand-purple transition-colors" />
                                     </div>
                                 </div>
-                            </div>
+                            </article>
                         </Link>
                     )) : (
-                        <div className="col-span-full py-20 text-center bg-white rounded-2xl border border-dashed border-gray-200">
-                            <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-bold text-gray-900">Nenhum resultado encontrado</h3>
-                            <p className="text-gray-500 text-sm mt-1">Tente buscar por outros termos ou limpar os filtros.</p>
+                        <div className="col-span-full py-24 text-center">
+                            <div className="bg-gray-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <Search className="w-10 h-10 text-gray-300" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900">Nada encontrado por aqui</h3>
+                            <p className="text-gray-500 mt-2">Tente ajustar seus termos de busca.</p>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Sidebar */}
-            <aside className="w-full lg:w-80 space-y-8">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-28">
-                    <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <span className="w-1 h-5 bg-brand-purple rounded-full"></span> Newsletter
-                    </h4>
-                    <p className="text-sm text-gray-600 mb-4">Receba conteúdos exclusivos diretamente no seu e-mail.</p>
-                    <NewsletterBox simple={true} />
+            {/* Sidebar Sticky */}
+            <aside className="w-full lg:w-80 space-y-8 hidden lg:block">
+                <div className="sticky top-40 space-y-8">
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <h4 className="font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100">Categorias</h4>
+                        <ul className="space-y-2">
+                            {categories.map((cat: any) => (
+                                <li key={cat._id}>
+                                    <Link href={`/recursos/blog?cat=${cat.title}`} className="flex items-center justify-between text-sm text-gray-600 hover:text-brand-purple hover:bg-gray-50 p-2 rounded-lg transition-colors group">
+                                        {cat.title}
+                                        <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    <div className="relative rounded-2xl overflow-hidden min-h-[300px] flex items-end p-6">
+                        <Image src="/assets/images/modulespervw/write/dashboard.jpeg" alt="Ads" fill className="object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                        <div className="relative z-10 text-white">
+                            <span className="bg-brand-green text-brand-dark text-[10px] font-bold px-2 py-0.5 rounded mb-2 inline-block">NOVIDADE</span>
+                            <h4 className="font-bold text-lg leading-tight mb-2">Facillit Write 2.0</h4>
+                            <p className="text-xs text-gray-300 mb-4">Correção de redação com IA em tempo real.</p>
+                            <button className="w-full bg-white text-brand-dark font-bold text-sm py-2 rounded-lg hover:bg-brand-green transition-colors">Conhecer</button>
+                        </div>
+                    </div>
                 </div>
             </aside>
 
@@ -179,4 +266,8 @@ export default async function BlogPage({ searchParams }: { searchParams: Promise
       </div>
     </div>
   )
+}
+
+function ChevronRight({size, className}: {size: number, className: string}) {
+    return <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m9 18 6-6-6-6"/></svg>
 }

@@ -6,9 +6,10 @@ import { Mail, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 
 interface NewsletterBoxProps {
   simple?: boolean
+  darkTheme?: boolean
 }
 
-export function NewsletterBox({ simple = false }: NewsletterBoxProps) {
+export function NewsletterBox({ simple = false, darkTheme = false }: NewsletterBoxProps) {
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -27,7 +28,19 @@ export function NewsletterBox({ simple = false }: NewsletterBoxProps) {
     setLoading(false)
   }
 
-  // Versão Simplificada (Para Sidebar)
+  // --- Lógica de Estilo para o Tema Escuro ---
+  const inputClass = darkTheme 
+    ? "bg-white/10 border-white/20 text-white placeholder-white/50 focus:bg-white/20 focus:ring-brand-green/50" 
+    : "bg-gray-50 border-gray-200 text-gray-900 focus:bg-white focus:ring-brand-purple/20";
+    
+  const buttonClass = darkTheme
+    ? "bg-white text-brand-dark hover:bg-brand-green"
+    : "bg-brand-purple text-white hover:bg-brand-dark";
+
+  const textColor = darkTheme ? "text-white" : "text-gray-900";
+  const subTextColor = darkTheme ? "text-gray-300" : "text-gray-600";
+
+  // --- Versão Compacta (Sidebar / Cards) ---
   if (simple) {
     return (
       <div className="w-full">
@@ -43,17 +56,17 @@ export function NewsletterBox({ simple = false }: NewsletterBoxProps) {
               type="email" 
               placeholder="Seu melhor e-mail" 
               required 
-              className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm focus:ring-2 focus:ring-brand-purple focus:border-transparent outline-none transition-all bg-gray-50 focus:bg-white" 
+              className={`w-full px-4 py-3 rounded-lg border text-sm focus:outline-none transition-all ${inputClass}`} 
             />
             <button 
               type="submit" 
               disabled={loading} 
-              className="w-full bg-brand-purple text-white py-3 rounded-lg font-bold text-sm hover:bg-brand-dark transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+              className={`w-full py-3 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-70 ${buttonClass}`}
             >
               {loading ? <Loader2 size={16} className="animate-spin" /> : 'Inscrever-se'}
             </button>
             {message?.type === 'error' && (
-              <p className="text-xs text-red-600 flex items-center gap-1 mt-1">
+              <p className="text-xs text-red-500 flex items-center gap-1 mt-1 font-medium bg-red-500/10 p-2 rounded">
                 <AlertCircle size={12} /> {message.text}
               </p>
             )}
@@ -63,10 +76,10 @@ export function NewsletterBox({ simple = false }: NewsletterBoxProps) {
     )
   }
 
-  // Versão Completa (Para final do post ou seções principais)
+  // --- Versão Completa (Final do Post) ---
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-8 md:p-12 text-center relative overflow-hidden my-12">
-      {/* Elementos decorativos de fundo */}
+    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-8 md:p-12 text-center relative overflow-hidden">
+      {/* Elementos decorativos */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 -translate-y-1/2 translate-x-1/2"></div>
       <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-100 rounded-full mix-blend-multiply filter blur-3xl opacity-30 translate-y-1/2 -translate-x-1/2"></div>
 
@@ -75,9 +88,9 @@ export function NewsletterBox({ simple = false }: NewsletterBoxProps) {
           <Mail size={28} />
         </div>
         
-        <h3 className="text-3xl font-bold text-gray-900 mb-3">Não perca nenhuma novidade</h3>
-        <p className="text-gray-600 mb-8 text-lg">
-          Junte-se a nossa comunidade e receba dicas exclusivas de educação, tecnologia e atualizações do Facillit Hub diretamente no seu e-mail.
+        <h3 className={`text-3xl font-bold mb-3 ${textColor}`}>Não perca nenhuma novidade</h3>
+        <p className={`${subTextColor} mb-8 text-lg`}>
+          Junte-se a nossa comunidade e receba dicas exclusivas de educação e tecnologia diretamente no seu e-mail.
         </p>
 
         {message?.type === 'success' ? (
@@ -94,7 +107,7 @@ export function NewsletterBox({ simple = false }: NewsletterBoxProps) {
               type="email"
               placeholder="Digite seu e-mail principal..."
               required
-              className="flex-1 px-6 py-4 rounded-xl border border-gray-200 focus:ring-4 focus:ring-brand-purple/20 focus:border-brand-purple outline-none transition-all shadow-sm text-gray-700"
+              className="flex-1 px-6 py-4 rounded-xl border border-gray-200 focus:ring-4 focus:ring-brand-purple/20 focus:border-brand-purple outline-none transition-all shadow-sm text-gray-700 bg-white"
             />
             <button 
               type="submit" 
