@@ -7,16 +7,23 @@ import { useToast } from '@/contexts/ToastContext';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { useRouter } from 'next/navigation';
 
+// 1. Criamos um tipo estendido que inclui 'role', pois UserProfile padrão não o tem.
+type ClassMember = UserProfile & { role: string };
+
 type ClassManagerProps = {
     organizationId: string;
-    initialClasses: (SchoolClass & { members: UserProfile[] })[];
+    // 2. Atualizamos a definição das classes iniciais para usar ClassMember
+    initialClasses: (SchoolClass & { members: ClassMember[] })[];
     organizationMembers: UserProfile[];
     initialUnassignedUsers: UserProfile[];
 };
 
 export default function ClassManager({ organizationId, initialClasses, organizationMembers, initialUnassignedUsers }: ClassManagerProps) {
     const [newClassName, setNewClassName] = useState('');
-    const [selectedClass, setSelectedClass] = useState<(SchoolClass & { members: UserProfile[] }) | null>(null);
+    
+    // 3. Atualizamos o tipo do estado selectedClass para usar ClassMember
+    const [selectedClass, setSelectedClass] = useState<(SchoolClass & { members: ClassMember[] }) | null>(null);
+    
     const [userToAdd, setUserToAdd] = useState('');
     const [roleToAdd, setRoleToAdd] = useState<'student' | 'teacher'>('student');
     const [isPending, startTransition] = useTransition();
