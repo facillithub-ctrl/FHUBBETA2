@@ -1,18 +1,22 @@
-    "use client";
+"use client";
 
 import { useState } from 'react';
 import { Organization, SchoolClass, UserProfile } from '@/app/dashboard/types';
-import ClassManager from './ClassManager'; // A importação relativa agora funciona
+import ClassManager from './ClassManager';
+
+// CORREÇÃO: Definimos ClassMember para incluir 'role', satisfazendo o ClassManager
+type ClassMember = UserProfile & { role: string };
 
 type ManageSchoolsProps = {
     organization: Organization;
-    classes: (SchoolClass & { members: UserProfile[] })[];
+    // CORREÇÃO: Atualizado de UserProfile[] para ClassMember[]
+    classes: (SchoolClass & { members: ClassMember[] })[];
     members: UserProfile[];
     unassignedUsers: UserProfile[];
 };
 
 export default function ManageSchools({ organization, classes: initialClasses, members, unassignedUsers: initialUnassignedUsers }: ManageSchoolsProps) {
-    const [activeTab, setActiveTab] = useState('classes'); // Iniciar na aba de turmas por padrão
+    const [activeTab, setActiveTab] = useState('classes'); 
 
     return (
         <div className="bg-white dark:bg-dark-card p-6 rounded-lg shadow">
