@@ -87,7 +87,200 @@ export type ActionPlan = {
 };
 
 // =============================================================================
-// 2. FUNÇÕES DE ALUNO E GERAIS
+// 2. FUNÇÕES CRUD (LEITURA E ESCRITA BÁSICA)
+// =============================================================================
+
+export async function getEssayDetails(essayId: string) {
+    const supabase = await createSupabaseServerClient();
+    const { data, error } = await supabase.from('essays').select(`*, profiles (full_name)`).eq('id', essayId).maybeSingle();
+    if (error) return { error: error.message };
+    return { data: data as (Essay & { profiles: { full_name: string | null } | null }) };
+}
+
+export async function getCorrectionForEssay(essayId: string) {
+    const supabase = await createSupabaseServerClient();
+    
+    // Busca correção humana
+    const { data: correctionBase } = await supabase
+        .from('essay_corrections')
+        .select(`*, profiles ( full_name, verification_badge )`)
+        .eq('essay_id', essayId)
+        .maybeSingle();
+    
+    // Busca feedback da IA
+    const { data: aiFeedback } = await supabase
+        .from('ai_feedback')
+        .select('*')
+        .eq('essay_id', essayId)
+        .maybeSingle();
+
+    // Combina os dados
+    const finalData: EssayCorrection = {
+        ...(correctionBase || {}),
+        ai_feedback: aiFeedback || null
+    } as EssayCorrection;
+
+    // Se não houver dados de nenhum dos dois, retorna null
+    if (!correctionBase && !aiFeedback) return { data: null };
+
+    return { data: finalData };
+}
+
+// =============================================================================
+// 3. INTEGRAÇÃO IA REAL (LÓGICA MOVIDA PARA O SERVER ACTION)
+// =============================================================================
+
+/**
+ * GERA e SALVA a análise de IA.
+ * Executa diretamente no servidor (Node.js) chamando a API externa (Groq/OpenAI).
+ */
+export async function generateAndSaveAIAnalysis(essayId: string, essayContent: string, essayTitle: string) {
+    const supabase = await createSupabaseServerClient();
+    
+    // 1. Verificar Sessão
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: 'Sessão expirada. Faça login novamente.' };
+
+    try {
+        console.log(`[Action] Iniciando análise IA para Redação ${essayId}...`);
+
+        // 2. Configurações da API Externa (Groq / OpenAI)
+        let aiBaseUrl = process.env.AI_BASE_URL || "https://api.groq.com/openai/v1";
+        // Remove barra final se houver para evitar duplicidade
+        if (aiBaseUrl.endsWith('/')) aiBaseUrl = aiBaseUrl.slice(0, -1);
+        
+        // Garante o endpoint correto de chat completions
+        const aiEndpoint = aiBaseUrl.endsWith('/chat/completions') 
+            ? aiBaseUrl 
+            : `${aiBaseUrl}/chat/completions`;
+
+        const apiKey = process.env.AI_API_KEY;
+        const aiModel = process.env.AI_MODEL || "llama-3.3-70b-versatile";
+
+        if (!apiKey) {
+            console.error("[Action] ERRO: AI_API_KEY não configurada no .env");
+            return { error: "Serviço de IA indisponível (Chave de API ausente)." };
+        }
+
+        // 3. Limpeza do Texto (Remove HTML básico para economizar tokens)
+        const plainText = essayContent
+            .replace(/<[^>]*>/g, ' ') // Troca tags por espaço
+            .replace(/\s+/g, ' ')     // Normaliza espaços múltiplos
+            .trim();
+
+        if (plainText.length < 50) {
+            return { error: "Texto muito curto para análise." };
+        }
+
+        // 4. Prompt do Sistema (O "Prompt Real")
+        const systemPrompt = `
+          Atue como o "Facillit Corrector", um avaliador oficial do ENEM com vasta experiência.
+          Analise a redação fornecida pelo usuário com rigor, baseando-se nas 5 competências oficiais do ENEM.
+          
+          SAÍDA OBRIGATÓRIA:
+          Você deve retornar APENAS um objeto JSON válido. Não inclua blocos de código markdown (como \`\`\`json), nem texto antes ou depois.
+          
+          ESTRUTURA DO JSON:
+          {
+            "detailed_feedback": [
+              { "competency": "Competência 1: Norma Culta", "feedback": "Análise detalhada sobre gramática, ortografia e acentuação..." },
+              { "competency": "Competência 2: Tema e Estrutura", "feedback": "Análise sobre a compreensão do tema e estrutura dissertativa..." },
+              { "competency": "Competência 3: Argumentação", "feedback": "Análise sobre a seleção e organização dos argumentos..." },
+              { "competency": "Competência 4: Coesão", "feedback": "Análise sobre o uso de conectivos e sequenciamento lógico..." },
+              { "competency": "Competência 5: Proposta de Intervenção", "feedback": "Análise da proposta de solução para o problema..." }
+            ],
+            "rewrite_suggestions": [
+              { "original": "Trecho do texto com problema", "suggestion": "Sugestão de reescrita melhorada" }
+            ],
+            "actionable_items": [
+              "Ação prática 1 para o aluno estudar (ex: Revisar uso de crase)",
+              "Ação prática 2",
+              "Ação prática 3"
+            ]
+          }
+        `;
+
+        // 5. Chamada Externa (Fetch Direto)
+        console.log(`[Action] Enviando requisição para ${aiEndpoint} (Modelo: ${aiModel})`);
+        
+        const response = await fetch(aiEndpoint, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                model: aiModel,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: `TÍTULO: ${essayTitle || 'Sem título'}\n\nREDAÇÃO:\n${plainText}` }
+                ],
+                temperature: 0.3,
+                max_tokens: 3000,
+                response_format: { type: "json_object" } // Força JSON mode se o modelo suportar
+            })
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error(`[Action] Erro Provider IA (${response.status}):`, errText);
+            throw new Error(`Falha na comunicação com a IA (${response.status}).`);
+        }
+
+        const completion = await response.json();
+        const content = completion.choices[0].message.content;
+
+        // 6. Parse Seguro do JSON
+        let aiData;
+        try {
+            // Remove possíveis marcadores de markdown que alguns modelos insistem em colocar
+            const cleanJson = content.replace(/```json/g, '').replace(/```/g, '').trim();
+            aiData = JSON.parse(cleanJson);
+        } catch (parseError) {
+            console.error("[Action] Erro Parse JSON IA:", content);
+            throw new Error("A IA gerou uma resposta mal formatada. Tente novamente.");
+        }
+
+        // Validação básica da estrutura
+        if (!aiData.detailed_feedback || !aiData.actionable_items) {
+            throw new Error("Resposta da IA incompleta.");
+        }
+
+        // 7. Salvar no Banco de Dados (Upsert)
+        console.log("[Action] Salvando feedback no Supabase...");
+        
+        const { data: savedData, error: saveError } = await supabase
+            .from('ai_feedback')
+            .upsert({
+                essay_id: essayId,
+                detailed_feedback: aiData.detailed_feedback,
+                rewrite_suggestions: aiData.rewrite_suggestions,
+                actionable_items: aiData.actionable_items,
+                // updated_at: new Date().toISOString() // Descomente se tiver essa coluna
+            }, { onConflict: 'essay_id' })
+            .select()
+            .single();
+
+        if (saveError) {
+            console.error("[Action] Erro Supabase:", saveError);
+            throw new Error("Erro ao salvar a análise no banco de dados.");
+        }
+
+        console.log("[Action] Sucesso!");
+        
+        // Revalida a página para exibir os novos dados imediatamente
+        revalidatePath(`/dashboard/applications/write`);
+        
+        return { success: true, data: savedData };
+
+    } catch (error: any) {
+        console.error("[Action] Erro Crítico:", error);
+        return { error: error.message || "Não foi possível gerar a análise." };
+    }
+}
+
+// =============================================================================
+// 4. OUTRAS FUNÇÕES DO SISTEMA (MANTIDAS)
 // =============================================================================
 
 export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
@@ -181,123 +374,9 @@ export async function getEssaysForStudent() {
   return { data: essaysWithGrades };
 }
 
-export async function getEssayDetails(essayId: string) {
-    const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase.from('essays').select(`*, profiles (full_name)`).eq('id', essayId).maybeSingle();
-    if (error) return { error: error.message };
-    return { data: data as (Essay & { profiles: { full_name: string | null } | null }) };
-}
-
-// =============================================================================
-// 3. FUNÇÕES DE CORREÇÃO, FEEDBACK E IA
-// =============================================================================
-
-/**
- * Função Legada (mantida para compatibilidade)
- */
-export async function generateAIAnalysis(text: string) {
-    try {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'; 
-        const response = await fetch(`${baseUrl}/api/generate-feedback`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ essayContent: text, essayTitle: 'Sem Título' }),
-            cache: 'no-store'
-        });
-        if (!response.ok) throw new Error(`Erro na API de IA: ${response.status}`);
-        const data = await response.json();
-        return { data };
-    } catch (error: any) {
-        console.error("Erro ao gerar análise de IA:", error);
-        return { error: error.message };
-    }
-}
-
-/**
- * NOVA FUNÇÃO: Gera a análise via API Route e SALVA no banco de dados.
- * Usada pelo botão "Gerar Análise com IA" na interface.
- */
-export async function generateAndSaveAIAnalysis(essayId: string, essayContent: string, essayTitle: string) {
-    const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: 'Sessão expirada.' };
-
-    try {
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-        
-        // 1. Chama a API Route
-        const response = await fetch(`${baseUrl}/api/generate-feedback`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ essayContent, essayTitle }),
-            cache: 'no-store'
-        });
-
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Falha na IA (${response.status}): ${errText}`);
-        }
-
-        const aiData = await response.json();
-
-        // 2. Salva no Supabase (Tabela ai_feedback)
-        const { data: savedData, error: saveError } = await supabase
-            .from('ai_feedback')
-            .upsert({
-                essay_id: essayId,
-                detailed_feedback: aiData.detailed_feedback,
-                rewrite_suggestions: aiData.rewrite_suggestions,
-                actionable_items: aiData.actionable_items,
-            }, { onConflict: 'essay_id' })
-            .select()
-            .single();
-
-        if (saveError) {
-            console.error("[Action] Erro ao salvar no banco:", saveError);
-            throw new Error("Erro ao salvar análise no banco de dados.");
-        }
-        
-        revalidatePath('/dashboard/applications/write');
-        return { success: true, data: savedData };
-
-    } catch (error: any) {
-        console.error("[Action] Erro Crítico:", error);
-        return { error: error.message || "Não foi possível gerar a análise." };
-    }
-}
-
-export async function getCorrectionForEssay(essayId: string) {
-    const supabase = await createSupabaseServerClient();
-    
-    // Busca correção humana
-    const { data: correctionBase } = await supabase
-        .from('essay_corrections')
-        .select(`*, profiles ( full_name, verification_badge )`)
-        .eq('essay_id', essayId)
-        .maybeSingle();
-    
-    // Busca feedback da IA
-    const { data: aiFeedback } = await supabase
-        .from('ai_feedback')
-        .select('*')
-        .eq('essay_id', essayId)
-        .maybeSingle();
-
-    const finalData: EssayCorrection = {
-        ...(correctionBase || {}),
-        ai_feedback: aiFeedback || null
-    } as EssayCorrection;
-
-    // Se não houver nada, retorna null para controle de UI
-    if (!correctionBase && !aiFeedback) return { data: null };
-
-    return { data: finalData };
-}
-
 export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
-    
     if (!user) return { error: 'Não autorizado' };
 
     const { data, error } = await supabase
@@ -312,7 +391,6 @@ export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
         .single();
 
     if (error) return { error: error.message };
-    
     revalidatePath(`/dashboard/applications/write`);
     return { data };
 }
@@ -346,10 +424,6 @@ export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id
     revalidatePath('/dashboard/applications/write');
     return { data: correction };
 }
-
-// =============================================================================
-// 4. ESTATÍSTICAS E PLANOS DE AÇÃO
-// =============================================================================
 
 export async function getStudentStatistics() {
     const supabase = await createSupabaseServerClient();
@@ -406,14 +480,12 @@ export async function getUserActionPlans() {
         if (Array.isArray(items)) {
             items.forEach((item: any) => {
                 const itemText = typeof item === 'string' ? item : item.text;
-                const isCompleted = typeof item === 'string' ? false : item.is_completed;
-                
                 if (!seenItems.has(itemText)) {
                     seenItems.add(itemText);
                     plans.push({ 
                         id: crypto.randomUUID(), 
                         text: itemText, 
-                        is_completed: isCompleted, 
+                        is_completed: false, 
                         source_essay: essayTitle 
                     });
                 }
@@ -446,69 +518,30 @@ export async function getSavedFeedbacks() {
     return { data: filtered };
 }
 
-// --- FILAS DE CORREÇÃO (PROFESSOR/ADMIN) ---
-
 export async function getPendingEssaysForTeacher(teacherId: string, organizationId: string | null) {
     const supabase = await createSupabaseServerClient();
-
-    let query = supabase
-        .from('essays')
-        .select('id, title, submitted_at, profiles(full_name)')
-        .eq('status', 'submitted');
-
-    if (organizationId) {
-        query = query.eq('organization_id', organizationId);
-    }
-
+    let query = supabase.from('essays').select('id, title, submitted_at, profiles(full_name)').eq('status', 'submitted');
+    if (organizationId) query = query.eq('organization_id', organizationId);
     const { data, error } = await query.order('submitted_at', { ascending: true });
-
     if (error) return { data: [] };
     return { data };
 }
 
 export async function getCorrectedEssaysForTeacher(teacherId: string, organizationId: string | null) {
   const supabase = await createSupabaseServerClient();
-
   let query = supabase
     .from('essays')
-    .select(`
-        id,
-        title,
-        submitted_at,
-        profiles ( full_name ),
-        essay_corrections!inner ( final_grade, corrector_id )
-    `)
-    .eq('status', 'corrected');
-    
-  query = query.eq('essay_corrections.corrector_id', teacherId);
-
+    .select(`id, title, submitted_at, profiles ( full_name ), essay_corrections!inner ( final_grade, corrector_id )`)
+    .eq('status', 'corrected')
+    .eq('essay_corrections.corrector_id', teacherId);
   const { data, error } = await query.order('submitted_at', { ascending: false });
-
   if (error) return { data: [] };
   return { data };
 }
 
-// --- UTILITÁRIOS ---
-
-export async function toggleActionPlanItem(itemId: string, itemText: string, newStatus: boolean) {
-    return { success: true };
-}
-
-export async function checkForPlagiarism(_text: string) {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    const hasPlagiarism = Math.random() > 0.8;
-    if (hasPlagiarism) {
-        return { 
-            data: { 
-                similarity_percentage: Math.random() * 20 + 5, 
-                matches: [{ source: "Internet (Fonte Simulada)", text: "Este trecho parece ter sido retirado de..." }] 
-            } 
-        };
-    }
-    return { data: { similarity_percentage: Math.random() * 2, matches: [] } };
-}
-
-// Placeholders mantidos para evitar quebras
+// Stubs para evitar erros
+export async function toggleActionPlanItem(itemId: string, itemText: string, newStatus: boolean) { return { success: true }; }
+export async function checkForPlagiarism(_text: string) { return { data: { similarity_percentage: 0, matches: [] } }; }
 export async function saveStudyPlan(plan: any) { return { success: true }; }
 export async function getLatestEssayForDashboard() { return { data: null }; }
 export async function getAIFeedbackForEssay(essayId: string) { return { data: null }; }
@@ -517,3 +550,5 @@ export async function getUserStateRank() { return { data: null }; }
 export async function getFrequentErrors() { return { data: [] }; }
 export async function getCurrentEvents() { return { data: [] }; }
 export async function createNotification() { return { error: null }; }
+// Função legada:
+export async function generateAIAnalysis(text: string) { return { error: "Use generateAndSaveAIAnalysis" }; }
