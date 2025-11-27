@@ -4,18 +4,19 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { createOrganization, generateInviteCode } from '../../actions';
 import { useToast } from '@/contexts/ToastContext';
-import ConfirmationModal from '@/components/ConfirmationModal';
+// import ConfirmationModal from '@/components/ConfirmationModal'; // Mantido import se necessário, mas não usado no snippet
 
 type Organization = {
     id: string;
     name: string;
     cnpj: string | null;
     created_at: string;
-    // A consulta retorna um array de perfis, então usamos `[]`
-    profiles: { full_name: string | null }[] | null; 
+    owner_id?: string; // Adicionado para corresponder ao retorno da query
+    // Tornado opcional (?) pois a query no actions.ts não retorna mais os perfis
+    profiles?: { full_name: string | null }[] | null; 
 };
 
-// Componente do Modal de Criação movido para fora
+// Componente do Modal de Criação
 const CreateOrgModal = ({ isOpen, onClose, onSave, isPending }: { isOpen: boolean, onClose: () => void, onSave: (name: string, cnpj: string | null) => void, isPending: boolean }) => {
     const [name, setName] = useState('');
     const [cnpj, setCnpj] = useState('');
@@ -56,7 +57,7 @@ const CreateOrgModal = ({ isOpen, onClose, onSave, isPending }: { isOpen: boolea
     );
 };
 
-// Componente do Modal de Geração de Código movido para fora
+// Componente do Modal de Geração de Código
 const GenerateCodeModal = ({ org, onClose, onGenerate, isPending }: { org: Organization | null, onClose: () => void, onGenerate: (role: 'diretor' | 'professor' | 'aluno') => void, isPending: boolean }) => {
     const [role, setRole] = useState<'diretor' | 'professor' | 'aluno'>('aluno');
 
