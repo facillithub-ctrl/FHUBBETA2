@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { ThemeProvider } from '@/components/ThemeProvider';
-import CookieConsent from '@/components/CookieConsent'; // Importe o novo componente
+import CookieConsent from '@/components/CookieConsent';
+import { ToastProvider } from '@/contexts/ToastContext'; // 1. Importar o Provider
 
 export const metadata: Metadata = {
   title: 'Facillit HUB',
@@ -20,8 +21,11 @@ export default function RootLayout({
     <html lang="pt-br" style={{ scrollBehavior: 'smooth' }} suppressHydrationWarning>
       <body className="font-inter bg-background-light text-dark-text">
         <ThemeProvider>
-          {children}
-          <CookieConsent /> {/* Adicione o componente aqui */}
+          {/* 2. Envolver a aplicação com o ToastProvider */}
+          <ToastProvider>
+            {children}
+            <CookieConsent />
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

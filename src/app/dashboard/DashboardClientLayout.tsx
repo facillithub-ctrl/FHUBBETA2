@@ -1,50 +1,54 @@
 "use client";
 
-import { useState, ReactNode } from "react";
+import { useState } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import Topbar from "@/components/dashboard/Topbar";
+import { UserProfile } from "./types";
 
 interface DashboardClientLayoutProps {
-  children: ReactNode;
-  user?: any; // Recebe os dados do usuário do Server Component
+  children: React.ReactNode;
+  user: UserProfile;
 }
 
 export default function DashboardClientLayout({ 
   children, 
   user 
 }: DashboardClientLayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile
+  const [isCollapsed, setIsCollapsed] = useState(false);     // Desktop
 
   return (
-    <div className="min-h-screen bg-[#f8f9fc] dark:bg-[#0f0f12] font-sans">
+    <div className="min-h-screen bg-[#f8f9fc] dark:bg-[#000000] font-sans selection:bg-brand-purple/20">
       
-      {/* Sidebar: Controlada pelo estado */}
+      {/* Sidebar */}
       <Sidebar 
         isOpen={isSidebarOpen} 
-        setIsOpen={setIsSidebarOpen} 
+        setIsOpen={setIsSidebarOpen}
+        isCollapsed={isCollapsed}
+        setIsCollapsed={setIsCollapsed}
+        user={user}
       />
 
-      {/* Wrapper do Conteúdo Principal */}
-      {/* lg:pl-72 empurra o conteúdo para a direita quando a sidebar está fixa no desktop */}
-      <div className="flex flex-col min-h-screen transition-all duration-300 ease-in-out lg:pl-72">
+      {/* Área Principal */}
+      {/* Ajuste dinâmico da margem: lg:pl-20 (colapsado) vs lg:pl-72 (expandido) */}
+      <div 
+        className={`flex flex-col min-h-screen transition-all duration-300 ease-in-out ${
+          isCollapsed ? "lg:pl-20" : "lg:pl-72"
+        }`}
+      >
         
-        {/* Topbar: Passamos a função para abrir o menu no mobile */}
+        {/* Topbar */}
         <Topbar 
           onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} 
           user={user}
         />
 
-        {/* Área de Conteúdo das Páginas */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-x-hidden">
+        {/* Conteúdo */}
+        <main className="flex-1 p-6">
           <div className="mx-auto max-w-7xl animate-fade-in-up">
             {children}
           </div>
         </main>
-        
-        {/* Footer Simples da Dashboard (Opcional) */}
-        <footer className="px-8 py-4 text-center text-xs text-gray-400 dark:text-gray-600">
-          &copy; {new Date().getFullYear()} Facillit Hub. Todos os direitos reservados.
-        </footer>
 
       </div>
     </div>
