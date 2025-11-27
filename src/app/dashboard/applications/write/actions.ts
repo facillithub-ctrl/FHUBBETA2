@@ -163,20 +163,39 @@ export async function getPrompts() {
     return { data: data || [] };
 }
 
-// Busca Redações do Aluno
+// Busca Redações do Aluno (Otimizado para trazer notas)
 export async function getEssaysForStudent() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Usuário não autenticado.' };
 
+  // Adicionamos essay_corrections(final_grade) para exibir a nota na lista
   const { data, error } = await supabase
     .from('essays')
-    .select('id, title, status, submitted_at, content, image_submission_url, prompt_id')
+    .select(`
+      id, 
+      title, 
+      status, 
+      submitted_at, 
+      content, 
+      image_submission_url, 
+      prompt_id,
+      essay_corrections ( final_grade )
+    `)
     .eq('student_id', user.id)
     .order('submitted_at', { ascending: false, nullsFirst: true });
 
   if (error) return { error: error.message };
-  return { data };
+
+  // Mapeia para trazer final_grade para o nível superior do objeto
+  const essaysWithGrades = data?.map(essay => ({
+    ...essay,
+    final_grade: essay.essay_corrections?.[0]?.final_grade ?? null,
+    // Removemos a propriedade aninhada para limpar o objeto
+    essay_corrections: undefined
+  }));
+
+  return { data: essaysWithGrades };
 }
 
 // Busca Detalhes de uma Redação
@@ -206,7 +225,7 @@ export async function getCorrectionForEssay(essayId: string) {
     if (correctionError) return { error: correctionError.message };
     if (!correctionBase) return { data: undefined };
 
-    // 2. Busca Feedback IA Separado
+    // 2. Busca Feedback IA Separado (mais seguro contra nulos)
     const { data: aiFeedback } = await supabase
         .from('ai_feedback')
         .select('*')
@@ -264,6 +283,7 @@ export async function getStudentStatistics() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { data: null };
 
+    // Usa !inner para pegar apenas redações que TÊM correções
     const { data: essays } = await supabase
         .from('essays')
         .select(`submitted_at, essay_corrections!inner ( final_grade, grade_c1, grade_c2, grade_c3, grade_c4, grade_c5 )`)
@@ -307,6 +327,7 @@ export async function calculateWritingStreak() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { data: 0 };
 
+    // Otimização: Busca apenas a coluna necessária
     const { data } = await supabase
         .from('essays')
         .select('submitted_at')
@@ -361,25 +382,12 @@ export async function getCurrentEvents() {
     return { data: data || [] };
 }
 
-// --- FUNÇÕES ADICIONADAS PARA CORRIGIR O ERRO DE IMPORTAÇÃO ---
-
 // Obtém planos de ação a partir dos feedbacks de IA recentes
 export async function getUserActionPlans() {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { data: [] };
 
-    // Busca os últimos 3 feedbacks de IA
-    const { data: aiFeedbacks } = await supabase
-        .from('ai_feedback')
-        .select('actionable_items, created_at, essays(title)')
-        .eq('essays.student_id', user.id) // Filtra indiretamente pelo estudante via join (assumindo FK)
-        // Como a FK direta pode não existir no ai_feedback, vamos buscar essays primeiro e depois os feedbacks
-        // Alternativa segura: buscar essay_ids do aluno
-        .order('created_at', { ascending: false })
-        .limit(3);
-
-    // Abordagem alternativa caso a query acima seja complexa para o setup atual:
     // 1. Pega essays do aluno
     const { data: essays } = await supabase
         .from('essays')
@@ -417,19 +425,16 @@ export async function getUserActionPlans() {
         });
     });
 
-    return { data: plans.slice(0, 5) }; // Retorna os top 5 itens
+    return { data: plans.slice(0, 5) };
 }
 
-// Salva um plano de estudo (Implementação Dummy para compatibilidade)
+// Salva um plano de estudo
 export async function saveStudyPlan(plan: any) {
-    // Aqui você conectaria com uma tabela 'study_plans' ou 'tasks'
-    // Por enquanto, retornamos sucesso para não quebrar o fluxo
     return { success: true };
 }
 
-// --- FIM DAS FUNÇÕES ADICIONADAS ---
+// --- FUNÇÕES DE PROFESSOR ---
 
-// Funções para Professor
 export async function getPendingEssaysForTeacher(teacherId: string, organizationId: string | null) {
     const supabase = await createSupabaseServerClient();
     let query = supabase.from('essays').select('id, title, submitted_at, profiles(full_name)').eq('status', 'submitted');
@@ -469,7 +474,21 @@ export async function getLatestEssayForDashboard() {
 
     if (!data) return { data: null };
 
-    return { data: { ...data, final_grade: data.essay_corrections?.[0]?.final_grade ?? null, prompts: data.prompts ? { title: data.prompts.title } : null } };
+    // CORREÇÃO DO ERRO DE BUILD: Tratamos prompts como array se necessário, ou objeto.
+    // O Supabase pode retornar prompts como array [] se for um relacionamento one-to-many inferido,
+    // ou objeto {} se for one-to-one. Aqui garantimos segurança.
+    const promptsData = data.prompts;
+    const promptTitle = Array.isArray(promptsData)
+        ? promptsData[0]?.title
+        : (promptsData as any)?.title;
+
+    return {
+        data: {
+            ...data,
+            final_grade: data.essay_corrections?.[0]?.final_grade ?? null,
+            prompts: promptTitle ? { title: promptTitle } : null
+        }
+    };
 }
 
 // Simulação de Plágio
@@ -483,7 +502,6 @@ export async function checkForPlagiarism(_text: string) {
     return { data: { similarity_percentage: Math.random() * 3, matches: [] } };
 }
 
-// Função de feedback IA
 export async function getAIFeedbackForEssay(essayId: string) {
     const supabase = await createSupabaseServerClient();
     const { data } = await supabase
