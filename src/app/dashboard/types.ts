@@ -1,5 +1,8 @@
 export type UserProfile = {
   id: string;
+  email?: string; // Adicionado para compatibilidade
+
+  // --- Campos Legados (camelCase) ---
   fullName: string | null;
   nickname: string | null;
   avatarUrl: string | null;
@@ -7,15 +10,21 @@ export type UserProfile = {
   pronoun: string | null;
   birthDate: string | null;
   schoolName: string | null;
+  
+  // --- Campos Novos (snake_case) ---
+  full_name?: string | null;
+  avatar_url?: string | null;
+  is_verified?: boolean;
+
+  // --- Campos Comuns / Outros ---
   organization_id: string | null;
   target_exam: string | null;
   active_modules: string[] | null;
   verification_badge: string | null;
   has_completed_onboarding?: boolean;
-  email?: string; // Adicionado para compatibilidade
 };
 
-// ... (Mantenha os outros tipos Organization, SchoolClass, Update, EssayPrompt como estão)
+// ... (Mantenha os outros tipos abaixo inalterados)
 export type Organization = {
     id: string;
     name: string;

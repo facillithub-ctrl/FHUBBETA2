@@ -24,15 +24,16 @@ export default async function AccountPage() {
   }
 
   // 2. Mapeia os dados para o tipo HÍBRIDO UserProfile
+  // Agora o TypeScript reconhecerá as propriedades snake_case adicionadas ao tipo
   const userProfile: UserProfile = {
     id: profileData.id,
-    email: user.email!, // Campo Obrigatório Adicionado
+    email: user.email!, 
 
     // --- Padrão Novo (snake_case) ---
     full_name: profileData.full_name,
     nickname: profileData.nickname,
     avatar_url: profileData.avatar_url,
-    is_verified: profileData.is_verified || false, // Campo Obrigatório Adicionado
+    is_verified: profileData.is_verified || false, 
     active_modules: profileData.active_modules,
     organization_id: profileData.organization_id,
     user_category: profileData.user_category,
