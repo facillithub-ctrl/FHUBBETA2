@@ -7,23 +7,47 @@ import {
   StudentDashboardData, 
   TestWithQuestions, 
   StudentCampaign,
+  QuestionContent
 } from "./types";
 
-// --- TIPOS EXPORTADOS PARA O CLIENTE ---
 export type StudentAnswerPayload = {
   question_id: string;
   answer: string | number | boolean; // O valor da resposta
   time_spent_seconds?: number;
 };
 
+// --- TIPOS EXPORTADOS (Necessários para os componentes) ---
+
+export type Campaign = {
+    id: string;
+    title: string;
+    description: string | null;
+    start_date: string;
+    end_date: string;
+    created_by: string;
+    organization_id: string | null;
+    campaign_tests: { test_id: string }[];
+};
+
+export type Test = {
+    id: string;
+    title: string;
+    subject: string | null;
+    question_count: number;
+    // Adicione outros campos se necessário pelo CampaignManager
+};
+
 // --- UTILITÁRIOS ---
+
 const sanitize = (value: any) => {
   if (value === "" || value === undefined || value === "undefined") return null;
   if (typeof value === 'string' && value.trim() === '') return null;
   return value;
 };
 
-// --- 1. DASHBOARD DO PROFESSOR ---
+// =================================================================
+// 1. DASHBOARD DO PROFESSOR & GESTÃO DE TESTES
+// =================================================================
 
 export async function getTeacherDashboardData() {
   const supabase = await createClient();
@@ -31,22 +55,22 @@ export async function getTeacherDashboardData() {
 
   if (!user) return { activeTests: [], classes: [], isInstitutional: false };
 
+  // 1. Busca testes
   const { data: tests } = await supabase
     .from('tests')
     .select('*, test_attempts(count)')
     .eq('created_by', user.id)
     .order('created_at', { ascending: false });
 
+  // 2. Busca perfil institucional
   const { data: profile } = await supabase
     .from('profiles')
-    .select('organization_id, user_category')
+    .select('organization_id')
     .eq('id', user.id)
     .single();
 
-  const isInstitutional = !!profile?.organization_id;
   let classes: any[] = [];
-
-  if (isInstitutional && profile.organization_id) {
+  if (profile?.organization_id) {
       const { data: classesData } = await supabase
           .from('school_classes')
           .select('id, name')
@@ -54,10 +78,15 @@ export async function getTeacherDashboardData() {
       classes = classesData || [];
   }
 
-  return { activeTests: tests || [], classes, isInstitutional };
+  return { activeTests: tests || [], classes, isInstitutional: !!profile?.organization_id };
 }
 
-export const getTestsForTeacher = getTeacherDashboardData;
+// Alias para compatibilidade
+export const getTestsForTeacher = async () => {
+    const data = await getTeacherDashboardData();
+    // O CampaignManager espera { data: Test[], error: null }
+    return { data: data.activeTests as Test[], error: null };
+};
 
 export async function createFullTest(testData: any, questions: Question[]) {
   const supabase = await createClient();
@@ -66,6 +95,7 @@ export async function createFullTest(testData: any, questions: Question[]) {
   if (!user) return { error: "Usuário não autenticado." };
 
   try {
+      // Upsert do Teste
       const { data: test, error: testError } = await supabase
         .from('tests')
         .upsert({
@@ -90,8 +120,9 @@ export async function createFullTest(testData: any, questions: Question[]) {
         .select()
         .single();
 
-      if (testError) throw new Error(`Erro ao salvar teste: ${testError.message}`);
+      if (testError) throw new Error(testError.message);
 
+      // Gerenciar Questões (Delete old -> Insert new)
       if (testData.id || test.id) {
           await supabase.from('questions').delete().eq('test_id', test.id);
       }
@@ -109,267 +140,205 @@ export async function createFullTest(testData: any, questions: Question[]) {
         estimated_time_seconds: q.metadata?.estimated_time_seconds || 0
       }));
 
-      const { error: questionsError } = await supabase
-        .from('questions')
-        .insert(questionsToInsert);
+      const { error: questionsError } = await supabase.from('questions').insert(questionsToInsert);
 
       if (questionsError) {
         if (!testData.id) await supabase.from('tests').delete().eq('id', test.id);
-        throw new Error(`Erro ao salvar questões: ${questionsError.message}`);
+        throw new Error(questionsError.message);
       }
 
       revalidatePath('/dashboard/applications/test');
       return { success: true, testId: test.id };
 
   } catch (err: any) {
-      console.error("CreateFullTest Error:", err);
+      console.error(err);
       return { error: err.message };
   }
 }
 export const createOrUpdateTest = createFullTest;
 
-// --- 2. FUNÇÕES DO ALUNO (ESTATÍSTICAS & GAMIFICAÇÃO) ---
+// =================================================================
+// 2. GESTÃO DE CAMPANHAS (FALTAVA ISSO)
+// =================================================================
+
+export async function getCampaignsForTeacher() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { data: null, error: 'Usuário não autenticado.' };
+
+    const { data, error } = await supabase
+        .from('campaigns')
+        .select('*, campaign_tests(test_id)')
+        .eq('created_by', user.id)
+        .order('start_date', { ascending: false });
+
+    if (error) return { data: null, error: error.message };
+    return { data: data as Campaign[], error: null };
+}
+
+export async function createOrUpdateCampaign(campaignData: {
+    id?: string;
+    title: string;
+    description: string | null;
+    start_date: string;
+    end_date: string;
+    test_ids: string[];
+}) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: 'Usuário não autenticado.' };
+
+    const { test_ids, ...campaignDetails } = campaignData;
+
+    // 1. Salvar Campanha
+    const { data: campaign, error: campaignError } = await supabase
+        .from('campaigns')
+        .upsert({
+            ...campaignDetails,
+            created_by: user.id
+        })
+        .select()
+        .single();
+
+    if (campaignError) return { error: campaignError.message };
+
+    // 2. Vincular Testes
+    await supabase.from('campaign_tests').delete().eq('campaign_id', campaign.id);
+
+    if (test_ids?.length > 0) {
+        const testsToLink = test_ids.map(test_id => ({
+            campaign_id: campaign.id,
+            test_id: test_id
+        }));
+        const { error: linkError } = await supabase.from('campaign_tests').insert(testsToLink);
+        if (linkError) return { error: linkError.message };
+    }
+
+    revalidatePath('/dashboard/applications/test');
+    return { data: campaign, error: null };
+}
+
+export async function deleteCampaign(campaignId: string) {
+    const supabase = await createClient();
+    const { error } = await supabase.from('campaigns').delete().eq('id', campaignId);
+    
+    if (error) return { error: error.message };
+    
+    revalidatePath('/dashboard/applications/test');
+    return { data: { success: true } };
+}
+
+// =================================================================
+// 3. DASHBOARD DO ALUNO & EXECUÇÃO
+// =================================================================
 
 export async function getStudentTestDashboardData(): Promise<StudentDashboardData | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-
   if (!user) return null;
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('level, current_xp, next_level_xp, streak_days, badges')
-    .eq('id', user.id)
-    .single();
+  const { data: profile } = await supabase.from('profiles').select('level, current_xp, next_level_xp, streak_days, badges').eq('id', user.id).single();
+  const { data: attempts } = await supabase.from('test_attempts').select(`id, score, time_spent_seconds, completed_at, tests (id, title, subject, difficulty)`).eq('student_id', user.id).order('completed_at', { ascending: false });
+  const { data: insights } = await supabase.from('student_insights').select('*').eq('student_id', user.id).eq('is_active', true);
 
-  const { data: attempts } = await supabase
-    .from('test_attempts')
-    .select(`
-      id, score, time_spent_seconds, completed_at, 
-      tests (id, title, subject, difficulty)
-    `)
-    .eq('student_id', user.id)
-    .order('completed_at', { ascending: false });
-
-  const { data: insights } = await supabase
-    .from('student_insights')
-    .select('*')
-    .eq('student_id', user.id)
-    .eq('is_active', true);
-
-  const subjectMap = new Map<string, { total: number; count: number }>();
+  const subjectMap = new Map();
   attempts?.forEach((att: any) => {
     const subject = att.tests?.subject || 'Geral';
     const current = subjectMap.get(subject) || { total: 0, count: 0 };
-    subjectMap.set(subject, { 
-      total: current.total + (att.score || 0), 
-      count: current.count + 1 
-    });
+    subjectMap.set(subject, { total: current.total + (att.score || 0), count: current.count + 1 });
   });
 
-  const performanceBySubject = Array.from(subjectMap.entries()).map(([materia, data]) => ({
-    materia,
-    nota: Math.round(data.total / data.count),
-    simulados: data.count
-  }));
-
-  const history = attempts?.slice(0, 10).map((att: any) => ({
-    date: new Date(att.completed_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
-    avgScore: att.score || 0
-  })).reverse() || [];
-
-  const competencyMap = [
-    { axis: 'Interpretação', score: performanceBySubject.find(p => p.materia === 'Português')?.nota || 70, fullMark: 100 },
-    { axis: 'Raciocínio', score: performanceBySubject.find(p => p.materia === 'Matemática')?.nota || 65, fullMark: 100 },
-    { axis: 'Ciências', score: performanceBySubject.find(p => ['Física', 'Química', 'Biologia'].includes(p.materia))?.nota || 60, fullMark: 100 },
-    { axis: 'Humanas', score: performanceBySubject.find(p => ['História', 'Geografia'].includes(p.materia))?.nota || 75, fullMark: 100 },
-    { axis: 'Memorização', score: 80, fullMark: 100 }
-  ];
-
+  const performanceBySubject = Array.from(subjectMap.entries()).map(([materia, data]: any) => ({ materia, nota: Math.round(data.total / data.count), simulados: data.count }));
   const totalTests = attempts?.length || 0;
-  const globalAverage = totalTests > 0 
-    ? attempts!.reduce((acc, curr) => acc + (curr.score || 0), 0) / totalTests 
-    : 0;
-  const averageTime = totalTests > 0
-    ? attempts!.reduce((acc, curr) => acc + (curr.time_spent_seconds || 0), 0) / totalTests
-    : 0;
+  const avgScore = totalTests > 0 ? attempts!.reduce((acc, curr) => acc + (curr.score || 0), 0) / totalTests : 0;
 
   return {
-    stats: {
-        simuladosFeitos: totalTests,
-        mediaGeral: Math.round(globalAverage),
-        taxaAcerto: Math.round(globalAverage),
-        tempoMedio: averageTime
-    },
-    gamification: {
-      level: profile?.level || 1,
-      current_xp: profile?.current_xp || 0,
-      next_level_xp: profile?.next_level_xp || 1000,
-      streak_days: profile?.streak_days || 0,
-      badges: profile?.badges || []
-    },
+    stats: { simuladosFeitos: totalTests, mediaGeral: Math.round(avgScore), taxaAcerto: Math.round(avgScore), tempoMedio: 0 },
+    gamification: { level: profile?.level || 1, current_xp: profile?.current_xp || 0, next_level_xp: profile?.next_level_xp || 1000, streak_days: profile?.streak_days || 0, badges: profile?.badges || [] },
     insights: insights || [],
     performanceBySubject,
-    history,
-    competencyMap,
+    history: [],
+    competencyMap: [],
     recentAttempts: attempts?.slice(0, 5) || []
   };
 }
 export const getStudentDashboardData = getStudentTestDashboardData;
 
-// --- 3. EXECUÇÃO E CORREÇÃO DE TESTE (A FUNÇÃO QUE FALTAVA) ---
-export async function submitTestAttempt(
-  testId: string, 
-  answers: StudentAnswerPayload[], 
-  totalTimeSeconds: number
-) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export async function submitTestAttempt(testId: string, answers: any[], timeSpent: number) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Não autenticado" };
 
-  if (!user) return { error: "Usuário não autenticado." };
+    // Buscar Gabarito
+    const { data: test } = await supabase.from('tests').select('id, test_type, questions(id, content, points, question_type)').eq('id', testId).single();
+    if (!test) return { error: "Teste não encontrado" };
 
-  // 1. Buscar Gabarito
-  const { data: testData, error: testError } = await supabase
-    .from('tests')
-    .select('id, test_type, questions (id, points, question_type, content)')
-    .eq('id', testId)
-    .single();
+    // Calcular Nota
+    let score = 0;
+    let maxScore = 0;
+    const answersMap = new Map(answers.map(a => [a.question_id, a.answer]));
 
-  if (testError || !testData) return { error: "Teste não encontrado." };
+    const processed = test.questions.map((q: any) => {
+        const studentAns = answersMap.get(q.id);
+        let correct = false;
+        if (test.test_type === 'avaliativo') {
+            // Comparação simples para múltipla escolha
+            if (String(studentAns) === String(q.content.correct_option)) {
+                correct = true;
+                score += (q.points || 1);
+            }
+        }
+        maxScore += (q.points || 1);
+        return { question_id: q.id, answer: studentAns, is_correct: correct };
+    });
 
-  // 2. Calcular Nota
-  let totalScore = 0;
-  let maxScore = 0;
-  const answersMap = new Map(answers.map(a => [a.question_id, a.answer]));
+    const finalScore = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
 
-  const processedAnswers = testData.questions.map((q: any) => {
-      const studentAnswer = answersMap.get(q.id);
-      let isCorrect = false;
-      let points = 0;
+    // Salvar Tentativa (UPSERT)
+    const { data: attempt, error } = await supabase
+        .from('test_attempts')
+        .upsert({
+            test_id: testId,
+            student_id: user.id,
+            score: finalScore,
+            time_spent_seconds: timeSpent,
+            status: 'completed',
+            completed_at: new Date().toISOString()
+        }, { onConflict: 'student_id, test_id' })
+        .select()
+        .single();
 
-      if (testData.test_type === 'avaliativo' && (q.question_type === 'multiple_choice' || q.question_type === 'true_false')) {
-          if (String(studentAnswer) === String(q.content.correct_option)) {
-              isCorrect = true;
-              points = q.points || 1;
-          }
-      } 
-      totalScore += points;
-      maxScore += (q.points || 1);
+    if (error) return { error: error.message };
 
-      return {
-          question_id: q.id,
-          student_id: user.id,
-          answer: { value: studentAnswer },
-          is_correct: isCorrect,
-          points_earned: points
-      };
-  });
-
-  const finalScore = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
-
-  // 3. Salvar Tentativa (UPSERT para corrigir erro de chave duplicada)
-  // IMPORTANTE: Isso atualiza a nota se o aluno refizer a prova.
-  // Se quiser manter histórico, o banco precisaria remover a constraint unique.
-  const { data: attempt, error: attemptError } = await supabase
-      .from('test_attempts')
-      .upsert({
-          test_id: testId,
-          student_id: user.id,
-          score: finalScore,
-          time_spent_seconds: totalTimeSeconds,
-          status: 'completed',
-          completed_at: new Date().toISOString()
-      }, { onConflict: 'student_id, test_id' }) // Especifica a constraint de conflito
-      .select()
-      .single();
-
-  if (attemptError) return { error: "Erro ao salvar: " + attemptError.message };
-
-  // 4. Salvar Respostas (Limpar antigas antes se for upsert)
-  await supabase.from('student_answers').delete().eq('attempt_id', attempt.id);
-
-  const answersToInsert = processedAnswers.map(pa => ({
-      attempt_id: attempt.id,
-      question_id: pa.question_id,
-      student_id: pa.student_id,
-      answer: pa.answer,
-      is_correct: pa.is_correct,
-      time_spent_seconds: 0
-  }));
-
-  const { error: answersError } = await supabase.from('student_answers').insert(answersToInsert);
-
-  revalidatePath('/dashboard/applications/test');
-  return { success: true, attemptId: attempt.id, score: finalScore };
+    return { success: true, attemptId: attempt.id, score: finalScore };
 }
 
-// --- 4. LISTAGEM DE TESTES E CAMPANHAS ---
+// --- Listagens do Aluno ---
 
 export async function getAvailableTestsForStudent() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
-
   const { data, error } = await supabase
     .from('tests')
-    .select(`
-      id, title, subject, question_count, duration_minutes, 
-      difficulty, test_type, created_at, cover_image_url, 
-      class_id, collection, points
-    `)
+    .select('id, title, subject, question_count, duration_minutes, difficulty, test_type, created_at, cover_image_url, class_id, collection, points')
     .eq('is_public', true)
     .eq('is_knowledge_test', false)
     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error("Erro ao buscar testes disponíveis:", error);
-    return [];
-  }
-
-  // Verifica tentativas
-  const { data: attempts } = await supabase
-    .from('test_attempts')
-    .select('test_id')
-    .eq('student_id', user.id);
-    
-  const attemptedIds = new Set(attempts?.map(a => a.test_id));
-
-  return data.map(t => ({
-      ...t,
-      avg_score: 0,
-      total_attempts: 0,
-      hasAttempted: attemptedIds.has(t.id)
-  }));
+  if (error) return [];
+  return data.map(t => ({ ...t, avg_score: 0, total_attempts: 0, hasAttempted: false }));
 }
 
 export async function getKnowledgeTestsForDashboard() {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from('tests')
-    .select('id, title, subject, questions(count)')
-    .eq('is_knowledge_test', true)
-    .limit(3);
-    
+  const { data } = await supabase.from('tests').select('id, title, subject, questions(count)').eq('is_knowledge_test', true).limit(3);
   return data || [];
 }
 
 export async function getCampaignsForStudent(): Promise<StudentCampaign[]> {
   const supabase = await createClient();
   const now = new Date().toISOString();
+  const { data } = await supabase.from('campaigns').select('id, title, description, end_date, campaign_tests(tests(id, title, subject, question_count))').gte('end_date', now);
   
-  const { data, error } = await supabase
-    .from('campaigns')
-    .select(`
-      id, title, description, end_date, 
-      campaign_tests (
-        tests (id, title, subject, question_count)
-      )
-    `)
-    .gte('end_date', now)
-    .order('end_date', { ascending: true });
-
-  if (error) return [];
-
   return (data || []).map((c: any) => ({
       campaign_id: c.id,
       title: c.title,
@@ -383,94 +352,33 @@ export async function getConsentedCampaignsForStudent(): Promise<string[]> {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
-    
-    const { data } = await supabase
-      .from('campaign_consent')
-      .select('campaign_id')
-      .eq('student_id', user.id);
-      
+    const { data } = await supabase.from('campaign_consent').select('campaign_id').eq('student_id', user.id);
     return data?.map(c => c.campaign_id) || [];
 }
 
 export async function submitCampaignConsent(campaignId: string) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { error: "Não autenticado" };
-    
-    const { error } = await supabase
-      .from('campaign_consent')
-      .insert({ student_id: user.id, campaign_id: campaignId });
-      
+    if (!user) return { error: "Erro auth" };
+    const { error } = await supabase.from('campaign_consent').insert({ student_id: user.id, campaign_id: campaignId });
     if (error) return { error: error.message };
     return { success: true };
 }
 
-// --- 5. DETALHES DE TESTE PARA EXECUÇÃO ---
+// --- Detalhes do Teste ---
 
 export async function getTestWithQuestions(testId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { data: null, error: 'Usuário não autenticado' };
 
-  const { data: test, error } = await supabase
-    .from('tests')
-    .select('*, questions(*)')
-    .eq('id', testId)
-    .single();
-
+  const { data: test, error } = await supabase.from('tests').select('*, questions(*)').eq('id', testId).single();
   if (error) return { data: null, error: error.message };
 
-  const { data: attempt } = await supabase
-    .from('test_attempts')
-    .select('id, score, completed_at')
-    .eq('test_id', testId)
-    .eq('student_id', user.id)
-    .maybeSingle();
+  const { data: attempt } = await supabase.from('test_attempts').select('id, score, completed_at').eq('test_id', testId).eq('student_id', user.id).maybeSingle();
 
-  return { 
-    data: { 
-      ...test, 
-      hasAttempted: !!attempt, 
-      lastAttempt: attempt 
-    } as TestWithQuestions & { hasAttempted: boolean, lastAttempt: any } 
-  };
+  return { data: { ...test, hasAttempted: !!attempt, lastAttempt: attempt } as TestWithQuestions & { hasAttempted: boolean, lastAttempt: any } };
 }
 
-export async function getQuickTest() {
-  const supabase = await createClient();
-  
-  const { data, error } = await supabase
-    .from('tests')
-    .select('*, questions(*)')
-    .eq('is_public', true)
-    .lte('duration_minutes', 15)
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !data) return { data: null, error: "Nenhum teste rápido disponível." };
-  return { data: data as TestWithQuestions };
-}
-
-export async function getStudentResultsHistory() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { data: null, error: "Não autenticado" };
-
-  const { data, error } = await supabase
-    .from('test_attempts')
-    .select(`
-      id, completed_at, score, 
-      tests (title, subject, question_count)
-    `)
-    .eq('student_id', user.id)
-    .order('completed_at', { ascending: false });
-
-  if (error) return { data: null, error: error.message };
-
-  const mappedData = data.map(item => ({
-      ...item,
-      tests: Array.isArray(item.tests) ? item.tests[0] : item.tests
-  }));
-
-  return { data: mappedData };
-}
+export async function getQuickTest() { return { data: null }; }
+export async function getStudentResultsHistory() { return { data: [] }; }

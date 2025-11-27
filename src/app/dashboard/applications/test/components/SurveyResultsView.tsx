@@ -104,7 +104,7 @@ export default function SurveyResultsView({ testId, testTitle, onBack }: Props) 
 
             <div className="bg-white dark:bg-dark-card p-4 rounded-lg shadow-md">
                 {isLoading ? (
-                    <p className="text-center p-8">Carregando resultados...</p>
+                    <p className="text-center p-8">Carregando os resultados...</p>
                 ) : results.length > 0 ? (
                     <div className="max-h-[60vh] overflow-auto">
                         <table className="w-full text-sm text-left">
