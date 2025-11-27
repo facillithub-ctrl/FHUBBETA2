@@ -43,19 +43,33 @@ const GradientText = ({ children, className = "" }: { children: React.ReactNode,
     </span>
 );
 
-const ModuleShortcut = ({ icon, name, description, href, color }: { icon: string, name: string, description: string, href: string, color: string }) => (
-    <Link href={href} className="group relative overflow-hidden bg-white dark:bg-dark-card p-4 rounded-2xl border border-gray-100 dark:border-dark-border shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
-        <div className={`absolute top-0 right-0 w-16 h-16 bg-gradient-to-br ${color} opacity-10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-150`}></div>
-        <div className="flex items-center gap-4 relative z-10">
-            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center text-white shadow-lg`}>
-                <i className={`fas ${icon} text-lg`}></i>
-            </div>
-            <div>
-                <h4 className="font-bold text-dark-text dark:text-white text-sm">{name}</h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{description}</p>
+// Componente de Card do Ecossistema (Novo)
+const EcosystemCard = ({ moduleName, icon, colorFrom, colorTo, actions }: { moduleName: string, icon: string, colorFrom: string, colorTo: string, actions: { label: string, href: string, icon: string }[] }) => (
+    <div className="bg-white dark:bg-dark-card rounded-2xl p-1 border border-gray-100 dark:border-dark-border shadow-sm hover:shadow-md transition-all group h-full flex flex-col">
+        <div className={`bg-gradient-to-r ${colorFrom} ${colorTo} p-4 rounded-xl text-white mb-2`}>
+            <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                    <div className="bg-white/20 p-2 rounded-lg backdrop-blur-sm w-10 h-10 flex items-center justify-center">
+                        <i className={`fas ${icon}`}></i>
+                    </div>
+                    <span className="font-bold text-md">{moduleName}</span>
+                </div>
             </div>
         </div>
-    </Link>
+        <div className="p-2 space-y-1 flex-1">
+            {actions.map((action, idx) => (
+                <Link key={idx} href={action.href} className="flex items-center justify-between p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm text-gray-600 dark:text-gray-300 group/item">
+                    <div className="flex items-center gap-3">
+                        <div className="w-6 flex justify-center">
+                            <i className={`fas ${action.icon} text-gray-400 group-hover/item:text-[#42047e] transition-colors`}></i>
+                        </div>
+                        <span className="font-medium">{action.label}</span>
+                    </div>
+                    <i className="fas fa-chevron-right text-[10px] text-gray-300 group-hover/item:text-[#42047e]"></i>
+                </Link>
+            ))}
+        </div>
+    </div>
 );
 
 const NewsCard = ({ event }: { event: CurrentEvent }) => {
@@ -70,9 +84,9 @@ const NewsCard = ({ event }: { event: CurrentEvent }) => {
                 </div>
             </div>
             <div className="flex-1">
-                <h5 className="font-bold text-sm text-dark-text dark:text-white group-hover:text-[#42047e] dark:group-hover:text-[#07f49e] transition-colors">
+                <h5 className="font-bold text-sm text-dark-text dark:text-white group-hover:text-[#42047e] dark:group-hover:text-[#07f49e] transition-colors flex items-center gap-2">
                     {event.title}
-                    {isExternal && <i className="fas fa-external-link-alt text-[10px] ml-2 text-gray-400"></i>}
+                    {isExternal && <i className="fas fa-external-link-alt text-[10px] text-gray-400"></i>}
                 </h5>
                 {event.summary && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{event.summary}</p>}
             </div>
@@ -139,15 +153,15 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
   return (
     <div className="space-y-8 animate-fade-in-right pb-10">
         
-       {/* HEADER: Identidade Facillit Hub */}
+       {/* HEADER */}
        <header className="relative bg-white dark:bg-dark-card p-8 rounded-3xl shadow-lg border border-gray-100 dark:border-dark-border overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-[#42047e]/10 to-[#07f49e]/10 rounded-bl-full pointer-events-none"></div>
             
             <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#42047e] to-[#07f49e] p-0.5 shadow-xl">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#42047e] to-[#07f49e] p-0.5 shadow-xl flex-shrink-0">
                         <div className="w-full h-full bg-white dark:bg-dark-card rounded-[14px] flex items-center justify-center">
-                             <Image src="/assets/images/marcas/Write.png" alt="Logo Write" width={40} height={40} className="object-contain" />
+                             <i className="fas fa-pen-nib text-2xl text-[#42047e] dark:text-[#07f49e]"></i>
                         </div>
                     </div>
                     <div>
@@ -158,19 +172,17 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
                     </div>
                 </div>
                 
-                <div className="flex gap-3">
-                    <button 
-                        onClick={handleCreateNew} 
-                        className="bg-[#42047e] hover:bg-[#360368] text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 hover:-translate-y-1 transition-all duration-300 flex items-center gap-2"
-                    >
-                        <i className="fas fa-plus"></i> Nova Redação
-                    </button>
-                </div>
+                <button 
+                    onClick={handleCreateNew} 
+                    className="bg-[#42047e] hover:bg-[#360368] text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 hover:-translate-y-1 transition-all duration-300 flex items-center gap-2 whitespace-nowrap"
+                >
+                    <i className="fas fa-plus"></i> Nova Redação
+                </button>
             </div>
       </header>
 
       {/* NAVEGAÇÃO POR ABAS */}
-      <div className="flex space-x-2 bg-gray-100 dark:bg-gray-800/50 p-1.5 rounded-xl w-fit mx-auto md:mx-0">
+      <div className="flex flex-wrap justify-center md:justify-start gap-2 bg-gray-100 dark:bg-gray-800/50 p-1.5 rounded-xl w-fit mx-auto md:mx-0">
           {['overview', 'history', 'analytics'].map((tab) => (
               <button
                   key={tab}
@@ -190,7 +202,7 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
       {/* === ABA: VISÃO GERAL === */}
       {activeTab === 'overview' && (
           <div className="space-y-8">
-                {/* Cartões de Status */}
+                {/* 1. Cartões de Status */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                     <div className="bg-white dark:bg-dark-card p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border flex flex-col justify-between h-full">
                         <div className="flex justify-between items-start mb-4">
@@ -243,126 +255,147 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Coluna Principal */}
-                    <div className="lg:col-span-2 space-y-8">
-                         {/* Atalhos de Integração */}
-                         <div>
-                            <div className="flex items-center gap-2 mb-4">
-                                <i className="fas fa-cubes text-[#42047e] dark:text-[#07f49e]"></i>
-                                <h3 className="font-bold text-lg text-dark-text dark:text-white">Ecossistema Facillit</h3>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <ModuleShortcut 
-                                    icon="fa-spell-check" 
-                                    name="Facillit Test" 
-                                    description="Simulados e gramática" 
-                                    href="/dashboard/applications/test"
-                                    color="from-pink-500 to-rose-500"
-                                />
-                                <ModuleShortcut 
-                                    icon="fa-book-open" 
-                                    name="Facillit Library" 
-                                    description="Repertório sociocultural" 
-                                    href="/dashboard/applications/library"
-                                    color="from-blue-500 to-cyan-500"
-                                />
-                                <ModuleShortcut 
-                                    icon="fa-calendar-day" 
-                                    name="Facillit Day" 
-                                    description="Organize seus estudos" 
-                                    href="/dashboard/applications/day"
-                                    color="from-purple-500 to-indigo-500"
-                                />
-                                 <ModuleShortcut 
-                                    icon="fa-graduation-cap" 
-                                    name="Facillit Edu" 
-                                    description="Aulas e tarefas" 
-                                    href="/dashboard/applications/edu"
-                                    color="from-orange-500 to-amber-500"
-                                />
-                            </div>
-                         </div>
-
-                         {/* Gráfico Rápido */}
-                         <div className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border">
-                            <h3 className="font-bold text-lg text-dark-text dark:text-white mb-4">Sua Evolução</h3>
-                            <div className="h-64">
-                                {statistics ? (
-                                    <ProgressionChart data={statistics.progression} actionPlans={actionPlans} />
-                                ) : (
-                                    <div className="h-full flex items-center justify-center text-gray-400">
-                                        Sem dados suficientes para o gráfico.
-                                    </div>
-                                )}
-                            </div>
-                         </div>
+                {/* 2. Ecossistema Facillit */}
+                <div>
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-1 h-6 bg-[#42047e] rounded-full"></div>
+                        <h3 className="font-bold text-xl text-dark-text dark:text-white">Ecossistema Integrado</h3>
                     </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <EcosystemCard 
+                            moduleName="Facillit Write" 
+                            icon="fa-pen-nib" 
+                            colorFrom="from-[#42047e]" 
+                            colorTo="to-[#07f49e]"
+                            actions={[
+                                { label: "Nova Redação", href: "/dashboard/applications/write?action=new", icon: "fa-plus" },
+                                { label: "Histórico", href: "/dashboard/applications/write?tab=history", icon: "fa-history" },
+                                { label: "Temas da Semana", href: "/dashboard/applications/write/prompts", icon: "fa-lightbulb" }
+                            ]}
+                        />
 
-                    {/* Coluna Lateral */}
-                    <div className="lg:col-span-1 space-y-8">
-                        {/* Atualidades e Notícias */}
-                        <div className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border h-full flex flex-col">
-                            <div className="flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-[#07f49e] animate-pulse"></div>
-                                    <h3 className="font-bold text-lg text-dark-text dark:text-white">Atualidades</h3>
+                        <EcosystemCard 
+                            moduleName="Facillit Test" 
+                            icon="fa-check-double" 
+                            colorFrom="from-pink-500" 
+                            colorTo="to-rose-500"
+                            actions={[
+                                { label: "Simulado Rápido", href: "/dashboard/applications/test?mode=quick", icon: "fa-stopwatch" },
+                                { label: "Teste de Gramática", href: "/dashboard/applications/test?topic=grammar", icon: "fa-spell-check" },
+                                { label: "Questões de Crase", href: "/dashboard/applications/test?tag=crase", icon: "fa-align-left" }
+                            ]}
+                        />
+
+                        <EcosystemCard 
+                            moduleName="Facillit Library" 
+                            icon="fa-book" 
+                            colorFrom="from-blue-500" 
+                            colorTo="to-cyan-500"
+                            actions={[
+                                { label: "Citações", href: "/dashboard/applications/library?cat=quotes", icon: "fa-quote-left" },
+                                { label: "Alusões Históricas", href: "/dashboard/applications/library?cat=history", icon: "fa-landmark" },
+                                { label: "Constituição", href: "/dashboard/applications/library?cat=law", icon: "fa-balance-scale" }
+                            ]}
+                        />
+
+                        <EcosystemCard 
+                            moduleName="Facillit Edu" 
+                            icon="fa-graduation-cap" 
+                            colorFrom="from-orange-500" 
+                            colorTo="to-amber-500"
+                            actions={[
+                                { label: "Minhas Aulas", href: "/dashboard/applications/edu", icon: "fa-video" },
+                                { label: "Tarefas", href: "/dashboard/applications/edu/tasks", icon: "fa-tasks" },
+                                { label: "Tira-Dúvidas", href: "/dashboard/applications/edu/forum", icon: "fa-question-circle" }
+                            ]}
+                        />
+                    </div>
+                </div>
+
+                {/* 3. Gráficos e Notícias */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-bold text-lg text-dark-text dark:text-white">Sua Evolução</h3>
+                            <button 
+                                onClick={() => setActiveTab('analytics')} 
+                                className="text-xs font-bold text-[#42047e] bg-purple-50 px-3 py-1.5 rounded-full hover:bg-purple-100 transition-colors"
+                            >
+                                Ver Detalhes
+                            </button>
+                        </div>
+                        <div className="h-64">
+                             {statistics ? (
+                                 <ProgressionChart data={statistics.progression} actionPlans={actionPlans} />
+                             ) : (
+                                 <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                                     Envie redações para visualizar seu progresso.
+                                 </div>
+                             )}
+                        </div>
+                    </div>
+                    
+                    <div className="lg:col-span-1 bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border h-full flex flex-col">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-[#07f49e] animate-pulse"></div>
+                                <h3 className="font-bold text-lg text-dark-text dark:text-white">Atualidades</h3>
+                            </div>
+                            <Link href="/news" className="text-xs text-gray-400 hover:text-[#42047e]">Ver tudo</Link>
+                        </div>
+                        
+                        <div className="space-y-3 flex-1 overflow-y-auto max-h-[350px] pr-1 custom-scrollbar">
+                            {currentEvents.length > 0 ? (
+                                currentEvents.map((event) => (
+                                    <NewsCard key={event.id} event={event} />
+                                ))
+                            ) : (
+                                <div className="text-center py-8 text-gray-400">
+                                    <i className="fas fa-newspaper text-2xl mb-2"></i>
+                                    <p className="text-sm">Sem notícias recentes.</p>
                                 </div>
-                                <span className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-500">Feed</span>
-                            </div>
-                            
-                            <div className="space-y-3 flex-1 overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
-                                {currentEvents.length > 0 ? (
-                                    currentEvents.map((event) => (
-                                        <NewsCard key={event.id} event={event} />
-                                    ))
-                                ) : (
-                                    <div className="text-center py-8">
-                                        <i className="fas fa-newspaper text-gray-300 text-3xl mb-3"></i>
-                                        <p className="text-sm text-gray-500">Nenhuma atualização recente.</p>
-                                    </div>
-                                )}
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>
           </div>
       )}
 
-      {/* === ABA: MINHAS CORREÇÕES (HISTÓRICO) === */}
+      {/* === ABA: MINHAS CORREÇÕES === */}
       {activeTab === 'history' && (
-          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg border border-gray-100 dark:border-dark-border overflow-hidden">
+          <div className="bg-white dark:bg-dark-card rounded-2xl shadow-lg border border-gray-100 dark:border-dark-border overflow-hidden animate-fade-in-right">
               <div className="p-6 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30 flex justify-between items-center">
                   <h2 className="font-bold text-lg text-dark-text dark:text-white">Histórico de Redações</h2>
-                  <span className="bg-white dark:bg-gray-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm">
+                  <span className="bg-white dark:bg-gray-700 px-3 py-1 rounded-full text-xs font-bold shadow-sm text-gray-600 dark:text-gray-300">
                       Total: {essays.length}
                   </span>
               </div>
               
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
-                    <thead className="bg-gray-50 dark:bg-gray-800/50 text-xs uppercase text-gray-500 font-bold tracking-wider">
+                    <thead className="bg-gray-50 dark:bg-gray-800/50 text-xs uppercase text-gray-500 font-bold tracking-wider border-b border-gray-100 dark:border-gray-700">
                         <tr>
                             <th className="px-6 py-4">Tema da Redação</th>
                             <th className="px-6 py-4">Status</th>
                             <th className="px-6 py-4 text-center">Nota Final</th>
-                            <th className="px-6 py-4">Data</th>
+                            <th className="px-6 py-4">Data de Envio</th>
                             <th className="px-6 py-4 text-right">Ação</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700 text-sm">
                         {essays.length > 0 ? essays.map((essay) => (
                             <tr key={essay.id} onClick={() => handleSelectEssay(essay)} className="group hover:bg-blue-50/30 dark:hover:bg-gray-800/50 cursor-pointer transition-colors">
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:bg-[#42047e] group-hover:text-white transition-colors">
+                                        <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 group-hover:bg-[#42047e] group-hover:text-white transition-colors flex-shrink-0">
                                             <i className="fas fa-file-alt"></i>
                                         </div>
                                         <div>
-                                            <p className="font-bold text-sm text-gray-800 dark:text-white group-hover:text-[#42047e] dark:group-hover:text-[#07f49e] transition-colors">
+                                            <p className="font-bold text-gray-800 dark:text-white group-hover:text-[#42047e] dark:group-hover:text-[#07f49e] transition-colors line-clamp-1">
                                                 {essay.title || "Redação sem título"}
                                             </p>
-                                            {/* CORREÇÃO DO ERRO DE BUILD AQUI */}
+                                            {/* FIX DO ERRO DE BUILD: Tratamento de undefined */}
                                             <p className="text-xs text-gray-400 font-mono mt-0.5">
                                                 ID: {(essay.id || '').substring(0, 8)}...
                                             </p>
@@ -371,34 +404,34 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
                                 </td>
                                 <td className="px-6 py-4">
                                     {essay.status === 'corrected' ? (
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 border border-green-200">
                                             <i className="fas fa-check-circle"></i> Corrigida
                                         </span>
                                     ) : essay.status === 'submitted' ? (
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">
                                             <i className="fas fa-clock"></i> Em Análise
                                         </span>
                                     ) : (
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-200">
                                             <i className="fas fa-pen"></i> Rascunho
                                         </span>
                                     )}
                                 </td>
                                 <td className="px-6 py-4 text-center">
                                     {essay.status === 'corrected' && essay.final_grade !== undefined && essay.final_grade !== null ? (
-                                        <div className={`text-xl font-black ${getGradeColor(essay.final_grade)}`}>
+                                        <div className={`text-lg font-black ${getGradeColor(essay.final_grade)}`}>
                                             {essay.final_grade}
                                         </div>
                                     ) : (
-                                        <span className="text-gray-300 text-2xl font-bold">-</span>
+                                        <span className="text-gray-300 font-bold text-xl">-</span>
                                     )}
                                 </td>
-                                <td className="px-6 py-4 text-sm text-gray-500">
+                                <td className="px-6 py-4 text-gray-500">
                                     {essay.submitted_at ? new Date(essay.submitted_at).toLocaleDateString('pt-BR') : '-'}
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <button className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-[#42047e] hover:text-white dark:hover:bg-[#07f49e] dark:hover:text-black transition-all flex items-center justify-center text-gray-400">
-                                        <i className="fas fa-arrow-right text-sm"></i>
+                                    <button className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-[#42047e] hover:text-white dark:hover:bg-[#07f49e] dark:hover:text-black transition-all flex items-center justify-center text-gray-400 ml-auto">
+                                        <i className="fas fa-chevron-right text-xs"></i>
                                     </button>
                                 </td>
                             </tr>
@@ -408,8 +441,9 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
                                     <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <i className="fas fa-inbox text-2xl text-gray-400"></i>
                                     </div>
-                                    <p className="text-gray-500">Você ainda não enviou nenhuma redação.</p>
-                                    <button onClick={handleCreateNew} className="mt-4 text-[#42047e] font-bold hover:underline">Começar agora</button>
+                                    <p className="text-gray-500 font-medium">Você ainda não enviou nenhuma redação.</p>
+                                    <p className="text-sm text-gray-400 mb-4">Comece a praticar hoje mesmo!</p>
+                                    <button onClick={handleCreateNew} className="text-[#42047e] font-bold hover:underline text-sm">Escrever primeira redação</button>
                                 </td>
                             </tr>
                         )}
@@ -425,7 +459,7 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
                 {statistics ? (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-dark-border">
-                            <h3 className="font-bold text-lg mb-6 text-dark-text dark:text-white">Análise de Evolução</h3>
+                            <h3 className="font-bold text-lg mb-6 text-dark-text dark:text-white">Análise Detalhada de Evolução</h3>
                             <div className="h-80">
                                 <ProgressionChart data={statistics.progression} actionPlans={actionPlans} />
                             </div>

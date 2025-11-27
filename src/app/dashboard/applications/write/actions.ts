@@ -516,3 +516,35 @@ export async function createNotification(userId: string, title: string, message:
     const supabase = await createSupabaseServerClient();
     await supabase.from('notifications').insert({ user_id: userId, title, message, link });
 }
+export async function saveAIFeedback(essayId: string, aiFeedbackData: AIFeedback) {
+    const supabase = await createSupabaseServerClient();
+    
+    // 1. Busca a correção humana associada a essa redação para vincular o ID
+    const { data: correction } = await supabase
+        .from('essay_corrections')
+        .select('id')
+        .eq('essay_id', essayId)
+        .single();
+
+    if (!correction) {
+        return { error: 'Correção base não encontrada. É necessário ter uma correção humana antes de salvar a IA.' };
+    }
+
+    // 2. Insere ou Atualiza o Feedback da IA
+    const { data, error } = await supabase
+        .from('ai_feedback')
+        .upsert({
+            essay_id: essayId,
+            correction_id: correction.id,
+            detailed_feedback: aiFeedbackData.detailed_feedback,
+            rewrite_suggestions: aiFeedbackData.rewrite_suggestions,
+            actionable_items: aiFeedbackData.actionable_items
+        })
+        .select()
+        .single();
+
+    if (error) return { error: error.message };
+    
+    revalidatePath('/dashboard/applications/write');
+    return { data };
+}
