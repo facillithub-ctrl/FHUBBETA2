@@ -1,6 +1,6 @@
 export type UserProfile = {
   id: string;
-  email?: string; // Adicionado para compatibilidade
+  email?: string; 
 
   // --- Campos Legados (camelCase) ---
   fullName: string | null;
@@ -11,12 +11,13 @@ export type UserProfile = {
   birthDate: string | null;
   schoolName: string | null;
   
-  // --- Campos Novos (snake_case) ---
+  // --- Campos Novos (snake_case) - Adicionados para compatibilidade ---
   full_name?: string | null;
   avatar_url?: string | null;
   is_verified?: boolean;
+  user_category?: string | null; // <--- ADICIONADO AGORA
 
-  // --- Campos Comuns / Outros ---
+  // --- Campos Comuns / Híbridos ---
   organization_id: string | null;
   target_exam: string | null;
   active_modules: string[] | null;
@@ -24,7 +25,7 @@ export type UserProfile = {
   has_completed_onboarding?: boolean;
 };
 
-// ... (Mantenha os outros tipos abaixo inalterados)
+// ... (Mantenha o restante do arquivo igual)
 export type Organization = {
     id: string;
     name: string;
