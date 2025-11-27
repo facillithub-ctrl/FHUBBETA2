@@ -1,249 +1,246 @@
 import { client, urlFor } from '@/lib/sanity'
-import Link from 'next/link'
-import Image from 'next/image'
-import { Metadata } from 'next'
-import { ArrowRight, Calendar, Clock, Search, TrendingUp, Sparkles, Zap, Star, X } from 'lucide-react'
-import { BlogControls } from '@/components/blog/BlogControls'
+import { PortableText } from '@portabletext/react'
+import { components } from '@/components/blog/PortableTextComponents'
 import { NewsletterBox } from '@/components/blog/NewsletterBox'
+import { CommentsSection } from '@/components/blog/CommentsSection'
+import Image from 'next/image'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { Metadata } from 'next'
+import { 
+    ArrowLeft, Calendar, Clock, Linkedin, Twitter, Share2, 
+    Bookmark, ChevronRight, PlayCircle, MessageCircle,
+    ArrowRight
+} from 'lucide-react'
 
-export const metadata: Metadata = {
-  title: 'Blog Facillit | Conhecimento e Inovação',
-  description: 'Explore artigos, tutoriais e insights do universo Facillit.',
+// --- CONFIGURAÇÕES ---
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+// --- DADOS ---
+async function getPost(slug: string) {
+    if (!slug) return null
+    
+    const query = `*[_type == "post" && slug.current == $slug][0]{
+        title, excerpt, body, publishedAt, mainImage,
+        categories[]->{title},
+        author->{
+            name, role, image, bio, 
+            "socials": { "linkedin": linkedin, "twitter": twitter }
+        },
+        "estimatedReadingTime": coalesce(round(length(pt::text(body)) / 5 / 180 ), 5) + 1,
+        "related": *[_type == "post" && slug.current != $slug][0...2]{title, slug, mainImage, excerpt}
+    }`
+    
+    try {
+        return await client.fetch(query, { slug })
+    } catch (error) {
+        console.error("Erro slug:", error);
+        return null;
+    }
 }
 
-// Revalidação a cada 60 segundos
-export const revalidate = 60; 
-
-async function getData(search: string = '', category: string = '') {
-  let filter = `_type == "post"`
-  
-  // Filtro de Busca Textual
-  if (search) {
-    filter += ` && (title match "*${search}*" || body[].children[].text match "*${search}*")`
-  }
-  
-  // Filtro de Categoria
-  if (category) {
-    filter += ` && count((categories[]->title)[@ == "${category}"]) > 0`
-  }
-
-  // Query otimizada
-  const query = `{
-    "posts": *[${filter}] | order(publishedAt desc) {
-      title, slug, excerpt, mainImage, publishedAt,
-      "categories": categories[]->{title},
-      "estimatedReadingTime": round(length(pt::text(body)) / 5 / 180 ) + 1
-    },
-    "featured": *[_type == "post"] | order(publishedAt desc)[0] {
-      title, slug, excerpt, mainImage, publishedAt, "categories": categories[]->{title}
-    },
-    "trending": *[_type == "post"] | order(publishedAt asc)[0...2] {
-       title, slug, mainImage, "categories": categories[]->{title}
-    },
-    "forYou": *[_type == "post"] | order(_createdAt desc)[1...3] {
-       title, slug, mainImage, excerpt
-    },
-    "categories": *[_type == "category"] | order(title asc) {title, _id}
-  }`
-
-  try {
-    return await client.fetch(query)
-  } catch (error) {
-    console.error("Erro Sanity:", error);
-    return { posts: [], featured: null, categories: [], trending: [], forYou: [] };
-  }
+// --- METADATA ---
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+    const { slug } = await params;
+    const post = await getPost(slug)
+    if (!post) return { title: 'Artigo não encontrado' }
+    return { title: post.title, description: post.excerpt }
 }
 
-export default async function BlogPage({ searchParams }: { searchParams: Promise<{ q: string, cat: string }> }) {
-  const { q, cat } = await searchParams
-  const data = await getData(q, cat)
-  
-  const posts = data?.posts || []
-  const featured = data?.featured || null
-  const categories = data?.categories || []
-  
-  // LÓGICA CORRIGIDA:
-  // Se houver busca (q) ou categoria (cat), NÃO removemos o destaque da lista.
-  // Mostramos exatamente o que a busca retornou.
-  const isFiltering = !!q || !!cat;
-  
-  const listPosts = isFiltering 
-    ? posts 
-    : posts.filter((p: any) => p?.slug?.current !== featured?.slug?.current);
+// --- PÁGINA ---
+export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const post = await getPost(slug)
+
+  if (!post) notFound()
 
   return (
-    <div className="min-h-screen bg-white font-inter selection:bg-brand-purple selection:text-white">
+    <div className="min-h-screen bg-white font-inter text-gray-900 selection:bg-brand-purple selection:text-white">
       
-      {/* --- HERO SECTION --- */}
-      {/* Oculta o Hero Gigante se estiver filtrando para focar nos resultados */}
-      {!isFiltering && (
-      <div className="relative pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-            <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-brand-purple/5 rounded-full blur-[100px] animate-pulse"></div>
-            <div className="absolute bottom-[10%] left-[-10%] w-[500px] h-[500px] bg-brand-green/5 rounded-full blur-[80px]"></div>
+      {/* HEADER DE NAVEGAÇÃO (Clean & Sticky) */}
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 transition-all">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between max-w-5xl">
+            <Link href="/recursos/blog" className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors group">
+                <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform text-brand-purple"/>
+                <span className="hidden sm:inline">Blog</span>
+            </Link>
+            
+            <div className="flex items-center gap-4">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider hidden md:block">
+                    {post.estimatedReadingTime} min de leitura
+                </span>
+                <div className="h-4 w-px bg-gray-200 hidden md:block"></div>
+                <button className="p-2 text-gray-400 hover:text-brand-purple transition-colors" aria-label="Compartilhar">
+                    <Share2 size={18}/>
+                </button>
+                <Link href="#comentarios" className="p-2 text-gray-400 hover:text-brand-purple transition-colors flex items-center gap-1" aria-label="Comentários">
+                    <MessageCircle size={18}/>
+                </Link>
+            </div>
         </div>
+        {/* Barra de Progresso Visual (Opcional - CSS puro para efeito) */}
+        <div className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-brand-purple to-brand-green w-full opacity-0 md:opacity-100 animate-progress"></div>
+      </header>
 
-        <div className="container mx-auto px-4 relative z-10">
-            <div className="flex flex-col lg:flex-row items-center gap-12">
-                <div className="flex-1 text-center lg:text-left">
-                    <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-gray-50 border border-gray-200 text-brand-purple text-xs font-bold uppercase tracking-wider mb-6 hover:bg-brand-purple/5 transition-colors cursor-default">
-                        <Sparkles size={14} className="text-brand-green" /> Blog Oficial Facillit
-                    </div>
-                    <h1 className="text-5xl lg:text-7xl font-black text-gray-900 mb-6 leading-[1.1] tracking-tight">
-                        Transforme sua <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-brand-green">Jornada Educacional</span>
-                    </h1>
-                    <p className="text-lg text-gray-500 mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                        Um espaço dedicado a inovação, produtividade e tecnologia. Descubra como potencializar seus resultados.
-                    </p>
-                    
-                    <div className="max-w-md mx-auto lg:mx-0 shadow-xl shadow-brand-purple/5 rounded-2xl">
-                        <BlogControls categories={categories} simpleMode={true} />
-                    </div>
-                </div>
+      <article className="container mx-auto px-4 max-w-5xl py-12 md:py-20">
+        
+        {/* --- HERO DO ARTIGO --- */}
+        <div className="max-w-4xl mx-auto text-center mb-16">
+            <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+                {post.categories?.map((cat: any) => (
+                    <span key={cat.title} className="px-4 py-1.5 rounded-full border border-gray-200 text-xs font-bold uppercase tracking-widest text-gray-500 bg-gray-50">
+                        {cat.title}
+                    </span>
+                ))}
+            </div>
+            
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-[1.05] tracking-tight">
+                {post.title}
+            </h1>
+            
+            <p className="text-xl md:text-2xl text-gray-500 leading-relaxed font-medium max-w-2xl mx-auto mb-10">
+                {post.excerpt}
+            </p>
 
-                <div className="flex-1 relative w-full max-w-lg hidden lg:block">
-                    <div className="relative z-10 bg-white rounded-3xl p-4 shadow-2xl shadow-gray-200/50 border border-gray-100 transform rotate-2 hover:rotate-0 transition-all duration-500">
-                        {featured?.mainImage && (
-                            <Link href={`/recursos/blog/${featured.slug.current}`}>
-                                <div className="relative h-80 w-full rounded-2xl overflow-hidden group cursor-pointer">
-                                    <Image src={urlFor(featured.mainImage).url()} alt="Destaque" fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
-                                        <div>
-                                            <span className="bg-brand-green text-brand-dark text-xs font-bold px-2 py-1 rounded mb-2 inline-block">Destaque</span>
-                                            <h3 className="text-white font-bold text-xl group-hover:text-brand-green transition-colors">{featured.title}</h3>
-                                        </div>
-                                    </div>
-                                </div>
-                            </Link>
-                        )}
+            {/* Autor Hero */}
+            <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-brand-purple to-brand-green">
+                        <div className="w-full h-full rounded-full overflow-hidden bg-white border-2 border-white relative">
+                            {post.author?.image ? (
+                                <Image src={urlFor(post.author.image).width(100).url()} fill alt={post.author.name} className="object-cover" />
+                            ) : <div className="w-full h-full bg-gray-200" />}
+                        </div>
+                    </div>
+                    <div className="text-left">
+                        <p className="text-sm font-bold text-gray-900">{post.author?.name}</p>
+                        <p className="text-xs text-gray-500">{new Date(post.publishedAt).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     </div>
                 </div>
             </div>
         </div>
-      </div>
-      )}
 
-      {/* --- HEADER DE FILTRO (Só aparece se tiver filtro) --- */}
-      {isFiltering && (
-         <div className="pt-32 pb-8 bg-gray-50 border-b border-gray-100">
-            <div className="container mx-auto px-4">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div>
-                        <p className="text-sm text-gray-500 font-medium mb-1">Resultados para:</p>
-                        <h1 className="text-3xl font-black text-gray-900">
-                            {cat ? <span className="flex items-center gap-2"><span className="text-brand-purple">#</span>{cat}</span> : `Busca: "${q}"`}
-                        </h1>
+        {/* --- IMAGEM PRINCIPAL (Full Width Rounded) --- */}
+        {post.mainImage && (
+            <div className="relative w-full aspect-[21/9] rounded-[2rem] overflow-hidden shadow-2xl mb-20 bg-gray-100 ring-1 ring-black/5">
+                <Image 
+                    src={urlFor(post.mainImage).width(1400).url()} 
+                    alt={post.title} 
+                    fill 
+                    className="object-cover"
+                    priority 
+                />
+            </div>
+        )}
+
+        {/* --- LAYOUT DE CONTEÚDO (Com Sidebar Lateral Flutuante) --- */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 relative">
+            
+            {/* Esquerda: Actions (Desktop Only) */}
+            <div className="hidden lg:block lg:col-span-1 relative">
+                <div className="sticky top-32 flex flex-col gap-6 items-center">
+                    <button className="w-10 h-10 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-400 hover:text-brand-purple hover:scale-110 transition-all tooltip" data-tip="Salvar">
+                        <Bookmark size={18} />
+                    </button>
+                    <button className="w-10 h-10 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-400 hover:text-[#0077b5] hover:scale-110 transition-all tooltip" data-tip="Linkedin">
+                        <Linkedin size={18} />
+                    </button>
+                    <button className="w-10 h-10 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-400 hover:text-black hover:scale-110 transition-all tooltip" data-tip="Twitter">
+                        <Twitter size={18} />
+                    </button>
+                    <div className="w-px h-20 bg-gray-200 mt-4"></div>
+                </div>
+            </div>
+
+            {/* Centro: Texto Rico */}
+            <div className="lg:col-span-8">
+                <div className="prose prose-lg md:prose-xl prose-slate max-w-none 
+                    prose-headings:font-black prose-headings:tracking-tight prose-headings:text-gray-900 
+                    prose-p:text-gray-600 prose-p:leading-8 prose-p:font-normal
+                    prose-a:text-brand-purple prose-a:font-bold prose-a:no-underline hover:prose-a:bg-brand-purple/10 hover:prose-a:rounded-sm transition-colors
+                    prose-img:rounded-3xl prose-img:shadow-lg prose-img:my-10
+                    prose-blockquote:border-l-4 prose-blockquote:border-brand-purple prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:text-2xl prose-blockquote:font-medium prose-blockquote:text-gray-800
+                    first-letter:text-5xl first-letter:font-black first-letter:text-brand-purple first-letter:mr-3 first-letter:float-left">
+                    <PortableText value={post.body} components={components} />
+                </div>
+
+                {/* Tags ao final do post */}
+                <div className="mt-16 pt-8 border-t border-gray-100 flex flex-wrap gap-2">
+                    <span className="text-sm font-bold text-gray-400 mr-2">Tags:</span>
+                    {post.categories?.map((cat: any) => (
+                        <Link href={`/recursos/blog?cat=${cat.title}`} key={cat.title} className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm rounded-md transition-colors">
+                            #{cat.title}
+                        </Link>
+                    ))}
+                </div>
+            </div>
+
+            {/* Direita: Autor Card (Sticky) */}
+            <div className="lg:col-span-3 hidden lg:block">
+                <div className="sticky top-32">
+                    <div className="bg-[#FAFAFA] rounded-2xl p-6 border border-gray-100">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Sobre o Autor</p>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="w-12 h-12 rounded-full overflow-hidden bg-white border border-gray-200">
+                                {post.author?.image ? (
+                                    <Image src={urlFor(post.author.image).width(100).url()} width={48} height={48} alt="" className="object-cover h-full w-full" />
+                                ) : <div className="w-full h-full bg-brand-purple" />}
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-gray-900 text-sm">{post.author?.name}</h4>
+                                <p className="text-xs text-brand-purple font-medium">{post.author?.role}</p>
+                            </div>
+                        </div>
+                        <p className="text-sm text-gray-500 leading-relaxed mb-4">
+                            {post.author?.bio || "Criando conteúdo para transformar a educação."}
+                        </p>
+                        <button className="w-full py-2 rounded-lg bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
+                            Ver Perfil Completo
+                        </button>
                     </div>
-                    <Link href="/recursos/blog" className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-600 hover:text-red-500 hover:border-red-200 transition-all shadow-sm">
-                        <X size={16} /> Limpar Filtros
+                </div>
+            </div>
+
+        </div>
+      </article>
+
+      {/* --- SEÇÃO DE COMENTÁRIOS E NEWSLETTER --- */}
+      <div className="bg-gray-50 border-t border-gray-200 py-16" id="comentarios">
+        <div className="container mx-auto px-4 max-w-4xl space-y-16">
+            <NewsletterBox />
+            <CommentsSection postSlug={slug} />
+        </div>
+      </div>
+
+      {/* --- LEIA MAIS (Footer Navigation) --- */}
+      {post.related?.length > 0 && (
+        <div className="bg-white border-t border-gray-200 py-20">
+            <div className="container mx-auto px-4 max-w-6xl">
+                <div className="flex items-center justify-between mb-10">
+                    <h3 className="text-2xl font-black text-gray-900">Continue Lendo</h3>
+                    <Link href="/recursos/blog" className="text-sm font-bold text-brand-purple flex items-center gap-1 hover:gap-2 transition-all">
+                        Ver tudo <ArrowRight size={16}/>
                     </Link>
                 </div>
-            </div>
-         </div>
-      )}
-
-      {/* --- FEED PRINCIPAL --- */}
-      <div className="container mx-auto px-4 max-w-7xl py-16">
-        <div className="flex flex-col lg:flex-row gap-12">
-            
-            <div className="flex-1">
-                {/* Controles Mobile/Sticky */}
-                {!isFiltering && (
-                    <div className="sticky top-24 z-20 bg-white/90 backdrop-blur-md py-4 mb-8 border-b border-gray-100 -mx-4 px-4 lg:mx-0 lg:px-0 lg:rounded-xl">
-                        <BlogControls categories={categories} onlyCategories={true} />
-                    </div>
-                )}
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {listPosts.length > 0 ? listPosts.map((post: any) => (
-                        <Link href={`/recursos/blog/${post.slug.current}`} key={post.slug.current} className="group flex flex-col h-full">
-                            <article className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full flex flex-col">
-                                <div className="relative h-60 w-full overflow-hidden">
-                                    {post.mainImage ? (
-                                        <Image
-                                            src={urlFor(post.mainImage).width(600).height(400).url()}
-                                            alt={post.title}
-                                            fill
-                                            className="object-cover group-hover:scale-110 transition-transform duration-700"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300">
-                                            <Sparkles size={40} />
-                                        </div>
-                                    )}
-                                    {post.categories?.[0] && (
-                                        <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-brand-purple shadow-sm">
-                                            {post.categories[0].title}
-                                        </div>
-                                    )}
-                                </div>
-                                
-                                <div className="p-6 flex-1 flex flex-col">
-                                    <div className="flex items-center gap-4 text-xs text-gray-400 mb-3 font-medium">
-                                        <span className="flex items-center gap-1"><Calendar size={12} /> {new Date(post.publishedAt).toLocaleDateString('pt-BR')}</span>
-                                        <span className="flex items-center gap-1"><Clock size={12} /> {post.estimatedReadingTime || 5} min</span>
-                                    </div>
-                                    
-                                    <h2 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-brand-purple transition-colors line-clamp-2">
-                                        {post.title}
-                                    </h2>
-                                    
-                                    <p className="text-gray-500 text-sm mb-6 flex-1 line-clamp-3 leading-relaxed">
-                                        {post.excerpt}
-                                    </p>
-                                    
-                                    <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
-                                        <span className="text-brand-purple font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform">
-                                            Ler agora <ArrowRight size={16} />
-                                        </span>
-                                    </div>
-                                </div>
-                            </article>
-                        </Link>
-                    )) : (
-                        <div className="col-span-full py-12 text-center bg-gray-50 rounded-3xl border border-gray-100 border-dashed">
-                            <div className="bg-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                                <Search className="w-8 h-8 text-gray-300" />
+                    {post.related.map((item: any) => (
+                        <Link href={`/recursos/blog/${item.slug.current}`} key={item.slug.current} className="group flex gap-6 items-start hover:bg-gray-50 p-4 rounded-2xl transition-colors border border-transparent hover:border-gray-100">
+                            <div className="w-32 h-24 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 relative">
+                                {item.mainImage && <Image src={urlFor(item.mainImage).width(300).url()} fill alt={item.title} className="object-cover" />}
                             </div>
-                            <h3 className="text-lg font-bold text-gray-900">Nenhum artigo encontrado</h3>
-                            <p className="text-gray-500 mt-2 text-sm max-w-xs mx-auto">
-                                Não encontramos posts para <strong>{cat || q}</strong>. Tente outra categoria ou termo.
-                            </p>
-                            <Link href="/recursos/blog" className="inline-block mt-6 px-6 py-2 bg-brand-purple text-white rounded-full text-sm font-bold hover:bg-brand-dark transition-colors">
-                                Ver todos os artigos
-                            </Link>
-                        </div>
-                    )}
+                            <div className="flex-1">
+                                <h4 className="text-lg font-bold text-gray-900 group-hover:text-brand-purple transition-colors mb-2 leading-snug">
+                                    {item.title}
+                                </h4>
+                                <p className="text-sm text-gray-500 line-clamp-2">{item.excerpt}</p>
+                            </div>
+                        </Link>
+                    ))}
                 </div>
             </div>
-
-            <aside className="w-full lg:w-80 space-y-8 hidden lg:block">
-                <div className="sticky top-40 space-y-8">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                        <h4 className="font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100">Categorias</h4>
-                        <ul className="space-y-2">
-                            {categories.map((c: any) => {
-                                const isActive = cat === c.title;
-                                return (
-                                    <li key={c._id}>
-                                        <Link 
-                                            href={`/recursos/blog?cat=${c.title}`} 
-                                            className={`flex items-center justify-between text-sm p-2 rounded-lg transition-colors group ${isActive ? 'bg-brand-purple/10 text-brand-purple font-bold' : 'text-gray-600 hover:text-brand-purple hover:bg-gray-50'}`}
-                                        >
-                                            {c.title}
-                                            {isActive && <div className="w-2 h-2 rounded-full bg-brand-purple"></div>}
-                                        </Link>
-                                    </li>
-                                )
-                            })}
-                        </ul>
-                    </div>
-                </div>
-            </aside>
-
         </div>
-      </div>
+      )}
     </div>
   )
 }
