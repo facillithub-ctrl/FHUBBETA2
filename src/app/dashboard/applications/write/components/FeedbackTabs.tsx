@@ -1,20 +1,11 @@
-// src/app/dashboard/applications/write/components/FeedbackTabs.tsx
 "use client";
 
 import { useState } from 'react';
-import type { EssayCorrection, AIFeedback } from '../actions';
+import type { EssayCorrection } from '../actions';
 import { VerificationBadge } from '@/components/VerificationBadge';
 
-// CORREÇÃO: Alinhado com EssayCorrectionView. 
-// 1. Usa Omit para limpar ai_feedback base antes de redefinir.
-// 2. Permite que profiles seja null.
-type CorrectionWithDetails = Omit<EssayCorrection, 'ai_feedback'> & {
-  profiles: { full_name: string | null; verification_badge: string | null } | null; 
-  ai_feedback: AIFeedback | null;
-};
-
 type Props = {
-  correction: CorrectionWithDetails | null;
+  correction: EssayCorrection | null;
 };
 
 const TabButton = ({ label, isActive, onClick }: { label: string; isActive: boolean; onClick: () => void }) => (
@@ -56,11 +47,8 @@ export default function FeedbackTabs({ correction }: Props) {
                                 <h4 className="font-bold dark:text-white-text">Feedback Geral</h4>
                                 <div className="text-sm text-gray-700 dark:text-dark-text-muted bg-gray-50 dark:bg-gray-700/50 p-4 rounded-md whitespace-pre-wrap">{humanCorrection.feedback}</div>
                                 <div className="text-xs text-gray-400 mt-2 flex items-center gap-2">
-                                    {/* Verificação segura para profiles */}
-                                    <span>Corrigido por: {humanCorrection.profiles?.full_name || 'Corretor não identificado'}</span>
-                                    {humanCorrection.profiles?.verification_badge && (
-                                        <VerificationBadge badge={humanCorrection.profiles.verification_badge} />
-                                    )}
+                                    <span>Corrigido por: {humanCorrection.profiles?.full_name}</span>
+                                    <VerificationBadge badge={humanCorrection.profiles?.verification_badge} />
                                 </div>
                             </div>
                         ) : (
@@ -88,7 +76,7 @@ export default function FeedbackTabs({ correction }: Props) {
                 {activeTab === 'actions' && aiFeedback && (
                      <div>
                         <h4 className="font-bold text-lg mb-2 dark:text-white-text">Seu Plano de Ação</h4>
-                        <p className="text-sm text-text-muted dark:text-dark-text-muted mb-4">Com base na análise, foque nestes pontos para melhorar sua próxima redação:</p>
+                        <p className="text-sm text-text-muted dark:text-dark-text-muted mb-4">Com base na análise, foque nestes pontos:</p>
                         <ul className="space-y-3">
                             {aiFeedback.actionable_items.map((item, index) => (
                                 <li key={index} className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">

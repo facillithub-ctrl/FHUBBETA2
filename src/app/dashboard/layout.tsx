@@ -1,7 +1,6 @@
-// src/app/dashboard/layout.tsx
 import { redirect } from 'next/navigation';
 import createSupabaseServerClient from '@/utils/supabase/server';
-import type { UserProfile, UserStats } from './types'; // Importe UserStats
+import type { UserProfile } from './types';
 import DashboardClientLayout from './DashboardClientLayout';
 
 export default async function DashboardLayout({
@@ -16,19 +15,21 @@ export default async function DashboardLayout({
   if (!user) {
     redirect('/login');
   }
-  
+
   const { data: profile, error } = await supabase
     .from('profiles')
     .select('id, full_name, user_category, avatar_url, pronoun, nickname, birth_date, school_name, has_completed_onboarding, active_modules, target_exam, verification_badge, organization_id')
     .eq('id', user.id)
     .single();
 
+  // Ignora erro se for apenas "não encontrado" (usuário novo), mas loga outros erros
   if (error && error.code !== 'PGRST116') {
-    console.error("Erro ao buscar perfil:", error); 
+    console.error("Erro ao buscar perfil:", error);
     await supabase.auth.signOut();
     redirect('/login');
   }
 
+  // Constrói o perfil ou um objeto vazio para novos usuários
   const userProfile: UserProfile = profile ? {
     id: profile.id,
     fullName: profile.full_name,
@@ -59,17 +60,8 @@ export default async function DashboardLayout({
     organization_id: null,
   };
 
-  // ✅ ADICIONADO: Dados de estatísticas (pode vir do DB futuramente)
-  const userStats: UserStats = {
-    streak: 0, // Implementar lógica real de streak futuramente
-    rank: null,
-    xp: 0,
-    coins: 0
-  };
-
-  // Passamos userStats para o componente cliente
   return (
-    <DashboardClientLayout userProfile={userProfile} stats={userStats}>
+    <DashboardClientLayout userProfile={userProfile}>
       {children}
     </DashboardClientLayout>
   );
