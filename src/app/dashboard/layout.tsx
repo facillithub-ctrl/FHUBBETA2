@@ -15,24 +15,24 @@ export default async function DashboardLayout({
   if (!user) {
     redirect('/login');
   }
-
+  
   const { data: profile, error } = await supabase
     .from('profiles')
     .select('id, full_name, user_category, avatar_url, pronoun, nickname, birth_date, school_name, has_completed_onboarding, active_modules, target_exam, verification_badge, organization_id')
     .eq('id', user.id)
     .single();
 
-  // Ignora erro se for apenas "não encontrado" (usuário novo), mas loga outros erros
   if (error && error.code !== 'PGRST116') {
-    console.error("Erro ao buscar perfil:", error);
+    console.error("Erro ao buscar perfil:", error); 
     await supabase.auth.signOut();
     redirect('/login');
   }
 
-  // Constrói o perfil ou um objeto vazio para novos usuários
+  // Constrói o objeto UserProfile COM O EMAIL
   const userProfile: UserProfile = profile ? {
     id: profile.id,
     fullName: profile.full_name,
+    email: user.email, // ADICIONADO AQUI
     userCategory: profile.user_category,
     avatarUrl: profile.avatar_url,
     pronoun: profile.pronoun,
@@ -47,6 +47,7 @@ export default async function DashboardLayout({
   } : {
     id: user.id,
     fullName: null,
+    email: user.email, // E AQUI TAMBÉM
     userCategory: null,
     avatarUrl: null,
     pronoun: null,
