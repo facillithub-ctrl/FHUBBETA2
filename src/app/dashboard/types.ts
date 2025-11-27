@@ -1,3 +1,6 @@
+// Define as roles de usuário
+export type UserRole = 'student' | 'teacher' | 'professor' | 'admin' | 'administrator' | 'diretor';
+
 export type UserProfile = {
   id: string;
   email?: string; 
@@ -6,7 +9,7 @@ export type UserProfile = {
   fullName: string | null;
   nickname: string | null;
   avatarUrl: string | null;
-  userCategory: string | null;
+  userCategory: string | null; // Mantendo compatibilidade com string, mas idealmente seria UserRole
   pronoun: string | null;
   birthDate: string | null;
   schoolName: string | null;
@@ -38,11 +41,108 @@ export type CognitiveSkill = 'interpretacao' | 'calculo' | 'memorizacao' | 'anal
 export type DifficultyLevel = 'facil' | 'medio' | 'dificil' | 'muito_dificil';
 
 export type QuestionMetadata = {
-  bloom_level?: BloomTaxonomy;
-  cognitive_skill?: CognitiveSkill;
+  bloom_taxonomy?: BloomTaxonomy | null; // Corrigido de bloom_level para bloom_taxonomy (usado no código)
+  cognitive_skill?: CognitiveSkill | null;
   estimated_time_seconds?: number;
-  difficulty?: DifficultyLevel;
-  ai_explanation?: string;
+  difficulty_level?: DifficultyLevel | null; // Corrigido de difficulty para difficulty_level (usado no código)
+  ai_explanation?: string | null;
+};
+
+// --- Tipos para o Módulo Write (Essay) ---
+// Adicionado para corrigir o erro em src/app/admin/actions.ts
+export type EssayPrompt = {
+  id: string;
+  title: string;
+  description: string | null;
+  supporting_texts?: any; // jsonb
+  source?: string | null;
+  created_at?: string;
+  organization_id?: string | null;
+  image_url?: string | null;
+  motivational_text_1?: string | null;
+  motivational_text_2?: string | null;
+  category?: string | null;
+  publication_date?: string | null;
+  deadline?: string | null;
+  cover_image_source?: string | null;
+  difficulty?: number | null; // smallint no banco
+  tags?: string[] | null;
+  class_id?: string | null;
+};
+
+// --- Tipos para o Módulo Test ---
+export type QuestionContent = {
+  base_text?: string | null;
+  statement: string;
+  image_url?: string | null;
+  options?: string[];
+  correct_option?: number;
+};
+
+export type Question = {
+  id: string;
+  test_id?: string;
+  question_type: 'multiple_choice' | 'dissertation' | 'true_false';
+  content: QuestionContent;
+  points: number;
+  thematic_axis?: string | null;
+  metadata?: QuestionMetadata;
+};
+
+export type TestWithQuestions = {
+  id: string;
+  title: string;
+  description: string | null;
+  created_by: string;
+  created_at: string;
+  duration_minutes: number;
+  questions: Question[];
+  is_knowledge_test?: boolean;
+  related_prompt_id?: string | null;
+  cover_image_url?: string | null;
+  collection?: string | null;
+  class_id?: string | null;
+  serie?: string | null;
+  test_type: 'avaliativo' | 'pesquisa';
+  difficulty?: DifficultyLevel | string | null;
+  hasAttempted?: boolean;
+  question_count?: number;
+  points?: number;
+  subject?: string | null;
+};
+
+export type StudentDashboardData = {
+  stats: {
+    simuladosFeitos: number;
+    mediaGeral: number;
+    taxaAcerto: number;
+    tempoMedio: number;
+  };
+  gamification: {
+    level: number;
+    current_xp: number;
+    next_level_xp: number;
+    streak_days: number;
+    badges: string[];
+  };
+  insights: AIInsight[];
+  performanceBySubject: { materia: string; nota: number; simulados: number }[];
+  history: { date: string; avgScore: number }[];
+  competencyMap: CompetencyData[];
+  recentAttempts: any[];
+};
+
+export type StudentCampaign = {
+    campaign_id: string;
+    title: string;
+    description: string | null;
+    end_date: string;
+    tests: {
+        id: string;
+        title: string;
+        subject: string | null;
+        question_count: number;
+    }[];
 };
 
 // --- Insights e Analytics ---
@@ -60,11 +160,13 @@ export type CompetencyData = {
   fullMark: number; // Sempre 100
 };
 
-// ... (Manter os outros tipos existentes como Organization, SchoolClass, etc.)
+// --- Organizações e Escolas ---
 export type Organization = {
     id: string;
     name: string;
     cnpj: string | null;
+    owner_id?: string;
+    created_at?: string;
 };
 
 export type SchoolClass = {
