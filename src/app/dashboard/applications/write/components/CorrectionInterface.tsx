@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition, useRef, MouseEvent } from 'react';
-import { Essay, getEssayDetails, submitCorrection, Annotation, AIFeedback, generateAIAnalysis } from '../actions';
+// CORREÇÃO: Importamos generateAndSaveAIAnalysis em vez de generateAIAnalysis
+import { Essay, getEssayDetails, submitCorrection, Annotation, AIFeedback, generateAndSaveAIAnalysis } from '../actions';
 import Image from 'next/image';
 import createClient from '@/utils/supabase/client';
 import { useToast } from '@/contexts/ToastContext';
@@ -72,13 +73,30 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
         load();
     }, [essayId]);
 
+    // CORREÇÃO: Atualizado para usar generateAndSaveAIAnalysis
     const handleGenerateAI = async () => {
         if (!essay?.content) return addToast({ title: "Erro", message: "Sem texto para analisar.", type: "error" });
+        
         setIsGeneratingAI(true);
         addToast({ title: "IA", message: "Gerando análise...", type: "success" });
-        const result = await generateAIAnalysis(essay.content);
-        if (result.data) setAiFeedbackData(result.data);
-        setIsGeneratingAI(false);
+        
+        try {
+            // Chama a nova função passando ID, conteúdo e título
+            const result = await generateAndSaveAIAnalysis(essay.id, essay.content, essay.title || "Sem título");
+            
+            // Verifica se 'data' existe no resultado (Type Guard)
+            if ('data' in result && result.data) {
+                setAiFeedbackData(result.data as unknown as AIFeedback);
+                addToast({ title: "Sucesso", message: "Análise da IA gerada!", type: "success" });
+            } else if ('error' in result) {
+                addToast({ title: "Erro IA", message: result.error as string, type: "error" });
+            }
+        } catch (error) {
+            console.error(error);
+            addToast({ title: "Erro", message: "Falha na conexão com a IA.", type: "error" });
+        } finally {
+            setIsGeneratingAI(false);
+        }
     };
 
     const handleTextMouseUp = () => {
@@ -93,7 +111,13 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
     const handleImageMouseDown = (e: MouseEvent<HTMLDivElement>) => { if (popupState.visible) { setPopupState(prev => ({ ...prev, visible: false })); return; } e.preventDefault(); setIsDrawing(true); const rect = imageContainerRef.current!.getBoundingClientRect(); startCoords.current = { x: e.clientX - rect.left, y: e.clientY - rect.top }; setSelectionBox({ x: startCoords.current.x, y: startCoords.current.y, width: 0, height: 0 }); };
     const handleImageMouseMove = (e: MouseEvent<HTMLDivElement>) => { if (!isDrawing) return; const rect = imageContainerRef.current!.getBoundingClientRect(); const currentX = e.clientX - rect.left; const currentY = e.clientY - rect.top; const x = Math.min(startCoords.current.x, currentX); const y = Math.min(startCoords.current.y, currentY); const width = Math.abs(currentX - startCoords.current.x); const height = Math.abs(currentY - startCoords.current.y); setSelectionBox({ x, y, width, height }); };
     const handleImageMouseUp = (e: MouseEvent<HTMLDivElement>) => { setIsDrawing(false); if (selectionBox && (selectionBox.width > 10 || selectionBox.height > 10)) { const rect = imageContainerRef.current!.getBoundingClientRect(); const position = { x: (selectionBox.x / rect.width) * 100, y: (selectionBox.y / rect.height) * 100, width: (selectionBox.width / rect.width) * 100, height: (selectionBox.height / rect.height) * 100, }; setPopupState({ visible: true, left: e.clientX, top: e.clientY + 10, position }); } setSelectionBox(null); };
-    const handleSaveAnnotation = (comment: string, marker: 'erro' | 'acerto' | 'sugestao') => { const newAnnotation: Annotation = { id: crypto.randomUUID(), type: popupState.position ? 'image' : 'text', comment, marker, selection: popupState.selectionText, position: popupState.position }; setAnnotations(prev => [...prev, newAnnotation]); setPopupState({ visible: false, top: 0, left: 0 }); if (window.getSelection) window.getSelection()?.removeAllRanges(); };
+    
+    const handleSaveAnnotation = (comment: string, marker: 'erro' | 'acerto' | 'sugestao') => { 
+        const newAnnotation: Annotation = { id: crypto.randomUUID(), type: popupState.position ? 'image' : 'text', comment, marker, selection: popupState.selectionText, position: popupState.position }; 
+        setAnnotations(prev => [...prev, newAnnotation]); 
+        setPopupState({ visible: false, top: 0, left: 0 }); 
+        if (window.getSelection) window.getSelection()?.removeAllRanges(); 
+    };
     
     const startRecording = async () => { try { const stream = await navigator.mediaDevices.getUserMedia({ audio: true }); mediaRecorderRef.current = new MediaRecorder(stream); mediaRecorderRef.current.ondataavailable = (e) => audioChunksRef.current.push(e.data); mediaRecorderRef.current.onstop = () => { const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); setAudioBlob(blob); setAudioUrl(URL.createObjectURL(blob)); audioChunksRef.current = []; }; mediaRecorderRef.current.start(); setIsRecording(true); } catch { addToast({ title: "Erro", message: "Erro ao acessar microfone.", type: "error" }); } };
     const stopRecording = () => { mediaRecorderRef.current?.stop(); setIsRecording(false); };
@@ -107,9 +131,11 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
             if (audioBlob) {
                 setIsUploadingAudio(true);
                 const { data: { user } } = await supabase.auth.getUser();
-                const filePath = `audio-feedbacks/${user?.id}/${essayId}-${Date.now()}.webm`;
-                const { error } = await supabase.storage.from('audio_feedbacks').upload(filePath, audioBlob);
-                if (!error) { const { data } = supabase.storage.from('audio_feedbacks').getPublicUrl(filePath); uploadedAudioUrl = data.publicUrl; }
+                if (user) {
+                    const filePath = `audio-feedbacks/${user.id}/${essayId}-${Date.now()}.webm`;
+                    const { error } = await supabase.storage.from('audio_feedbacks').upload(filePath, audioBlob);
+                    if (!error) { const { data } = supabase.storage.from('audio_feedbacks').getPublicUrl(filePath); uploadedAudioUrl = data.publicUrl; }
+                }
                 setIsUploadingAudio(false);
             }
 
