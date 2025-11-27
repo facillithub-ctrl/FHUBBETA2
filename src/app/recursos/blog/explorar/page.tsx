@@ -16,7 +16,6 @@ export const revalidate = 0;
 async function getAllPosts(search: string = '', category: string = '') {
   const searchQuery = search ? `*${search}*` : "";
   
-  // Query busca TUDO (sem limite de quantidade)
   const query = `{
     "posts": *[_type == "post" 
       && ($search == "" || title match $search || body[].children[].text match $search)
@@ -161,7 +160,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Nenhum resultado</h3>
                 <p className="text-gray-500 max-w-xs mx-auto mb-6">
-                    Não encontramos artigos para "{q || cat}". Tente limpar os filtros.
+                    {/* AQUI ESTAVA O ERRO: Aspas substituídas por &quot; */}
+                    Não encontramos artigos para &quot;{q || cat}&quot;. Tente limpar os filtros.
                 </p>
                 <Link href="/recursos/blog/explorar" className="text-brand-purple font-bold hover:underline">
                     Limpar Filtros
