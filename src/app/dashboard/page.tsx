@@ -46,7 +46,10 @@ const StudentDashboard = ({ profile, latestEssay, latestTest, campaigns, examDat
           <div className="flex items-center mb-4"><i className="fas fa-check-square text-xl text-royal-blue mr-3"></i><h2 className="text-lg font-bold dark:text-white">Facillit Test</h2></div>
            <div className="flex-grow">
              {latestTest ? (
-                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md"><p className="text-sm text-gray-500">Último simulado: <span className="font-bold text-royal-blue">{latestTest.score ?? 0}%</span></p></div>
+                <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-md">
+                    <p className="text-sm text-gray-500 mb-1">{latestTest.name}</p>
+                    <p className="text-sm text-gray-500">Nota: <span className="font-bold text-royal-blue">{latestTest.score ?? 0}%</span></p>
+                </div>
              ) : <p className="text-sm text-gray-500">Nenhum teste recente.</p>}
           </div>
           <Link href="/dashboard/applications/test" className="mt-6 w-full bg-royal-blue text-white text-center font-bold py-2 px-4 rounded-lg">Acessar Testes</Link>
@@ -57,7 +60,7 @@ const StudentDashboard = ({ profile, latestEssay, latestTest, campaigns, examDat
 
 // --- DASHBOARD DE GESTÃO (PROFESSOR/DIRETOR) ---
 const ManagementDashboard = ({ profile, welcomeMessage }: { profile: UserProfile, welcomeMessage: string }) => {
-  const isDirector = profile.userCategory === 'diretor';
+  const isDirector = profile.user_category === 'diretor';
 
   return (
     <>
@@ -121,7 +124,7 @@ export default async function DashboardPage() {
         supabase.from('profiles').select('*').eq('id', user.id).single(),
     ]);
 
-    const profile = profileResult.data;
+    const profile = profileResult.data as UserProfile;
 
     // --- REDIRECT DE SEGURANÇA PARA ADMIN ---
     if (profile?.user_category === 'administrator') {
@@ -156,18 +159,21 @@ export default async function DashboardPage() {
             score: essayRes.data.final_grade,
         } : null;
 
-        const latestTest = testRes.data?.recentAttempts?.[0] ? {
-            name: testRes.data.recentAttempts[0].tests.title,
-            score: testRes.data.recentAttempts[0].score,
+        // CORREÇÃO: testRes é o objeto de dados direto, não tem .data wrapper
+        const latestTest = testRes?.recentAttempts && testRes.recentAttempts.length > 0 ? {
+            name: testRes.recentAttempts[0].tests.title,
+            score: testRes.recentAttempts[0].score,
         } : null;
 
+        // CORREÇÃO: campaignsRes é o array direto
+        const campaigns = campaignsRes || [];
+
         return (
-            // @ts-ignore
             <StudentDashboard 
                 profile={profile} 
                 latestEssay={latestEssay} 
                 latestTest={latestTest} 
-                campaigns={campaignsRes.data} 
+                campaigns={campaigns} 
                 examDate={examDate} 
                 welcomeMessage={welcomeMessage} 
             />
