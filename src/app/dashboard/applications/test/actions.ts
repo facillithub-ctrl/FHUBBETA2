@@ -10,14 +10,7 @@ import {
   QuestionContent
 } from "./types";
 
-export type StudentAnswerPayload = {
-  question_id: string;
-  answer: string | number | boolean; // O valor da resposta
-  time_spent_seconds?: number;
-};
-
-// --- TIPOS EXPORTADOS (Necessários para os componentes) ---
-
+// --- TIPOS AUXILIARES PARA CAMPANHAS E PROFESSOR ---
 export type Campaign = {
     id: string;
     title: string;
@@ -34,11 +27,15 @@ export type Test = {
     title: string;
     subject: string | null;
     question_count: number;
-    // Adicione outros campos se necessário pelo CampaignManager
 };
 
-// --- UTILITÁRIOS ---
+export type StudentAnswerPayload = {
+  question_id: string;
+  answer: string | number | boolean;
+  time_spent_seconds?: number;
+};
 
+// --- UTILITÁRIO: SANITIZAÇÃO ---
 const sanitize = (value: any) => {
   if (value === "" || value === undefined || value === "undefined") return null;
   if (typeof value === 'string' && value.trim() === '') return null;
@@ -46,7 +43,7 @@ const sanitize = (value: any) => {
 };
 
 // =================================================================
-// 1. DASHBOARD DO PROFESSOR & GESTÃO DE TESTES
+// 1. DASHBOARD DO PROFESSOR & GESTÃO
 // =================================================================
 
 export async function getTeacherDashboardData() {
@@ -55,14 +52,12 @@ export async function getTeacherDashboardData() {
 
   if (!user) return { activeTests: [], classes: [], isInstitutional: false };
 
-  // 1. Busca testes
   const { data: tests } = await supabase
     .from('tests')
     .select('*, test_attempts(count)')
     .eq('created_by', user.id)
     .order('created_at', { ascending: false });
 
-  // 2. Busca perfil institucional
   const { data: profile } = await supabase
     .from('profiles')
     .select('organization_id')
@@ -81,10 +76,9 @@ export async function getTeacherDashboardData() {
   return { activeTests: tests || [], classes, isInstitutional: !!profile?.organization_id };
 }
 
-// Alias para compatibilidade
+// Alias usado pelo CampaignManager
 export const getTestsForTeacher = async () => {
     const data = await getTeacherDashboardData();
-    // O CampaignManager espera { data: Test[], error: null }
     return { data: data.activeTests as Test[], error: null };
 };
 
@@ -158,7 +152,7 @@ export async function createFullTest(testData: any, questions: Question[]) {
 export const createOrUpdateTest = createFullTest;
 
 // =================================================================
-// 2. GESTÃO DE CAMPANHAS (FALTAVA ISSO)
+// 2. GESTÃO DE CAMPANHAS
 // =================================================================
 
 export async function getCampaignsForTeacher() {
@@ -190,7 +184,6 @@ export async function createOrUpdateCampaign(campaignData: {
 
     const { test_ids, ...campaignDetails } = campaignData;
 
-    // 1. Salvar Campanha
     const { data: campaign, error: campaignError } = await supabase
         .from('campaigns')
         .upsert({
@@ -202,7 +195,6 @@ export async function createOrUpdateCampaign(campaignData: {
 
     if (campaignError) return { error: campaignError.message };
 
-    // 2. Vincular Testes
     await supabase.from('campaign_tests').delete().eq('campaign_id', campaign.id);
 
     if (test_ids?.length > 0) {
@@ -229,7 +221,7 @@ export async function deleteCampaign(campaignId: string) {
 }
 
 // =================================================================
-// 3. DASHBOARD DO ALUNO & EXECUÇÃO
+// 3. DASHBOARD DO ALUNO
 // =================================================================
 
 export async function getStudentTestDashboardData(): Promise<StudentDashboardData | null> {
@@ -264,16 +256,18 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
 }
 export const getStudentDashboardData = getStudentTestDashboardData;
 
-export async function submitTestAttempt(testId: string, answers: any[], timeSpent: number) {
+// =================================================================
+// 4. EXECUÇÃO DE PROVA
+// =================================================================
+
+export async function submitTestAttempt(testId: string, answers: StudentAnswerPayload[], timeSpent: number) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: "Não autenticado" };
 
-    // Buscar Gabarito
     const { data: test } = await supabase.from('tests').select('id, test_type, questions(id, content, points, question_type)').eq('id', testId).single();
     if (!test) return { error: "Teste não encontrado" };
 
-    // Calcular Nota
     let score = 0;
     let maxScore = 0;
     const answersMap = new Map(answers.map(a => [a.question_id, a.answer]));
@@ -282,7 +276,6 @@ export async function submitTestAttempt(testId: string, answers: any[], timeSpen
         const studentAns = answersMap.get(q.id);
         let correct = false;
         if (test.test_type === 'avaliativo') {
-            // Comparação simples para múltipla escolha
             if (String(studentAns) === String(q.content.correct_option)) {
                 correct = true;
                 score += (q.points || 1);
@@ -310,10 +303,59 @@ export async function submitTestAttempt(testId: string, answers: any[], timeSpen
 
     if (error) return { error: error.message };
 
+    // Salvar Respostas
+    await supabase.from('student_answers').delete().eq('attempt_id', attempt.id);
+    
+    const answersToInsert = processed.map(p => ({
+        attempt_id: attempt.id,
+        question_id: p.question_id,
+        student_id: user.id,
+        answer: { value: p.answer }, // JSONB wrapper
+        is_correct: p.is_correct
+    }));
+
+    await supabase.from('student_answers').insert(answersToInsert);
+
+    revalidatePath('/dashboard/applications/test');
     return { success: true, attemptId: attempt.id, score: finalScore };
 }
 
-// --- Listagens do Aluno ---
+// =================================================================
+// 5. RELATÓRIOS & LISTAGENS
+// =================================================================
+
+// --- A FUNÇÃO QUE FALTAVA ---
+export async function getSurveyResults(testId: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Não autenticado" };
+
+    const { data, error } = await supabase
+        .from('test_attempts')
+        .select(`
+            completed_at,
+            student: profiles ( full_name ),
+            student_answers (
+                answer,
+                questions ( content )
+            )
+        `)
+        .eq('test_id', testId);
+
+    if (error) return { error: error.message };
+
+    // Achatar dados para o frontend
+    const results = data.flatMap((attempt: any) => {
+        return (attempt.student_answers || []).map((ans: any) => ({
+            student_name: attempt.student?.full_name || 'Anônimo',
+            submitted_at: attempt.completed_at,
+            question_statement: ans.questions?.content?.statement || 'Pergunta não encontrada',
+            student_answer: ans.answer?.value !== undefined ? ans.answer.value : ans.answer
+        }));
+    });
+
+    return { data: results };
+}
 
 export async function getAvailableTestsForStudent() {
   const supabase = await createClient();
@@ -364,8 +406,6 @@ export async function submitCampaignConsent(campaignId: string) {
     if (error) return { error: error.message };
     return { success: true };
 }
-
-// --- Detalhes do Teste ---
 
 export async function getTestWithQuestions(testId: string) {
   const supabase = await createClient();
