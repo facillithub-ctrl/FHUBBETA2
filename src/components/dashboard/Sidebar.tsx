@@ -8,43 +8,45 @@ import type { UserProfile } from '@/app/dashboard/types';
 import { 
     LayoutDashboard, PenTool, FileText, GraduationCap, BookOpen, 
     Gamepad2, Calendar, PlayCircle, Users, Target, FlaskConical, 
-    CheckSquare, Lightbulb, ChevronLeft, ChevronRight, LogOut, 
-    ShieldCheck, X, Sparkles, Layers, Zap
+    CheckSquare, Lightbulb, ChevronLeft, ChevronRight,
+    ShieldCheck, X, Sparkles, Home, Book, Grid, Info, Box
 } from 'lucide-react';
 
-// Organização Lógica
+// Configuração de Navegação com Badges e Seções
 const navSections = [
     {
-        title: "Workspace",
+        title: "Página Inicial",
+        icon: Home, // Ícone da seção se estiver colapsado
         items: [
             { href: '/dashboard', slug: 'dashboard', icon: LayoutDashboard, label: 'Visão Geral' },
-            { href: '/dashboard/applications/day', slug: 'day', icon: Calendar, label: 'Agenda' },
+            { href: '/dashboard/applications/day', slug: 'day', icon: Calendar, label: 'Minha Agenda' },
         ]
     },
     {
-        title: "Estudos",
+        title: "Módulos de Estudo",
+        icon: Book,
         items: [
-            { href: '/dashboard/applications/write', slug: 'write', icon: PenTool, label: 'Redação' },
+            { href: '/dashboard/applications/write', slug: 'write', icon: PenTool, label: 'Redação IA', badge: 'Novo' },
             { href: '/dashboard/applications/test', slug: 'test', icon: FileText, label: 'Simulados' },
-            { href: '/dashboard/applications/edu', slug: 'edu', icon: GraduationCap, label: 'Turmas' },
+            { href: '/dashboard/applications/edu', slug: 'edu', icon: GraduationCap, label: 'Minhas Turmas' },
             { href: '/dashboard/applications/library', slug: 'library', icon: BookOpen, label: 'Biblioteca' },
         ]
     },
     {
-        title: "Comunidade",
+        title: "Apps & Comunidade",
+        icon: Grid,
         items: [
-            { href: '/dashboard/applications/games', slug: 'games', icon: Gamepad2, label: 'Games' },
-            { href: '/dashboard/applications/play', slug: 'play', icon: PlayCircle, label: 'Play' },
+            { href: '/dashboard/applications/games', slug: 'games', icon: Gamepad2, label: 'Facillit Games' },
             { href: '/dashboard/applications/connect', slug: 'connect', icon: Users, label: 'Connect' },
+            { href: '/dashboard/applications/task', slug: 'task', icon: CheckSquare, label: 'Tarefas' },
+            { href: '/dashboard/applications/create', slug: 'create', icon: Lightbulb, label: 'Studio', badge: 'Beta' },
         ]
     },
     {
-        title: "Apps",
+        title: "Informações",
+        icon: Info,
         items: [
-            { href: '/dashboard/applications/coach-career', slug: 'coach-career', icon: Target, label: 'Carreira' },
-            { href: '/dashboard/applications/lab', slug: 'lab', icon: FlaskConical, label: 'Laboratório' },
-            { href: '/dashboard/applications/task', slug: 'task', icon: CheckSquare, label: 'Tarefas' },
-            { href: '/dashboard/applications/create', slug: 'create', icon: Lightbulb, label: 'Studio' },
+            { href: '/recursos/blog', slug: 'blog', icon: Sparkles, label: 'Blog & Dicas' },
         ]
     }
 ];
@@ -64,15 +66,10 @@ export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, is
 
   if (!userProfile) return null;
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
-  };
-
   const isAdmin = userProfile.userCategory === 'administrator';
 
   const hasAccess = (slug: string) => {
+      if (slug === 'blog') return true;
       if (isAdmin) return true;
       if (slug === 'dashboard') return true;
       if (userProfile.userCategory === 'diretor' && ['edu', 'test', 'write'].includes(slug)) return true;
@@ -84,48 +81,49 @@ export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, is
       {/* Overlay Mobile */}
       <div 
         onClick={() => setIsMobileOpen(false)} 
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ${isMobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+        className={`fixed inset-0 bg-black/20 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 ${isMobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
       />
 
       <aside 
         className={`
             fixed lg:relative top-0 left-0 h-full z-50 flex flex-col
-            bg-[#050505] text-[#888] border-r border-[#1a1a1a]
+            bg-white border-r border-gray-100 shadow-[2px_0_20px_rgba(0,0,0,0.02)]
             transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]
-            ${isMobileOpen ? 'translate-x-0 w-[240px]' : '-translate-x-full w-[240px]'} 
-            lg:translate-x-0 ${isDesktopCollapsed ? 'lg:w-[64px]' : 'lg:w-[240px]'}
+            ${isMobileOpen ? 'translate-x-0 w-[260px]' : '-translate-x-full w-[260px]'} 
+            lg:translate-x-0 ${isDesktopCollapsed ? 'lg:w-[72px]' : 'lg:w-[260px]'}
         `}
       >
-        {/* Header Ultra Minimalista */}
-        <div className={`h-14 flex items-center px-4 mb-2 border-b border-[#1a1a1a] ${isDesktopCollapsed ? 'justify-center' : ''}`}>
+        {/* Header da Sidebar */}
+        <div className={`h-20 flex items-center px-6 mb-2 ${isDesktopCollapsed ? 'justify-center px-0' : ''}`}>
             <div className="flex items-center gap-3">
-                <div className="w-7 h-7 bg-gradient-to-tr from-[#42047e] to-[#07f49e] rounded-md flex items-center justify-center shadow-lg shadow-purple-900/20">
-                    <Image src="/assets/images/LOGO/png/logoazul.svg" alt="FHub" width={16} height={16} className="brightness-0 invert" />
+                <div className="relative w-9 h-9 flex items-center justify-center">
+                   <Image src="/assets/images/LOGO/png/isologo.png" alt="Logo" width={36} height={36} className="object-contain" />
                 </div>
-                <span className={`font-semibold text-gray-200 text-sm tracking-tight transition-opacity duration-200 ${isDesktopCollapsed ? 'hidden opacity-0' : 'block opacity-100'}`}>
-                    Facillit<span className="text-gray-500 font-normal">Hub</span>
-                </span>
+                <div className={`flex flex-col transition-opacity duration-200 ${isDesktopCollapsed ? 'hidden opacity-0' : 'block opacity-100'}`}>
+                    <span className="font-bold text-gray-900 text-lg leading-none tracking-tight">Facillit<span className="text-brand-purple">Hub</span></span>
+                    <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mt-0.5">Workspace</span>
+                </div>
             </div>
-            <button onClick={() => setIsMobileOpen(false)} className="lg:hidden ml-auto text-gray-500 hover:text-white"><X size={18} /></button>
+            <button onClick={() => setIsMobileOpen(false)} className="lg:hidden ml-auto text-gray-400 hover:text-gray-900 bg-gray-50 p-1.5 rounded-lg"><X size={18} /></button>
         </div>
 
         {/* Links de Navegação */}
-        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-6 scrollbar-thin scrollbar-thumb-[#333] hover:scrollbar-thumb-[#444]">
+        <div className="flex-1 overflow-y-auto px-4 space-y-8 scrollbar-thin scrollbar-thumb-gray-200 hover:scrollbar-thumb-gray-300">
             
             {isAdmin && (
-                <div className="mb-4 px-2">
+                <div className="mb-2">
                     <Link 
                         href="/admin" 
                         className={`
-                            flex items-center gap-3 p-2 rounded-md 
-                            bg-red-500/10 text-red-400 border border-red-500/10 
-                            hover:bg-red-500/15 hover:border-red-500/20 hover:text-red-300 transition-all 
-                            ${isDesktopCollapsed ? 'justify-center px-0' : ''}
+                            flex items-center gap-3 p-2.5 rounded-xl
+                            bg-gradient-to-r from-red-50 to-white border border-red-100 text-red-600
+                            hover:shadow-md hover:shadow-red-100/50 hover:border-red-200 transition-all group
+                            ${isDesktopCollapsed ? 'justify-center px-0 w-10 h-10 mx-auto' : ''}
                         `}
                         title="Administração"
                     >
-                        <ShieldCheck size={16} />
-                        {!isDesktopCollapsed && <span className="text-xs font-semibold">Admin</span>}
+                        <ShieldCheck size={18} className="group-hover:scale-110 transition-transform" />
+                        {!isDesktopCollapsed && <span className="text-sm font-bold">Painel Admin</span>}
                     </Link>
                 </div>
             )}
@@ -135,11 +133,14 @@ export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, is
                 if (validItems.length === 0) return null;
 
                 return (
-                    <div key={idx} className="space-y-0.5">
+                    <div key={idx} className="space-y-2">
                         {!isDesktopCollapsed && (
-                            <h4 className="px-3 mb-1.5 text-[10px] font-bold text-[#444] uppercase tracking-wider flex items-center gap-2">
+                            <h4 className="px-3 text-[11px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-3">
                                 {section.title}
                             </h4>
+                        )}
+                        {isDesktopCollapsed && (
+                             <div className="w-8 h-[1px] bg-gray-100 mx-auto my-4"></div>
                         )}
                         
                         {validItems.map((link) => {
@@ -152,26 +153,34 @@ export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, is
                                     href={link.href}
                                     title={isDesktopCollapsed ? link.label : ''} 
                                     className={`
-                                        group flex items-center gap-3 px-3 py-2 rounded-md transition-all duration-200
+                                        relative group flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl transition-all duration-300 ease-out
                                         ${isActive 
-                                            ? 'bg-[#1a1a1a] text-white shadow-inner shadow-black/20' 
-                                            : 'hover:bg-[#111] hover:text-gray-300'
+                                            ? 'bg-brand-purple text-white shadow-lg shadow-brand-purple/20' 
+                                            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                                         }
-                                        ${isDesktopCollapsed ? 'justify-center px-0 h-9 w-9 mx-auto' : ''}
+                                        ${isDesktopCollapsed ? 'justify-center px-0 h-11 w-11 mx-auto' : ''}
                                     `}
                                 >
                                     <Icon 
-                                        size={16} 
-                                        className={`flex-shrink-0 transition-colors ${isActive ? 'text-[#07f49e]' : 'text-gray-500 group-hover:text-gray-300'}`} 
+                                        size={isDesktopCollapsed ? 20 : 18} 
+                                        strokeWidth={2}
+                                        className={`flex-shrink-0 transition-colors ${isActive ? 'text-white' : 'text-gray-400 group-hover:text-brand-purple'}`} 
                                     />
+                                    
                                     {!isDesktopCollapsed && (
-                                        <span className={`text-[13px] font-medium ${isActive ? 'text-gray-100' : 'text-[#888] group-hover:text-gray-300'}`}>
+                                        <span className={`text-[13px] font-semibold tracking-wide ${isActive ? 'text-white' : ''}`}>
                                             {link.label}
                                         </span>
                                     )}
-                                    {/* Indicador Ativo (Ponto) */}
-                                    {isActive && !isDesktopCollapsed && (
-                                        <span className="ml-auto w-1 h-1 bg-[#07f49e] rounded-full shadow-[0_0_8px_rgba(7,244,158,0.5)]"></span>
+
+                                    {/* Badges (Novo, Beta, etc) */}
+                                    {!isDesktopCollapsed && link.badge && !isActive && (
+                                        <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                                            link.badge === 'Novo' ? 'bg-green-50 text-green-600 border-green-100' : 
+                                            link.badge === 'Beta' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-gray-100 text-gray-500'
+                                        }`}>
+                                            {link.badge}
+                                        </span>
                                     )}
                                 </Link>
                             );
@@ -181,14 +190,18 @@ export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, is
             })}
         </div>
         
-        {/* Footer */}
-        <div className="p-2 border-t border-[#1a1a1a] bg-[#050505]">
+        {/* Footer (Collapse) */}
+        <div className="p-4 border-t border-gray-100 bg-white">
             <button 
                 onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)} 
-                className={`flex items-center gap-3 p-2 rounded-md hover:bg-[#111] text-gray-500 hover:text-white transition-colors w-full group ${isDesktopCollapsed ? 'justify-center' : ''}`}
+                className={`
+                    flex items-center gap-3 p-2.5 rounded-xl w-full
+                    text-gray-400 hover:bg-gray-50 hover:text-gray-900 transition-all
+                    ${isDesktopCollapsed ? 'justify-center' : ''}
+                `}
             >
-                {isDesktopCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-                {!isDesktopCollapsed && <span className="text-xs font-medium">Recolher</span>}
+                {isDesktopCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                {!isDesktopCollapsed && <span className="text-xs font-semibold">Recolher Menu</span>}
             </button>
         </div>
       </aside>
