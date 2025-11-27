@@ -218,7 +218,6 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
 export const getStudentDashboardData = getStudentTestDashboardData;
 
 // --- 3. EXECUÇÃO E CORREÇÃO DE TESTE (A FUNÇÃO QUE FALTAVA) ---
-
 export async function submitTestAttempt(
   testId: string, 
   answers: StudentAnswerPayload[], 
@@ -229,53 +228,38 @@ export async function submitTestAttempt(
 
   if (!user) return { error: "Usuário não autenticado." };
 
-  // 1. Buscar Teste e Gabarito para Correção
+  // 1. Buscar Gabarito
   const { data: testData, error: testError } = await supabase
     .from('tests')
-    .select(`
-        id, 
-        test_type,
-        questions (
-            id, 
-            points, 
-            question_type, 
-            content
-        )
-    `)
+    .select('id, test_type, questions (id, points, question_type, content)')
     .eq('id', testId)
     .single();
 
-  if (testError || !testData) return { error: "Teste não encontrado ou indisponível." };
-
-  let totalScore = 0;
-  let maxScore = 0;
-  
-  const answersMap = new Map(answers.map(a => [a.question_id, a.answer]));
+  if (testError || !testData) return { error: "Teste não encontrado." };
 
   // 2. Calcular Nota
+  let totalScore = 0;
+  let maxScore = 0;
+  const answersMap = new Map(answers.map(a => [a.question_id, a.answer]));
+
   const processedAnswers = testData.questions.map((q: any) => {
       const studentAnswer = answersMap.get(q.id);
       let isCorrect = false;
       let points = 0;
 
-      // Correção automática para Múltipla Escolha e V/F
       if (testData.test_type === 'avaliativo' && (q.question_type === 'multiple_choice' || q.question_type === 'true_false')) {
-          // content.correct_option deve ser comparado com a resposta do aluno
-          // Convertendo para string para garantir comparação segura
-          if (studentAnswer !== undefined && String(studentAnswer) === String(q.content.correct_option)) {
+          if (String(studentAnswer) === String(q.content.correct_option)) {
               isCorrect = true;
               points = q.points || 1;
           }
       } 
-      // Dissertativas requerem correção manual futura ou IA
-
       totalScore += points;
       maxScore += (q.points || 1);
 
       return {
           question_id: q.id,
           student_id: user.id,
-          answer: { value: studentAnswer }, // Salva como JSONB
+          answer: { value: studentAnswer },
           is_correct: isCorrect,
           points_earned: points
       };
@@ -283,23 +267,27 @@ export async function submitTestAttempt(
 
   const finalScore = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
 
-  // 3. Salvar Tentativa
+  // 3. Salvar Tentativa (UPSERT para corrigir erro de chave duplicada)
+  // IMPORTANTE: Isso atualiza a nota se o aluno refizer a prova.
+  // Se quiser manter histórico, o banco precisaria remover a constraint unique.
   const { data: attempt, error: attemptError } = await supabase
       .from('test_attempts')
-      .insert({
+      .upsert({
           test_id: testId,
           student_id: user.id,
           score: finalScore,
           time_spent_seconds: totalTimeSeconds,
           status: 'completed',
           completed_at: new Date().toISOString()
-      })
+      }, { onConflict: 'student_id, test_id' }) // Especifica a constraint de conflito
       .select()
       .single();
 
-  if (attemptError) return { error: "Erro ao salvar tentativa: " + attemptError.message };
+  if (attemptError) return { error: "Erro ao salvar: " + attemptError.message };
 
-  // 4. Salvar Respostas Individuais
+  // 4. Salvar Respostas (Limpar antigas antes se for upsert)
+  await supabase.from('student_answers').delete().eq('attempt_id', attempt.id);
+
   const answersToInsert = processedAnswers.map(pa => ({
       attempt_id: attempt.id,
       question_id: pa.question_id,
@@ -309,14 +297,9 @@ export async function submitTestAttempt(
       time_spent_seconds: 0
   }));
 
-  const { error: answersError } = await supabase
-      .from('student_answers')
-      .insert(answersToInsert);
-
-  if (answersError) console.error("Erro ao salvar detalhes das respostas:", answersError);
+  const { error: answersError } = await supabase.from('student_answers').insert(answersToInsert);
 
   revalidatePath('/dashboard/applications/test');
-  
   return { success: true, attemptId: attempt.id, score: finalScore };
 }
 
