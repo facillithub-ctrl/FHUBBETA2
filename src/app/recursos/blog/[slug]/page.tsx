@@ -9,7 +9,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
-// CORREÇÃO: ArrowRight incluído na lista abaixo
 import { ChevronRight, Calendar, Clock, ArrowLeft, ArrowRight, BadgeCheck } from 'lucide-react'
 
 // --- Função para buscar dados do post ---
@@ -108,40 +107,40 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
                 {post.title}
             </h1>
 
-            {/* Author Box Simplificado (Header) */}
-            <div className="flex flex-wrap items-center gap-6 text-gray-500 text-sm border-t border-gray-200 pt-6">
-                <div className="flex items-center gap-3">
-                    <div className="relative w-10 h-10">
-                        {post.author?.image ? (
-                            <Image src={urlFor(post.author.image).url()} alt={post.author.name} fill className="rounded-full object-cover border border-gray-200" />
-                        ) : (
-                            <div className="w-10 h-10 bg-brand-gradient rounded-full flex items-center justify-center text-white font-bold shadow-md">
-                                {post.author?.name?.charAt(0) || 'F'}
-                            </div>
-                        )}
-                        {post.author?.isOfficial && (
-                            <div className="absolute -bottom-1 -right-1 bg-brand-purple text-white rounded-full p-[2px] border-2 border-white" title="Verificado">
-                                <BadgeCheck size={10} fill="currentColor" className="text-white" />
-                            </div>
-                        )}
-                    </div>
-                    <div>
-                        <p className="text-gray-900 font-bold flex items-center gap-1">
-                            {post.author?.name || 'Equipe Facillit'}
-                        </p>
-                        <p className="text-xs text-gray-400">{post.author?.role || 'Colaborador'}</p>
-                    </div>
-                </div>
+            {/* Author Box Premium */}
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 bg-white border border-gray-100 shadow-xl shadow-gray-200/50 rounded-2xl p-6 md:p-8 mt-12 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-purple/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
                 
-                <div className="w-px h-8 bg-gray-200 hidden sm:block"></div>
-                
-                <div className="flex items-center gap-1.5">
-                    <Calendar size={16} /> {new Date(post.publishedAt).toLocaleDateString('pt-BR')}
+                <div className="relative w-20 h-20 flex-shrink-0">
+                    {post.author?.image ? (
+                        <Image src={urlFor(post.author.image).url()} alt={post.author.name} fill className="rounded-full object-cover ring-4 ring-gray-50" />
+                    ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-brand-purple to-brand-dark rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-inner">
+                            {post.author?.name?.charAt(0) || 'F'}
+                        </div>
+                    )}
+                    {post.author?.isOfficial && (
+                        <div className="absolute bottom-0 right-0 bg-blue-500 text-white p-1 rounded-full ring-2 ring-white" title="Verificado Oficial">
+                            <BadgeCheck size={14} fill="currentColor" />
+                        </div>
+                    )}
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <Clock size={16} /> {post.estimatedReadingTime} min de leitura
+
+                <div className="text-center sm:text-left z-10">
+                    <h4 className="text-lg font-bold text-gray-900 mb-1 flex items-center justify-center sm:justify-start gap-2">
+                        {post.author?.name || 'Equipe Facillit'}
+                        <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold uppercase tracking-wider">{post.author?.role || 'Editor'}</span>
+                    </h4>
+                    <p className="text-gray-500 text-sm leading-relaxed mb-4 max-w-lg">
+                        {post.author?.bio || 'Especialista em educação e tecnologia, compartilhando insights para transformar o aprendizado no Facillit Hub.'}
+                    </p>
+                    <div className="flex items-center justify-center sm:justify-start gap-4 text-xs font-medium text-brand-purple">
+                        <span className="flex items-center gap-1.5"><Calendar size={14} /> {new Date(post.publishedAt).toLocaleDateString('pt-BR')}</span>
+                        <span className="flex items-center gap-1.5"><Clock size={14} /> {post.estimatedReadingTime} min de leitura</span>
+                    </div>
                 </div>
             </div>
+
         </div>
       </div>
 
@@ -194,7 +193,6 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
                              <div className="p-6 flex-1 flex flex-col">
                                 <h4 className="font-bold text-gray-900 line-clamp-2 group-hover:text-brand-purple transition-colors mb-2">{item.title}</h4>
                                 <span className="text-xs text-gray-400 font-medium flex items-center mt-auto">
-                                    {/* CORREÇÃO: ArrowRight usado aqui corretamente */}
                                     Ler artigo <ArrowRight size={12} className="inline ml-1 group-hover:translate-x-1 transition-transform"/>
                                 </span>
                              </div>

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import createSupabaseServerClient from '@/utils/supabase/server';
+import { client } from '@/lib/sanity'; // Importação necessária para o Blog
 
 // =============================================================================
 // 1. TIPOS DE DADOS (TYPES)
@@ -86,6 +87,16 @@ export type ActionPlan = {
     source_essay?: string;
 };
 
+// Tipo novo para as Notícias/Blog
+export type CurrentEvent = { 
+  id: string; 
+  title: string; 
+  summary: string | null; 
+  link: string; 
+  type?: 'blog' | 'news';
+  publishedAt?: string;
+};
+
 // =============================================================================
 // 2. FUNÇÕES CRUD (LEITURA E ESCRITA BÁSICA)
 // =============================================================================
@@ -146,10 +157,8 @@ export async function generateAndSaveAIAnalysis(essayId: string, essayContent: s
 
         // 2. Configurações da API Externa (Groq / OpenAI)
         let aiBaseUrl = process.env.AI_BASE_URL || "https://api.groq.com/openai/v1";
-        // Remove barra final se houver para evitar duplicidade
         if (aiBaseUrl.endsWith('/')) aiBaseUrl = aiBaseUrl.slice(0, -1);
         
-        // Garante o endpoint correto de chat completions
         const aiEndpoint = aiBaseUrl.endsWith('/chat/completions') 
             ? aiBaseUrl 
             : `${aiBaseUrl}/chat/completions`;
@@ -162,47 +171,43 @@ export async function generateAndSaveAIAnalysis(essayId: string, essayContent: s
             return { error: "Serviço de IA indisponível (Chave de API ausente)." };
         }
 
-        // 3. Limpeza do Texto (Remove HTML básico para economizar tokens)
+        // 3. Limpeza do Texto
         const plainText = essayContent
-            .replace(/<[^>]*>/g, ' ') // Troca tags por espaço
-            .replace(/\s+/g, ' ')     // Normaliza espaços múltiplos
+            .replace(/<[^>]*>/g, ' ') 
+            .replace(/\s+/g, ' ')     
             .trim();
 
         if (plainText.length < 50) {
             return { error: "Texto muito curto para análise." };
         }
 
-        // 4. Prompt do Sistema (O "Prompt Real")
+        // 4. Prompt do Sistema
         const systemPrompt = `
           Atue como o "Facillit Corrector", um avaliador oficial do ENEM com vasta experiência.
           Analise a redação fornecida pelo usuário com rigor, baseando-se nas 5 competências oficiais do ENEM.
           
           SAÍDA OBRIGATÓRIA:
-          Você deve retornar APENAS um objeto JSON válido. Não inclua blocos de código markdown (como \`\`\`json), nem texto antes ou depois.
+          Você deve retornar APENAS um objeto JSON válido. Não inclua blocos de código markdown.
           
           ESTRUTURA DO JSON:
           {
             "detailed_feedback": [
-              { "competency": "Competência 1: Norma Culta", "feedback": "Análise detalhada sobre gramática, ortografia e acentuação..." },
-              { "competency": "Competência 2: Tema e Estrutura", "feedback": "Análise sobre a compreensão do tema e estrutura dissertativa..." },
-              { "competency": "Competência 3: Argumentação", "feedback": "Análise sobre a seleção e organização dos argumentos..." },
-              { "competency": "Competência 4: Coesão", "feedback": "Análise sobre o uso de conectivos e sequenciamento lógico..." },
-              { "competency": "Competência 5: Proposta de Intervenção", "feedback": "Análise da proposta de solução para o problema..." }
+              { "competency": "Competência 1: Norma Culta", "feedback": "Análise detalhada..." },
+              { "competency": "Competência 2: Tema e Estrutura", "feedback": "Análise detalhada..." },
+              { "competency": "Competência 3: Argumentação", "feedback": "Análise detalhada..." },
+              { "competency": "Competência 4: Coesão", "feedback": "Análise detalhada..." },
+              { "competency": "Competência 5: Proposta de Intervenção", "feedback": "Análise detalhada..." }
             ],
             "rewrite_suggestions": [
-              { "original": "Trecho do texto com problema", "suggestion": "Sugestão de reescrita melhorada" }
+              { "original": "Trecho...", "suggestion": "Sugestão..." }
             ],
             "actionable_items": [
-              "Ação prática 1 para o aluno estudar (ex: Revisar uso de crase)",
-              "Ação prática 2",
-              "Ação prática 3"
+              "Ação prática 1", "Ação prática 2"
             ]
           }
         `;
 
-        // 5. Chamada Externa (Fetch Direto)
-        console.log(`[Action] Enviando requisição para ${aiEndpoint} (Modelo: ${aiModel})`);
-        
+        // 5. Chamada Externa
         const response = await fetch(aiEndpoint, {
             method: "POST",
             headers: {
@@ -217,13 +222,11 @@ export async function generateAndSaveAIAnalysis(essayId: string, essayContent: s
                 ],
                 temperature: 0.3,
                 max_tokens: 3000,
-                response_format: { type: "json_object" } // Força JSON mode se o modelo suportar
+                response_format: { type: "json_object" }
             })
         });
 
         if (!response.ok) {
-            const errText = await response.text();
-            console.error(`[Action] Erro Provider IA (${response.status}):`, errText);
             throw new Error(`Falha na comunicação com a IA (${response.status}).`);
         }
 
@@ -233,22 +236,17 @@ export async function generateAndSaveAIAnalysis(essayId: string, essayContent: s
         // 6. Parse Seguro do JSON
         let aiData;
         try {
-            // Remove possíveis marcadores de markdown que alguns modelos insistem em colocar
             const cleanJson = content.replace(/```json/g, '').replace(/```/g, '').trim();
             aiData = JSON.parse(cleanJson);
         } catch (parseError) {
-            console.error("[Action] Erro Parse JSON IA:", content);
             throw new Error("A IA gerou uma resposta mal formatada. Tente novamente.");
         }
 
-        // Validação básica da estrutura
         if (!aiData.detailed_feedback || !aiData.actionable_items) {
             throw new Error("Resposta da IA incompleta.");
         }
 
-        // 7. Salvar no Banco de Dados (Upsert)
-        console.log("[Action] Salvando feedback no Supabase...");
-        
+        // 7. Salvar no Banco de Dados
         const { data: savedData, error: saveError } = await supabase
             .from('ai_feedback')
             .upsert({
@@ -256,21 +254,15 @@ export async function generateAndSaveAIAnalysis(essayId: string, essayContent: s
                 detailed_feedback: aiData.detailed_feedback,
                 rewrite_suggestions: aiData.rewrite_suggestions,
                 actionable_items: aiData.actionable_items,
-                // updated_at: new Date().toISOString() // Descomente se tiver essa coluna
             }, { onConflict: 'essay_id' })
             .select()
             .single();
 
         if (saveError) {
-            console.error("[Action] Erro Supabase:", saveError);
             throw new Error("Erro ao salvar a análise no banco de dados.");
         }
-
-        console.log("[Action] Sucesso!");
         
-        // Revalida a página para exibir os novos dados imediatamente
         revalidatePath(`/dashboard/applications/write`);
-        
         return { success: true, data: savedData };
 
     } catch (error: any) {
@@ -280,7 +272,7 @@ export async function generateAndSaveAIAnalysis(essayId: string, essayContent: s
 }
 
 // =============================================================================
-// 4. OUTRAS FUNÇÕES DO SISTEMA (MANTIDAS)
+// 4. OUTRAS FUNÇÕES DO SISTEMA
 // =============================================================================
 
 export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
@@ -539,7 +531,71 @@ export async function getCorrectedEssaysForTeacher(teacherId: string, organizati
   return { data };
 }
 
-// Stubs para evitar erros
+// =============================================================================
+// 5. FUNÇÃO ROBUSTA DE NOTÍCIAS (SANITY + FALLBACK)
+// =============================================================================
+
+export async function getCurrentEvents() {
+    console.log("[WriteAction] Iniciando busca de notícias...");
+    
+    try {
+        // TENTATIVA 1: Busca Filtrada (Categorias específicas)
+        // Busca por slug da categoria ou título (case-insensitive via lista)
+        // Isso garante que se a categoria for "Write", "Redacao", "Educação", ele ache.
+        const filteredQuery = `*[_type == "post" && (
+            count((categories[]->title)[@ in ["Write", "Redação", "Educação", "Dicas de Estudo", "write", "redacao"]]) > 0
+        )] | order(publishedAt desc)[0...5] {
+            _id,
+            title,
+            excerpt,
+            slug,
+            publishedAt,
+            "categories": categories[]->title
+        }`;
+
+        let posts = await client.fetch(filteredQuery);
+
+        // TENTATIVA 2: Fallback (Se não achar nada filtrado, pega QUALQUER post recente)
+        // Isso evita que o componente fique vazio se as categorias não estiverem configuradas exatamente igual
+        if (!posts || posts.length === 0) {
+            console.log("[WriteAction] Filtro específico retornou vazio. Buscando posts gerais...");
+            const fallbackQuery = `*[_type == "post"] | order(publishedAt desc)[0...5] {
+                _id,
+                title,
+                excerpt,
+                slug,
+                publishedAt
+            }`;
+            posts = await client.fetch(fallbackQuery);
+        }
+
+        if (!posts || posts.length === 0) {
+            console.warn("[WriteAction] Nenhum post encontrado no Sanity (nem filtrado, nem geral). Verifique o Project ID.");
+            return { data: [] };
+        }
+
+        console.log(`[WriteAction] Sucesso! ${posts.length} posts encontrados.`);
+
+        const events: CurrentEvent[] = posts.map((post: any) => ({
+            id: post._id,
+            title: post.title,
+            summary: post.excerpt || "Clique para ler o artigo completo.",
+            // Garante que o link aponte para a rota correta do blog
+            link: `/recursos/blog/${post.slug?.current || '#'}`,
+            type: 'blog',
+            publishedAt: post.publishedAt
+        }));
+
+        return { data: events };
+
+    } catch (error) {
+        console.error("[WriteAction] ERRO DE CONEXÃO COM SANITY:", error);
+        // Em caso de erro grave (ex: Project ID errado), retorna vazio para não quebrar a tela
+        return { data: [] };
+    }
+}
+
+// Stubs para funções que não estão implementadas ou são placeholders
 export async function toggleActionPlanItem(itemId: string, itemText: string, newStatus: boolean) { return { success: true }; }
 export async function checkForPlagiarism(_text: string) { return { data: { similarity_percentage: 0, matches: [] } }; }
 export async function saveStudyPlan(plan: any) { return { success: true }; }
@@ -548,7 +604,6 @@ export async function getAIFeedbackForEssay(essayId: string) { return { data: nu
 export async function calculateWritingStreak() { return { data: 0 }; }
 export async function getUserStateRank() { return { data: null }; }
 export async function getFrequentErrors() { return { data: [] }; }
-export async function getCurrentEvents() { return { data: [] }; }
 export async function createNotification() { return { error: null }; }
 // Função legada:
 export async function generateAIAnalysis(text: string) { return { error: "Use generateAndSaveAIAnalysis" }; }
