@@ -1,6 +1,6 @@
 import createSupabaseServerClient from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
-import AccountClientPage from './AccountClientPage'; // O nosso componente de layout
+import AccountClientPage from './AccountClientPage';
 import type { UserProfile } from '../types';
 
 export default async function AccountPage() {
@@ -11,10 +11,10 @@ export default async function AccountPage() {
     redirect('/login');
   }
 
-  // 1. Busca o perfil COMPLETO do utilizador, incluindo o JSONB
+  // 1. Busca o perfil COMPLETO do utilizador
   const { data: profileData, error } = await supabase
     .from('profiles')
-    .select('*') // Seleciona todas as colunas
+    .select('*')
     .eq('id', user.id)
     .single();
 
@@ -23,31 +23,37 @@ export default async function AccountPage() {
     redirect('/dashboard');
   }
 
-  // 2. Mapeia os dados para o tipo UserProfile
-  // (Nota: 'category_details' será passado, mas não faz parte do tipo UserProfile,
-  // vamos passá-lo como 'fullProfileData' para o cliente)
+  // 2. Mapeia os dados para o tipo HÍBRIDO UserProfile
   const userProfile: UserProfile = {
     id: profileData.id,
-    fullName: profileData.full_name,
+    email: user.email!, // Campo Obrigatório Adicionado
+
+    // --- Padrão Novo (snake_case) ---
+    full_name: profileData.full_name,
     nickname: profileData.nickname,
+    avatar_url: profileData.avatar_url,
+    is_verified: profileData.is_verified || false, // Campo Obrigatório Adicionado
+    active_modules: profileData.active_modules,
+    organization_id: profileData.organization_id,
+    user_category: profileData.user_category,
+
+    // --- Padrão Legado (camelCase) ---
+    fullName: profileData.full_name,
     avatarUrl: profileData.avatar_url,
     userCategory: profileData.user_category,
     pronoun: profileData.pronoun,
     birthDate: profileData.birth_date,
     schoolName: profileData.school_name,
-    organization_id: profileData.organization_id,
     target_exam: profileData.target_exam,
-    active_modules: profileData.active_modules,
     verification_badge: profileData.verification_badge,
     has_completed_onboarding: profileData.has_completed_onboarding,
   };
 
   return (
     <div>
-      {/* 3. Renderiza o componente cliente, passando todos os dados */}
       <AccountClientPage 
         userProfile={userProfile} 
-        fullProfileData={profileData} // Passa todos os dados, incl. category_details
+        fullProfileData={profileData}
       />
     </div>
   );
