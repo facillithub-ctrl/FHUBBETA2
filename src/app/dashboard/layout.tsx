@@ -24,8 +24,6 @@ export default async function DashboardLayout({
 
   if (error && error.code !== 'PGRST116') {
     console.error("Erro ao buscar perfil:", error); 
-    // Não redireciona imediatamente para evitar loop se o erro for temporário, 
-    // mas se não tiver perfil, o objeto abaixo lida com isso.
   }
 
   // Constrói o objeto UserProfile garantindo que não seja undefined
@@ -44,7 +42,6 @@ export default async function DashboardLayout({
     active_modules: profile.active_modules,
     has_completed_onboarding: profile.has_completed_onboarding,
   } : {
-    // Fallback seguro para novos usuários sem perfil completo
     id: user.id,
     fullName: user.email?.split('@')[0] || 'Usuário',
     userCategory: null,

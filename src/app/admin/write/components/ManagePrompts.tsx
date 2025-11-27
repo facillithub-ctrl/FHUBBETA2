@@ -110,7 +110,6 @@ export default function ManagePrompts({ prompts }: Props) {
 
     const handleFileUpload = async (file: File): Promise<string | null> => {
         setIsUploading(true);
-        // Sanitiza o nome do arquivo
         const fileExt = file.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
         const filePath = `covers/${fileName}`;
@@ -130,7 +129,6 @@ export default function ManagePrompts({ prompts }: Props) {
         return data.publicUrl;
     };
 
-    // Função genérica para lidar com upload de imagens
     const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>, field: 'image_url' | 'motivational_text_3_image_url') => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -146,9 +144,10 @@ export default function ManagePrompts({ prompts }: Props) {
         if (!currentPrompt) return;
 
         startTransition(async () => {
+            // CORREÇÃO AQUI: Converter string vazia para null no deadline
             const submissionData = {
                 ...currentPrompt,
-                // Converte string de tags de volta para array
+                deadline: currentPrompt.deadline ? currentPrompt.deadline : null,
                 tags: currentPrompt.tags.split(',').map(tag => tag.trim()).filter(Boolean)
             };
             
@@ -156,7 +155,7 @@ export default function ManagePrompts({ prompts }: Props) {
             if (result.error) {
                 addToast({ title: "Erro ao Salvar", message: result.error, type: 'error' });
             } else {
-                addToast({ title: "Sucesso!", message: "O tema foi salvo e publicado.", type: 'success' });
+                addToast({ title: "Tema Salvo", message: "O tema foi salvo e publicado.", type: 'success' });
                 handleCloseModal();
                 router.refresh();
             }
@@ -187,7 +186,7 @@ export default function ManagePrompts({ prompts }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[800px] overflow-y-auto p-1">
                 {prompts.map(prompt => (
                     <div key={prompt.id} className="group border dark:border-gray-700 rounded-xl overflow-hidden hover:shadow-lg transition-all bg-white dark:bg-gray-800 flex flex-col">
-                        <div className="h-36 bg-gray-200 dark:bg-gray-700 relative">
+                        <div className="h-36 bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
                             {prompt.image_url ? (
                                 <Image src={prompt.image_url} alt={prompt.title} fill className="object-cover transition-transform duration-500 group-hover:scale-110" />
                             ) : (
@@ -218,71 +217,65 @@ export default function ManagePrompts({ prompts }: Props) {
                 ))}
             </div>
 
-            {/* MODAL DE CRIAÇÃO/EDIÇÃO */}
             {isModalOpen && currentPrompt && (
                 <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 overflow-y-auto">
-                    <div className="bg-white dark:bg-dark-card rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-fade-in-right">
+                    <div className="bg-white dark:bg-dark-card rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-fade-in my-auto">
                         <div className="p-5 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800 rounded-t-xl sticky top-0 z-10">
                             <h3 className="text-xl font-bold text-dark-text dark:text-white">
-                                {currentPrompt.id ? 'Editar Tema Global' : 'Criar Novo Tema Global'}
+                                {currentPrompt.id ? 'Editar Tema' : 'Criar Novo Tema'}
                             </h3>
                             <button onClick={handleCloseModal} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-2xl">&times;</button>
                         </div>
                         
                         <form id="prompt-form" onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
                             
-                            {/* Bloco 1: Informações Básicas */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-bold mb-1 dark:text-gray-300">Título do Tema <span className="text-red-500">*</span></label>
                                         <input type="text" value={currentPrompt.title || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, title: e.target.value }) : null)} required className="w-full p-2.5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-royal-blue focus:outline-none" placeholder="Ex: Os desafios da mobilidade urbana" />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1 dark:text-gray-300">Fonte / Origem</label>
-                                        <input type="text" value={currentPrompt.source || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, source: e.target.value }) : null)} className="w-full p-2.5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Ex: ENEM 2023, Autoral" />
+                                    <div className="grid grid-cols-2 gap-4">
+                                         <div>
+                                            <label className="block text-sm font-bold mb-1 dark:text-gray-300">Fonte / Origem</label>
+                                            <input type="text" value={currentPrompt.source || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, source: e.target.value }) : null)} className="w-full p-2.5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="Ex: ENEM 2023, Autoral" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold mb-1 dark:text-gray-300">Categoria</label>
+                                            <select value={currentPrompt.category || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, category: e.target.value }) : null)} className="w-full p-2.5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white bg-white dark:bg-gray-700">
+                                                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                            </select>
+                                        </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-bold mb-1 dark:text-gray-300">Categoria</label>
-                                        <select value={currentPrompt.category || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, category: e.target.value }) : null)} className="w-full p-2.5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white bg-white">
-                                            <option value="">Selecione uma categoria</option>
-                                            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1 dark:text-gray-300">Descrição da Proposta</label>
+                                        <label className="block text-sm font-bold mb-1 dark:text-gray-300">Proposta de Redação</label>
                                         <textarea rows={8} value={currentPrompt.description || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, description: e.target.value }) : null)} className="w-full p-2.5 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white focus:ring-2 focus:ring-royal-blue focus:outline-none" placeholder="Instruções gerais sobre o tema..." />
                                     </div>
                                 </div>
-                            </div>
 
-                            <hr className="dark:border-gray-700" />
-
-                            {/* Bloco 2: Imagem de Capa e Dificuldade */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-sm font-bold mb-2 dark:text-gray-300">Imagem de Capa</label>
-                                    <div className="flex items-start gap-4">
-                                        <div className="flex-1">
-                                            <input type="file" onChange={(e) => handleImageChange(e, 'image_url')} accept="image/*" className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-royal-blue/10 file:text-royal-blue hover:file:bg-royal-blue/20" />
-                                            {isUploading && <p className="text-xs text-blue-500 mt-1">A carregar imagem...</p>}
-                                            <input type="text" value={currentPrompt.cover_image_source || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, cover_image_source: e.target.value }) : null)} placeholder="Fonte da imagem (opcional)" className="w-full mt-2 p-2 text-xs border rounded dark:bg-gray-700 dark:border-gray-600" />
-                                        </div>
-                                        {currentPrompt.image_url && (
-                                            <div className="relative h-24 w-24 rounded-lg overflow-hidden border border-gray-200">
-                                                <Image src={currentPrompt.image_url} alt="Capa" fill className="object-cover" />
+                                <div className="space-y-6">
+                                     <div>
+                                        <label className="block text-sm font-bold mb-2 dark:text-gray-300">Capa do Tema</label>
+                                        <div className="flex items-start gap-4 p-3 border border-dashed rounded-lg dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50">
+                                            <div className="flex-1">
+                                                <input type="file" onChange={(e) => handleImageChange(e, 'image_url')} accept="image/*" className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-royal-blue/10 file:text-royal-blue hover:file:bg-royal-blue/20" />
+                                                {isUploading && <p className="text-xs text-blue-500 mt-1">A carregar imagem...</p>}
+                                                <input type="text" value={currentPrompt.cover_image_source || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, cover_image_source: e.target.value }) : null)} placeholder="Créditos da imagem (opcional)" className="w-full mt-2 p-2 text-xs border rounded dark:bg-gray-700 dark:border-gray-600" />
                                             </div>
-                                        )}
+                                            {currentPrompt.image_url && (
+                                                <div className="relative h-24 w-24 rounded-lg overflow-hidden border border-gray-200">
+                                                    <Image src={currentPrompt.image_url} alt="Capa" fill className="object-cover" />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                                <div>
+
                                     <DifficultySelector 
                                         value={currentPrompt.difficulty || 3}
                                         onChange={value => setCurrentPrompt(p => p ? ({...p, difficulty: value}) : null)}
                                     />
-                                    <div className="mt-4">
+
+                                    <div>
                                         <label className="block text-sm font-bold mb-1 dark:text-gray-300">Tags (separadas por vírgula)</label>
                                         <input type="text" value={currentPrompt.tags} onChange={e => setCurrentPrompt(p => p ? ({ ...p, tags: e.target.value }) : null)} placeholder="Ex: Cidadania, Direitos Humanos" className="w-full p-2.5 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
                                     </div>
@@ -291,52 +284,49 @@ export default function ManagePrompts({ prompts }: Props) {
 
                             <hr className="dark:border-gray-700" />
 
-                            {/* Bloco 3: Textos Motivadores */}
-                            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl border dark:border-gray-700">
-                                <h4 className="font-bold text-lg mb-4 text-royal-blue">Textos Motivadores</h4>
-                                <div className="space-y-4">
+                            <div className="bg-blue-50 dark:bg-blue-900/10 p-5 rounded-xl border border-blue-100 dark:border-blue-800/30">
+                                <h4 className="font-bold text-lg mb-4 text-royal-blue dark:text-blue-400">Textos Motivadores</h4>
+                                <div className="grid grid-cols-1 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium mb-1 dark:text-gray-300">Texto Motivador I</label>
-                                        <textarea rows={3} value={currentPrompt.motivational_text_1 || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, motivational_text_1: e.target.value }) : null)} className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600" placeholder="Cole aqui o primeiro texto de apoio..." />
+                                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Texto I</label>
+                                        <textarea rows={3} value={currentPrompt.motivational_text_1 || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, motivational_text_1: e.target.value }) : null)} className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 text-sm" placeholder="Texto de apoio..." />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium mb-1 dark:text-gray-300">Texto Motivador II</label>
-                                        <textarea rows={3} value={currentPrompt.motivational_text_2 || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, motivational_text_2: e.target.value }) : null)} className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600" placeholder="Cole aqui o segundo texto de apoio..." />
+                                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Texto II</label>
+                                        <textarea rows={3} value={currentPrompt.motivational_text_2 || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, motivational_text_2: e.target.value }) : null)} className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 text-sm" placeholder="Outro texto de apoio..." />
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                                         <div>
-                                            <label className="block text-sm font-medium mb-1 dark:text-gray-300">Texto Motivador III (Imagem)</label>
-                                            <input type="file" onChange={(e) => handleImageChange(e, 'motivational_text_3_image_url')} accept="image/*" className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200" />
-                                            {currentPrompt.motivational_text_3_image_url && <div className="mt-2 relative h-20 w-auto inline-block"><Image src={currentPrompt.motivational_text_3_image_url} alt="Motivador 3" width={100} height={80} className="rounded object-contain h-full" /></div>}
+                                            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Texto III (Imagem)</label>
+                                            <input type="file" onChange={(e) => handleImageChange(e, 'motivational_text_3_image_url')} accept="image/*" className="w-full text-sm" />
+                                            {currentPrompt.motivational_text_3_image_url && <div className="mt-2 relative h-24 w-full bg-gray-100 rounded flex items-center justify-center overflow-hidden"><Image src={currentPrompt.motivational_text_3_image_url} alt="Texto 3" width={150} height={100} className="object-contain h-full" /></div>}
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1 dark:text-gray-300">Descrição/Legenda da Imagem</label>
-                                            <input type="text" value={currentPrompt.motivational_text_3_description || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, motivational_text_3_description: e.target.value }) : null)} className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600" />
-                                            <input type="text" value={currentPrompt.motivational_text_3_image_source || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, motivational_text_3_image_source: e.target.value }) : null)} placeholder="Fonte da imagem" className="w-full mt-2 p-2 border rounded-md text-xs dark:bg-gray-700 dark:border-gray-600" />
+                                        <div className="space-y-2">
+                                            <input type="text" value={currentPrompt.motivational_text_3_description || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, motivational_text_3_description: e.target.value }) : null)} placeholder="Legenda da imagem" className="w-full p-2 border rounded-md text-sm dark:bg-gray-700 dark:border-gray-600" />
+                                            <input type="text" value={currentPrompt.motivational_text_3_image_source || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, motivational_text_3_image_source: e.target.value }) : null)} placeholder="Fonte da imagem" className="w-full p-2 border rounded-md text-sm dark:bg-gray-700 dark:border-gray-600" />
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Bloco 4: Datas */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-sm font-bold mb-1 dark:text-gray-300">Data de Publicação</label>
-                                    <input type="date" value={currentPrompt.publication_date || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, publication_date: e.target.value }) : null)} className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600" />
+                                    <input type="date" value={currentPrompt.publication_date || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, publication_date: e.target.value }) : null)} className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold mb-1 dark:text-gray-300">Prazo Final (Opcional)</label>
-                                    <input type="datetime-local" value={currentPrompt.deadline || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, deadline: e.target.value }) : null)} className="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600" />
+                                    <input type="datetime-local" value={currentPrompt.deadline || ''} onChange={e => setCurrentPrompt(p => p ? ({ ...p, deadline: e.target.value }) : null)} className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
                                 </div>
                             </div>
 
                         </form>
                         <div className="p-5 border-t dark:border-gray-700 flex justify-end gap-3 bg-gray-50 dark:bg-gray-800 rounded-b-xl sticky bottom-0 z-10">
-                            <button type="button" onClick={handleCloseModal} className="px-6 py-2.5 rounded-lg font-bold text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:text-white dark:border-gray-600 dark:hover:bg-gray-600 transition-colors">
+                            <button type="button" onClick={handleCloseModal} className="px-5 py-2.5 rounded-lg font-bold text-gray-600 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors">
                                 Cancelar
                             </button>
-                            <button type="submit" form="prompt-form" disabled={isPending || isUploading} className="px-6 py-2.5 rounded-lg font-bold text-white bg-royal-blue hover:bg-opacity-90 transition-transform hover:scale-105 disabled:bg-gray-400 disabled:transform-none shadow-lg">
-                                {isPending ? 'A guardar...' : 'Guardar Tema'}
+                            <button type="submit" form="prompt-form" disabled={isPending || isUploading} className="px-8 py-2.5 rounded-lg font-bold text-white bg-royal-blue hover:bg-opacity-90 shadow-lg transition-transform hover:scale-105 disabled:bg-gray-400 disabled:scale-100">
+                                {isPending || isUploading ? 'Processando...' : 'Salvar e Publicar'}
                             </button>
                         </div>
                     </div>

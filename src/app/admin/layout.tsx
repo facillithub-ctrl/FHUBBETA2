@@ -15,22 +15,20 @@ export default async function AdminLayout({
     redirect('/login');
   }
 
-  // Busca o perfil completo
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single();
 
-  // Verificação de segurança: Apenas administradores
+  // Segurança: Apenas Admin entra aqui
   if (!profile || profile.user_category !== 'administrator') {
     redirect('/dashboard');
   }
   
-  // Monta o objeto UserProfile, mapeando os campos do banco para o tipo do frontend
   const userProfile: UserProfile = {
     id: profile.id,
-    fullName: profile.full_name, // Mapeamento crítico: full_name (BD) -> fullName (Type)
+    fullName: profile.full_name,
     userCategory: profile.user_category,
     avatarUrl: profile.avatar_url,
     pronoun: profile.pronoun,
@@ -42,7 +40,6 @@ export default async function AdminLayout({
     organization_id: profile.organization_id,
     target_exam: profile.target_exam,
     verification_badge: profile.verification_badge,
-    email: user.email // Opcional, útil para fallback
   };
 
   return (

@@ -76,18 +76,15 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
     const [isLoading, setIsLoading] = useState(true);
     const { addToast } = useToast();
     
-    // Estados de Correção
     const [feedback, setFeedback] = useState('');
     const [grades, setGrades] = useState({ c1: 0, c2: 0, c3: 0, c4: 0, c5: 0 });
     const [badge, setBadge] = useState('');
     const [additionalLink, setAdditionalLink] = useState('');
     const [annotations, setAnnotations] = useState<Annotation[]>([]);
     
-    // Estados de UI
     const [popupState, setPopupState] = useState<{ visible: boolean; top: number; left: number; selectionText?: string; position?: Annotation['position'] }>({ visible: false, top: 0, left: 0 });
     const [isSubmitting, startTransition] = useTransition();
     
-    // Refs e Áudio
     const imageContainerRef = useRef<HTMLDivElement>(null);
     const [isRecording, setIsRecording] = useState(false);
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -96,7 +93,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
     
-    // Desenho na Imagem
     const [isDrawing, setIsDrawing] = useState(false);
     const [selectionBox, setSelectionBox] = useState<{ x: number, y: number, width: number, height: number } | null>(null);
     const startCoords = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
@@ -113,13 +109,11 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
         load();
     }, [essayId]);
 
-    // --- MANIPULAÇÃO DE SELEÇÃO DE TEXTO ---
     const handleTextMouseUp = () => {
         const selection = window.getSelection();
         if (selection && !selection.isCollapsed && selection.toString().trim()) {
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
-            
             setPopupState({
                 visible: true,
                 top: rect.bottom + 10,
@@ -129,7 +123,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
         }
     };
 
-    // --- MANIPULAÇÃO DE SELEÇÃO EM IMAGEM ---
     const handleImageMouseDown = (e: MouseEvent<HTMLDivElement>) => {
         if (popupState.visible) {
             setPopupState(prev => ({ ...prev, visible: false }));
@@ -190,7 +183,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
         if (window.getSelection) window.getSelection()?.removeAllRanges();
     };
 
-    // --- ÁUDIO ---
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -209,7 +201,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
 
     const stopRecording = () => { mediaRecorderRef.current?.stop(); setIsRecording(false); };
 
-    // --- SUBMISSÃO ---
     const handleSubmit = async () => {
         const final_grade = Object.values(grades).reduce((a, b) => a + b, 0);
         if (!feedback) return addToast({ title: "Atenção", message: "O feedback geral é obrigatório.", type: "error" });
@@ -267,7 +258,7 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                             </div>
                             <div>
                                 <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-1 border-l-2 border-yellow-400 pl-2 italic">
-                                    "{anno.selection?.substring(0, 60)}{anno.selection && anno.selection.length > 60 ? '...' : ''}"
+                                    &quot;{anno.selection?.substring(0, 60)}{anno.selection && anno.selection.length > 60 ? '...' : ''}&quot;
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">{anno.comment}</p>
                             </div>
@@ -293,7 +284,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                 />
             )}
 
-            {/* Topbar Fixa */}
             <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 dark:bg-gray-900/90 dark:border-gray-800 px-6 py-4 shadow-sm mb-6 flex justify-between items-center">
                  <div className="flex items-center gap-4">
                     <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors">
@@ -321,8 +311,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
             </div>
 
             <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 xl:grid-cols-3 gap-8">
-                
-                {/* --- ÁREA DA REDAÇÃO (CANVAS) --- */}
                 <div className="xl:col-span-2 bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 min-h-[80vh] p-8 relative overflow-hidden" onMouseUp={handleTextMouseUp}>
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
                     {essay.image_submission_url ? (
@@ -353,10 +341,8 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                     ) : renderAnnotatedText(essay.content || '')}
                 </div>
 
-                {/* --- PAINEL DE FERRAMENTAS (SIDEBAR) --- */}
                 <div className="space-y-6">
                     
-                    {/* Notas */}
                     <div className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
                         <h3 className="font-bold text-sm uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2"><i className="fas fa-star text-yellow-400"></i> Avaliação por Competência</h3>
                         <div className="space-y-4">
@@ -375,7 +361,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                         </div>
                     </div>
 
-                    {/* Feedback */}
                     <div className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
                         <h3 className="font-bold text-sm uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2"><i className="fas fa-comment-dots text-blue-500"></i> Análise e Feedback</h3>
                         <textarea 
@@ -407,7 +392,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                         </div>
                     </div>
 
-                    {/* Extras */}
                     <div className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
                         <h3 className="font-bold text-sm uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2"><i className="fas fa-award text-purple-500"></i> Reconhecimento & Recursos</h3>
                         
@@ -441,6 +425,14 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                             </div>
                         </div>
                     </div>
+
+                    <button 
+                        onClick={handleSubmit} 
+                        disabled={isSubmitting || isUploadingAudio}
+                        className="w-full py-4 bg-green-600 text-white rounded-xl font-bold text-lg hover:bg-green-700 transition-transform hover:scale-[1.02] active:scale-100 shadow-lg disabled:opacity-50 disabled:scale-100"
+                    >
+                        {isSubmitting ? 'Enviando...' : 'Finalizar Correção'}
+                    </button>
 
                 </div>
             </div>
