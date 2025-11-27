@@ -41,15 +41,14 @@ export type CognitiveSkill = 'interpretacao' | 'calculo' | 'memorizacao' | 'anal
 export type DifficultyLevel = 'facil' | 'medio' | 'dificil' | 'muito_dificil';
 
 export type QuestionMetadata = {
-  bloom_taxonomy?: BloomTaxonomy | null; // Corrigido de bloom_level para bloom_taxonomy (usado no código)
+  bloom_taxonomy?: BloomTaxonomy | null;
   cognitive_skill?: CognitiveSkill | null;
   estimated_time_seconds?: number;
-  difficulty_level?: DifficultyLevel | null; // Corrigido de difficulty para difficulty_level (usado no código)
+  difficulty_level?: DifficultyLevel | null;
   ai_explanation?: string | null;
 };
 
 // --- Tipos para o Módulo Write (Essay) ---
-// Adicionado para corrigir o erro em src/app/admin/actions.ts
 export type EssayPrompt = {
   id: string;
   title: string;
@@ -59,8 +58,16 @@ export type EssayPrompt = {
   created_at?: string;
   organization_id?: string | null;
   image_url?: string | null;
+  
+  // Textos Motivadores
   motivational_text_1?: string | null;
   motivational_text_2?: string | null;
+  
+  // Texto Motivador 3 (Imagem) - Adicionado para corrigir o erro
+  motivational_text_3_image_url?: string | null;
+  motivational_text_3_description?: string | null;
+  motivational_text_3_image_source?: string | null;
+
   category?: string | null;
   publication_date?: string | null;
   deadline?: string | null;
