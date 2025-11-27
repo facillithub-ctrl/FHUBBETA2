@@ -22,9 +22,10 @@ export default function AdminClientLayout({ userProfile, children }: AdminClient
           setIsMobileOpen={setSidebarOpen} 
         />
         <div className="flex-1 flex flex-col overflow-hidden">
+          {/* CORREÇÃO AQUI: Mapeando as props corretamente */}
           <Topbar 
-            userProfile={userProfile} 
-            toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
+            user={userProfile} 
+            onMenuClick={() => setSidebarOpen(!isSidebarOpen)} 
           />
           <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
             {children}
