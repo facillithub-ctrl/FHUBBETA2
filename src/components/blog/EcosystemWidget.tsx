@@ -10,7 +10,7 @@ const modulesConfig: any = {
         border: "border-purple-100",
         text: "text-purple-900",
         label: "Facillit Write",
-        url: "/modulos/facillit-write"
+        url: "/login"
     },
     test: {
         icon: Sparkles,
