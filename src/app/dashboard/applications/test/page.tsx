@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import StudentTestDashboard from './components/StudentTestDashboard';
 import TeacherTestDashboard from './components/TeacherTestDashboard';
 import { 
-    getTestsForTeacher, 
+    getTeacherDashboardData, 
     getStudentTestDashboardData, 
     getAvailableTestsForStudent,
     getKnowledgeTestsForDashboard,
@@ -20,7 +20,7 @@ export default async function TestPage() {
     redirect('/login');
   }
 
-  // Buscar perfil para determinar tipo de usuário
+  // 1. Busca o perfil para determinar o tipo de usuário e permissões
   const { data: profileData } = await supabase
     .from('profiles')
     .select('*')
@@ -28,14 +28,16 @@ export default async function TestPage() {
     .single();
     
   const userProfile = profileData as UserProfile;
+  const userRole = userProfile?.user_category;
 
-  // Renderização para PROFESSORES
-  if (userProfile?.user_category === 'professor') {
-    const teacherData = await getTestsForTeacher();
+  // 2. Lógica para PROFESSORES / DIRETORES
+  if (['professor', 'diretor', 'administrator'].includes(userRole || '')) {
+    const teacherData = await getTeacherDashboardData();
     return <TeacherTestDashboard dashboardData={teacherData} />;
   }
 
-  // Renderização para ALUNOS (Carregamento paralelo para performance)
+  // 3. Lógica para ALUNOS
+  // Usamos Promise.all para carregar todas as seções do dashboard em paralelo (Performance)
   const [
     dashboardData, 
     availableTests, 
@@ -54,8 +56,8 @@ export default async function TestPage() {
     <StudentTestDashboard
       dashboardData={dashboardData}
       globalTests={availableTests}
-      classTests={[]} // Futuramente: testes da turma
-      knowledgeTests={knowledgeTests} // Passando os knowledge tests corretamente
+      classTests={[]} // Futuramente: implementar getTestsForClass(classId)
+      knowledgeTests={knowledgeTests}
       campaigns={campaigns}
       consentedCampaignIds={consentedCampaignIds}
     />
