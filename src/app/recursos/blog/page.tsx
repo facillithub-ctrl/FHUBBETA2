@@ -1,207 +1,250 @@
 import { client, urlFor } from '@/lib/sanity'
-import { PortableText } from '@portabletext/react'
-import { components } from '@/components/blog/PortableTextComponents'
-import { NewsletterBox } from '@/components/blog/NewsletterBox'
-import { CommentsSection } from '@/components/blog/CommentsSection'
-import { EcosystemWidget } from '@/components/blog/EcosystemWidget'
-import { EngagementBar } from '@/components/blog/EngagementBar'
-import Image from 'next/image'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import Image from 'next/image'
 import { Metadata } from 'next'
-import { ChevronRight, Calendar, Clock, ArrowLeft, ArrowRight, BadgeCheck } from 'lucide-react'
+import { ArrowRight, Calendar, Clock, Search, TrendingUp, Sparkles, Zap, Star } from 'lucide-react'
+import { BlogControls } from '@/components/blog/BlogControls'
+import { NewsletterBox } from '@/components/blog/NewsletterBox'
 
-// --- Função para buscar dados do post ---
-async function getPost(slug: string) {
-    if (!slug) return null; // Proteção contra slug vazio
-
-    const now = new Date().toISOString()
-    const queryParams = { slug, now }
-    
-    return client.fetch(`
-      *[_type == "post" && slug.current == $slug && (!defined(expirationDate) || expirationDate > $now)][0]{
-        title, excerpt, body, publishedAt, mainImage,
-        categories[]->{title},
-        author->{
-            name, 
-            role, 
-            image, 
-            isOfficial, 
-            bio
-        },
-        ecosystemIntegration,
-        "estimatedReadingTime": round(length(pt::text(body)) / 5 / 180 ) + 1,
-        "related": *[_type == "post" && slug.current != $slug && (!defined(expirationDate) || expirationDate > $now)][0...3]{
-          title, slug, mainImage, publishedAt
-        }
-      }
-    `, queryParams) // <--- O erro estava aqui se este objeto faltasse
+export const metadata: Metadata = {
+  title: 'Blog Facillit | Conhecimento e Inovação',
+  description: 'Explore artigos, tutoriais e insights do universo Facillit.',
 }
 
-// --- Metadados SEO ---
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-    const { slug } = await params;
-    const post = await getPost(slug)
-    if (!post) return { title: 'Post não encontrado' }
-    return { title: `${post.title} | Blog Facillit`, description: post.excerpt }
-}
+async function getData(search: string = '', category: string = '') {
+  let filter = `_type == "post"`
+  if (search) filter += ` && (title match "*${search}*" || body[].children[].text match "*${search}*")`
+  if (category) filter += ` && $category in categories[]->title`
 
-// --- Componente da Página ---
-export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const post = await getPost(slug)
-
-  if (!post) notFound()
-
-  // SEO Estruturado (Google)
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    headline: post.title,
-    image: post.mainImage ? urlFor(post.mainImage).url() : '',
-    datePublished: post.publishedAt,
-    author: { 
-        '@type': 'Person', 
-        name: post.author?.name || 'Equipe Facillit' 
+  // Query para buscar Posts + Destaque + Trending + Sugestões
+  const query = `{
+    "posts": *[${filter}] | order(publishedAt desc) {
+      title, slug, excerpt, mainImage, publishedAt,
+      "categories": categories[]->{title},
+      "estimatedReadingTime": round(length(pt::text(body)) / 5 / 180 ) + 1
     },
-    description: post.excerpt,
-  }
+    "featured": *[_type == "post"][0] {
+      title, slug, excerpt, mainImage, publishedAt, "categories": categories[]->{title}
+    },
+    "trending": *[_type == "post"] | order(publishedAt asc)[0...2] {
+       title, slug, mainImage, "categories": categories[]->{title}
+    },
+    "forYou": *[_type == "post"] | order(_createdAt desc)[1...3] {
+       title, slug, mainImage, excerpt
+    },
+    "categories": *[_type == "category"] {title, _id}
+  }`
+
+  return client.fetch(query, { category })
+}
+
+export default async function BlogPage({ searchParams }: { searchParams: Promise<{ q: string, cat: string }> }) {
+  const { q, cat } = await searchParams
+  const data = await getData(q, cat)
+  const { posts, featured, categories, trending, forYou } = data
+
+  // Filtrar o destaque da lista principal para não repetir
+  const listPosts = posts.filter((p: any) => p.slug.current !== featured?.slug.current)
 
   return (
-    <div className="min-h-screen bg-white font-inter">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+    <div className="min-h-screen bg-white font-inter selection:bg-brand-purple selection:text-white">
+      
+      {/* --- HERO SECTION CLEAN & ANIMATED --- */}
+      <div className="relative pt-32 pb-16 lg:pt-40 lg:pb-24 overflow-hidden">
+        {/* Background Animado */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+            <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-brand-purple/5 rounded-full blur-[100px] animate-pulse"></div>
+            <div className="absolute bottom-[10%] left-[-10%] w-[500px] h-[500px] bg-brand-green/5 rounded-full blur-[80px]"></div>
+        </div>
 
-      {/* Header / Hero */}
-      <div className="bg-gray-50/50 border-b border-gray-100">
-        <div className="container mx-auto px-4 max-w-4xl pt-32 pb-12">
-            
-            {/* Navegação Superior */}
-            <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <Link href="/recursos/blog" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-brand-purple transition-colors bg-white px-4 py-2 rounded-full border border-gray-200 shadow-sm hover:shadow-md">
-                    <ArrowLeft size={16} /> Voltar para o Blog
-                </Link>
-                
-                {/* Barra de Likes e Salvar */}
-                <EngagementBar postSlug={slug} />
-            </div>
+        <div className="container mx-auto px-4 relative z-10">
+            <div className="flex flex-col lg:flex-row items-center gap-12">
+                {/* Texto Hero */}
+                <div className="flex-1 text-center lg:text-left">
+                    <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-gray-50 border border-gray-200 text-brand-purple text-xs font-bold uppercase tracking-wider mb-6 hover:bg-brand-purple/5 transition-colors cursor-default">
+                        <Sparkles size={14} className="text-brand-green" /> Blog Oficial Facillit
+                    </div>
+                    <h1 className="text-5xl lg:text-7xl font-black text-gray-900 mb-6 leading-[1.1] tracking-tight">
+                        Transforme sua <br />
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-brand-green">Jornada Educacional</span>
+                    </h1>
+                    <p className="text-lg text-gray-500 mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                        Um espaço dedicado a inovação, produtividade e tecnologia. Descubra como potencializar seus resultados.
+                    </p>
+                    
+                    {/* Barra de Busca Integrada na Hero */}
+                    <div className="max-w-md mx-auto lg:mx-0 shadow-xl shadow-brand-purple/5 rounded-2xl">
+                        <BlogControls categories={categories} simpleMode={true} />
+                    </div>
+                </div>
 
-            {/* Breadcrumbs */}
-            <nav className="flex items-center gap-2 text-xs text-gray-400 mb-6 uppercase tracking-wider font-bold overflow-hidden">
-                <Link href="/" className="hover:text-brand-purple flex-shrink-0">Home</Link>
-                <ChevronRight size={12} className="flex-shrink-0" />
-                <Link href="/recursos/blog" className="hover:text-brand-purple flex-shrink-0">Blog</Link>
-                <ChevronRight size={12} className="flex-shrink-0" />
-                <span className="text-gray-600 truncate">{post.title}</span>
-            </nav>
-
-            {/* Categorias */}
-            <div className="flex flex-wrap gap-2 mb-6">
-                {post.categories?.map((c:any) => (
-                    <span key={c.title} className="bg-brand-purple/10 text-brand-purple px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider">
-                        {c.title}
-                    </span>
-                ))}
-            </div>
-
-            <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-gray-900 mb-8 leading-tight">
-                {post.title}
-            </h1>
-
-            {/* Author Box Simplificado (Header) */}
-            <div className="flex flex-wrap items-center gap-6 text-gray-500 text-sm border-t border-gray-200 pt-6">
-                <div className="flex items-center gap-3">
-                    <div className="relative w-10 h-10">
-                        {post.author?.image ? (
-                            <Image src={urlFor(post.author.image).url()} alt={post.author.name} fill className="rounded-full object-cover border border-gray-200" />
-                        ) : (
-                            <div className="w-10 h-10 bg-brand-gradient rounded-full flex items-center justify-center text-white font-bold shadow-md">
-                                {post.author?.name?.charAt(0) || 'F'}
-                            </div>
-                        )}
-                        {post.author?.isOfficial && (
-                            <div className="absolute -bottom-1 -right-1 bg-brand-purple text-white rounded-full p-[2px] border-2 border-white" title="Verificado">
-                                <BadgeCheck size={10} fill="currentColor" className="text-white" />
+                {/* Visual Hero */}
+                <div className="flex-1 relative w-full max-w-lg hidden lg:block">
+                    <div className="relative z-10 bg-white rounded-3xl p-4 shadow-2xl shadow-gray-200/50 border border-gray-100 transform rotate-2 hover:rotate-0 transition-all duration-500">
+                        {featured?.mainImage && (
+                            <div className="relative h-80 w-full rounded-2xl overflow-hidden">
+                                <Image src={urlFor(featured.mainImage).url()} alt="Destaque" fill className="object-cover hover:scale-105 transition-transform duration-700" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
+                                    <div>
+                                        <span className="bg-brand-green text-brand-dark text-xs font-bold px-2 py-1 rounded mb-2 inline-block">Destaque</span>
+                                        <h3 className="text-white font-bold text-xl">{featured.title}</h3>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
-                    <div>
-                        <p className="text-gray-900 font-bold flex items-center gap-1">
-                            {post.author?.name || 'Equipe Facillit'}
-                        </p>
-                        <p className="text-xs text-gray-400">{post.author?.role || 'Colaborador'}</p>
-                    </div>
-                </div>
-                
-                <div className="w-px h-8 bg-gray-200 hidden sm:block"></div>
-                
-                <div className="flex items-center gap-1.5">
-                    <Calendar size={16} /> {new Date(post.publishedAt).toLocaleDateString('pt-BR')}
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <Clock size={16} /> {post.estimatedReadingTime} min de leitura
                 </div>
             </div>
         </div>
       </div>
 
-      {/* Conteúdo Principal */}
-      <div className="container mx-auto px-4 max-w-4xl py-12">
-        {post.mainImage && (
-            <div className="relative w-full h-[300px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl mb-12 transform -translate-y-6 md:-translate-y-12 ring-8 ring-white">
-                <Image src={urlFor(post.mainImage).url()} alt={post.title} fill className="object-cover" priority />
-            </div>
-        )}
+      {/* --- SEÇÃO DE RECOMENDAÇÕES --- */}
+      {!q && !cat && (
+        <div className="bg-gray-50 border-y border-gray-100 py-12">
+            <div className="container mx-auto px-4 max-w-7xl">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    {/* Card "Em Alta" */}
+                    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-red-50 text-red-500 rounded-lg">
+                                <TrendingUp size={20} />
+                            </div>
+                            <h3 className="font-bold text-gray-900">Em Alta</h3>
+                        </div>
+                        <div className="space-y-4">
+                            {trending?.map((post: any) => (
+                                <Link href={`/recursos/blog/${post.slug.current}`} key={post.slug.current} className="flex gap-3 items-center group/item">
+                                    <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                                        {post.mainImage && <Image src={urlFor(post.mainImage).url()} fill className="object-cover" alt={post.title} />}
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-gray-700 leading-tight group-hover/item:text-brand-purple transition-colors line-clamp-2">{post.title}</h4>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
 
-        {/* Texto Rico */}
-        <div className="prose prose-lg prose-slate prose-headings:font-bold prose-a:text-brand-purple hover:prose-a:text-brand-dark max-w-none text-gray-600 leading-8">
-            <PortableText value={post.body} components={components} />
-        </div>
+                    {/* Card "Para Você" */}
+                    <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-blue-50 text-blue-500 rounded-lg">
+                                <Star size={20} />
+                            </div>
+                            <h3 className="font-bold text-gray-900">Para Você</h3>
+                        </div>
+                        <div className="space-y-4">
+                             {forYou?.map((post: any) => (
+                                <Link href={`/recursos/blog/${post.slug.current}`} key={post.slug.current} className="block group/item">
+                                    <h4 className="text-sm font-semibold text-gray-700 group-hover/item:text-brand-purple transition-colors mb-1">{post.title}</h4>
+                                    <p className="text-xs text-gray-400 line-clamp-2">{post.excerpt}</p>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
 
-        {/* Widget de Ecossistema (Interatividade) */}
-        {post.ecosystemIntegration && (
-            <div className="my-16">
-                <EcosystemWidget 
-                    type={post.ecosystemIntegration.module} 
-                    ctaText={post.ecosystemIntegration.callToAction} 
-                />
-            </div>
-        )}
+                    {/* Card "Newsletter" */}
+                    <div className="bg-brand-dark p-6 rounded-2xl shadow-sm text-white relative overflow-hidden flex flex-col justify-center">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-purple rounded-full blur-3xl opacity-30 -mr-10 -mt-10"></div>
+                        <h3 className="font-bold text-lg mb-2 relative z-10 flex items-center gap-2"><Zap size={18} className="text-brand-green" /> Weekly Insights</h3>
+                        <p className="text-sm text-gray-300 mb-4 relative z-10">As melhores dicas de produtividade toda semana.</p>
+                        <div className="relative z-10">
+                            <NewsletterBox simple={true} darkTheme={true} />
+                        </div>
+                    </div>
 
-        {/* Newsletter e Comentários */}
-        <div className="my-16 border-t border-gray-100 pt-16">
-            <NewsletterBox />
-        </div>
-        
-        <div className="mt-12">
-            <CommentsSection postSlug={slug} />
-        </div>
-      </div>
-
-      {/* Posts Relacionados */}
-      {post.related && post.related.length > 0 && (
-        <div className="bg-gray-50 py-20 border-t border-gray-200">
-            <div className="container mx-auto px-4 max-w-6xl">
-                <h3 className="text-2xl font-bold text-gray-900 mb-8 flex items-center gap-2">
-                    <span className="w-1 h-8 bg-brand-purple rounded-full block"></span> Continue lendo
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {post.related.map((item: any) => (
-                        <Link href={`/recursos/blog/${item.slug.current}`} key={item.slug.current} className="group bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all flex flex-col h-full">
-                             <div className="relative h-48 w-full flex-shrink-0">
-                                {item.mainImage && <Image src={urlFor(item.mainImage).width(400).url()} fill className="object-cover" alt={item.title} />}
-                             </div>
-                             <div className="p-6 flex-1 flex flex-col">
-                                <h4 className="font-bold text-gray-900 line-clamp-2 group-hover:text-brand-purple transition-colors mb-2">{item.title}</h4>
-                                <span className="text-xs text-gray-400 font-medium flex items-center mt-auto">
-                                    Ler artigo <ArrowRight size={12} className="inline ml-1 group-hover:translate-x-1 transition-transform"/>
-                                </span>
-                             </div>
-                        </Link>
-                    ))}
                 </div>
             </div>
         </div>
       )}
+
+      {/* --- FEED PRINCIPAL --- */}
+      <div className="container mx-auto px-4 max-w-7xl py-16">
+        <div className="flex flex-col lg:flex-row gap-12">
+            
+            <div className="flex-1">
+                {/* Categorias (Sticky) */}
+                <div className="sticky top-24 z-20 bg-white/90 backdrop-blur-md py-4 mb-8 border-b border-gray-100 -mx-4 px-4 lg:mx-0 lg:px-0 lg:rounded-xl">
+                    <BlogControls categories={categories} onlyCategories={true} />
+                </div>
+
+                {/* Grid de Artigos */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {listPosts.length > 0 ? listPosts.map((post: any) => (
+                        <Link href={`/recursos/blog/${post.slug.current}`} key={post.slug.current} className="group flex flex-col h-full">
+                            <article className="bg-white rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-full flex flex-col">
+                                <div className="relative h-60 w-full overflow-hidden">
+                                    {post.mainImage && (
+                                        <Image
+                                            src={urlFor(post.mainImage).width(600).height(400).url()}
+                                            alt={post.title}
+                                            fill
+                                            className="object-cover group-hover:scale-110 transition-transform duration-700"
+                                        />
+                                    )}
+                                    {post.categories?.[0] && (
+                                        <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-brand-purple shadow-sm">
+                                            {post.categories[0].title}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className="p-6 flex-1 flex flex-col">
+                                    <div className="flex items-center gap-4 text-xs text-gray-400 mb-3 font-medium">
+                                        <span className="flex items-center gap-1"><Calendar size={12} /> {new Date(post.publishedAt).toLocaleDateString('pt-BR')}</span>
+                                        <span className="flex items-center gap-1"><Clock size={12} /> {post.estimatedReadingTime} min</span>
+                                    </div>
+                                    
+                                    <h2 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-brand-purple transition-colors line-clamp-2">
+                                        {post.title}
+                                    </h2>
+                                    
+                                    <p className="text-gray-500 text-sm mb-6 flex-1 line-clamp-3 leading-relaxed">
+                                        {post.excerpt}
+                                    </p>
+                                    
+                                    <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
+                                        <span className="text-brand-purple font-bold text-sm flex items-center gap-2 group-hover:translate-x-1 transition-transform">
+                                            Ler agora <ArrowRight size={16} />
+                                        </span>
+                                    </div>
+                                </div>
+                            </article>
+                        </Link>
+                    )) : (
+                        <div className="col-span-full py-24 text-center">
+                            <div className="bg-gray-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <Search className="w-10 h-10 text-gray-300" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900">Nada encontrado por aqui</h3>
+                            <p className="text-gray-500 mt-2">Tente ajustar seus termos de busca.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Sidebar Sticky */}
+            <aside className="w-full lg:w-80 space-y-8 hidden lg:block">
+                <div className="sticky top-40 space-y-8">
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <h4 className="font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100">Categorias</h4>
+                        <ul className="space-y-2">
+                            {categories.map((cat: any) => (
+                                <li key={cat._id}>
+                                    <Link href={`/recursos/blog?cat=${cat.title}`} className="flex items-center justify-between text-sm text-gray-600 hover:text-brand-purple hover:bg-gray-50 p-2 rounded-lg transition-colors group">
+                                        {cat.title}
+                                        <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            </aside>
+
+        </div>
+      </div>
     </div>
   )
 }
