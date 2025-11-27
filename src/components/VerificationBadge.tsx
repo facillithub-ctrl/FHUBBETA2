@@ -7,8 +7,8 @@ type VerificationBadgeProps = {
 
 const badgeDetails = {
   green: {
-    icon: 'fa-check-circle',
-    color: 'text-green-500',
+      icon: 'fa-check-circle',
+      color: 'text-green-500',
     tooltip: 'Professor Verificado',
   },
   blue: {

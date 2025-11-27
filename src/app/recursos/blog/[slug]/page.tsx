@@ -9,15 +9,12 @@ import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 import { 
     ArrowLeft, Calendar, Clock, Linkedin, Twitter, Share2, 
-    Bookmark, ChevronRight, PlayCircle, MessageCircle,
-    ArrowRight
+    Bookmark, CheckCircle, ShieldCheck, 
 } from 'lucide-react'
 
-// --- CONFIGURAÇÕES ---
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// --- DADOS ---
 async function getPost(slug: string) {
     if (!slug) return null
     
@@ -25,30 +22,27 @@ async function getPost(slug: string) {
         title, excerpt, body, publishedAt, mainImage,
         categories[]->{title},
         author->{
-            name, role, image, bio, 
+            name, role, image, bio, isOfficial,
             "socials": { "linkedin": linkedin, "twitter": twitter }
         },
         "estimatedReadingTime": coalesce(round(length(pt::text(body)) / 5 / 180 ), 5) + 1,
-        "related": *[_type == "post" && slug.current != $slug][0...2]{title, slug, mainImage, excerpt}
+        "related": *[_type == "post" && slug.current != $slug][0...3]{title, slug, mainImage}
     }`
     
     try {
         return await client.fetch(query, { slug })
     } catch (error) {
-        console.error("Erro slug:", error);
         return null;
     }
 }
 
-// --- METADATA ---
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
     const { slug } = await params;
     const post = await getPost(slug)
-    if (!post) return { title: 'Artigo não encontrado' }
+    if (!post) return { title: 'Post não encontrado' }
     return { title: post.title, description: post.excerpt }
 }
 
-// --- PÁGINA ---
 export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const post = await getPost(slug)
@@ -56,191 +50,111 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
   if (!post) notFound()
 
   return (
-    <div className="min-h-screen bg-white font-inter text-gray-900 selection:bg-brand-purple selection:text-white">
+    <div className="min-h-screen bg-white font-inter text-gray-900 selection:bg-brand-purple/20 selection:text-brand-purple">
       
-      {/* HEADER DE NAVEGAÇÃO (Clean & Sticky) */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 transition-all">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between max-w-5xl">
-            <Link href="/recursos/blog" className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors group">
-                <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform text-brand-purple"/>
-                <span className="hidden sm:inline">Blog</span>
-            </Link>
+      {/* Botão Voltar */}
+      <div className="container mx-auto px-4 max-w-6xl py-8">
+        <Link href="/recursos/blog" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-brand-purple transition-colors bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-full">
+            <ArrowLeft size={16} /> Voltar
+        </Link>
+      </div>
+
+      <main className="container mx-auto px-4 max-w-6xl pb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
             
-            <div className="flex items-center gap-4">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider hidden md:block">
-                    {post.estimatedReadingTime} min de leitura
-                </span>
-                <div className="h-4 w-px bg-gray-200 hidden md:block"></div>
-                <button className="p-2 text-gray-400 hover:text-brand-purple transition-colors" aria-label="Compartilhar">
-                    <Share2 size={18}/>
-                </button>
-                <Link href="#comentarios" className="p-2 text-gray-400 hover:text-brand-purple transition-colors flex items-center gap-1" aria-label="Comentários">
-                    <MessageCircle size={18}/>
-                </Link>
-            </div>
-        </div>
-        {/* Barra de Progresso Visual (Opcional - CSS puro para efeito) */}
-        <div className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-brand-purple to-brand-green w-full opacity-0 md:opacity-100 animate-progress"></div>
-      </header>
-
-      <article className="container mx-auto px-4 max-w-5xl py-12 md:py-20">
-        
-        {/* --- HERO DO ARTIGO --- */}
-        <div className="max-w-4xl mx-auto text-center mb-16">
-            <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-                {post.categories?.map((cat: any) => (
-                    <span key={cat.title} className="px-4 py-1.5 rounded-full border border-gray-200 text-xs font-bold uppercase tracking-widest text-gray-500 bg-gray-50">
-                        {cat.title}
-                    </span>
-                ))}
-            </div>
-            
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-black text-gray-900 mb-8 leading-[1.05] tracking-tight">
-                {post.title}
-            </h1>
-            
-            <p className="text-xl md:text-2xl text-gray-500 leading-relaxed font-medium max-w-2xl mx-auto mb-10">
-                {post.excerpt}
-            </p>
-
-            {/* Autor Hero */}
-            <div className="flex items-center justify-center gap-4">
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full p-0.5 bg-gradient-to-tr from-brand-purple to-brand-green">
-                        <div className="w-full h-full rounded-full overflow-hidden bg-white border-2 border-white relative">
-                            {post.author?.image ? (
-                                <Image src={urlFor(post.author.image).width(100).url()} fill alt={post.author.name} className="object-cover" />
-                            ) : <div className="w-full h-full bg-gray-200" />}
-                        </div>
-                    </div>
-                    <div className="text-left">
-                        <p className="text-sm font-bold text-gray-900">{post.author?.name}</p>
-                        <p className="text-xs text-gray-500">{new Date(post.publishedAt).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {/* --- IMAGEM PRINCIPAL (Full Width Rounded) --- */}
-        {post.mainImage && (
-            <div className="relative w-full aspect-[21/9] rounded-[2rem] overflow-hidden shadow-2xl mb-20 bg-gray-100 ring-1 ring-black/5">
-                <Image 
-                    src={urlFor(post.mainImage).width(1400).url()} 
-                    alt={post.title} 
-                    fill 
-                    className="object-cover"
-                    priority 
-                />
-            </div>
-        )}
-
-        {/* --- LAYOUT DE CONTEÚDO (Com Sidebar Lateral Flutuante) --- */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 relative">
-            
-            {/* Esquerda: Actions (Desktop Only) */}
-            <div className="hidden lg:block lg:col-span-1 relative">
-                <div className="sticky top-32 flex flex-col gap-6 items-center">
-                    <button className="w-10 h-10 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-400 hover:text-brand-purple hover:scale-110 transition-all tooltip" data-tip="Salvar">
-                        <Bookmark size={18} />
-                    </button>
-                    <button className="w-10 h-10 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-400 hover:text-[#0077b5] hover:scale-110 transition-all tooltip" data-tip="Linkedin">
-                        <Linkedin size={18} />
-                    </button>
-                    <button className="w-10 h-10 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center text-gray-400 hover:text-black hover:scale-110 transition-all tooltip" data-tip="Twitter">
-                        <Twitter size={18} />
-                    </button>
-                    <div className="w-px h-20 bg-gray-200 mt-4"></div>
-                </div>
-            </div>
-
-            {/* Centro: Texto Rico */}
+            {/* ESQUERDA: CONTEÚDO */}
             <div className="lg:col-span-8">
-                <div className="prose prose-lg md:prose-xl prose-slate max-w-none 
-                    prose-headings:font-black prose-headings:tracking-tight prose-headings:text-gray-900 
-                    prose-p:text-gray-600 prose-p:leading-8 prose-p:font-normal
-                    prose-a:text-brand-purple prose-a:font-bold prose-a:no-underline hover:prose-a:bg-brand-purple/10 hover:prose-a:rounded-sm transition-colors
-                    prose-img:rounded-3xl prose-img:shadow-lg prose-img:my-10
-                    prose-blockquote:border-l-4 prose-blockquote:border-brand-purple prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:text-2xl prose-blockquote:font-medium prose-blockquote:text-gray-800
-                    first-letter:text-5xl first-letter:font-black first-letter:text-brand-purple first-letter:mr-3 first-letter:float-left">
+                <div className="mb-10">
+                    <div className="flex flex-wrap items-center gap-4 mb-6">
+                        {post.categories?.[0] && (
+                            <span className="px-3 py-1 rounded-lg bg-brand-purple/10 text-brand-purple text-xs font-bold uppercase tracking-wider">
+                                {post.categories[0].title}
+                            </span>
+                        )}
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                            <Calendar size={12} /> {new Date(post.publishedAt).toLocaleDateString('pt-BR')}
+                        </span>
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                            <Clock size={12} /> {post.estimatedReadingTime} min
+                        </span>
+                    </div>
+
+                    <h1 className="text-3xl md:text-5xl font-black text-gray-900 mb-6 leading-tight">
+                        {post.title}
+                    </h1>
+                    <p className="text-xl text-gray-500 leading-relaxed font-medium">
+                        {post.excerpt}
+                    </p>
+                </div>
+
+                {post.mainImage && (
+                    <div className="relative w-full aspect-video rounded-[2rem] overflow-hidden mb-12 bg-gray-100 shadow-sm">
+                        <Image src={urlFor(post.mainImage).width(1200).url()} alt={post.title} fill className="object-cover" priority />
+                    </div>
+                )}
+
+                <div className="prose prose-lg prose-slate max-w-none prose-headings:font-bold prose-headings:text-gray-900 prose-p:text-gray-600 prose-p:leading-8 prose-a:text-brand-purple prose-a:font-bold prose-a:no-underline hover:prose-a:bg-brand-purple/10 transition-colors prose-img:rounded-2xl">
                     <PortableText value={post.body} components={components} />
                 </div>
 
-                {/* Tags ao final do post */}
-                <div className="mt-16 pt-8 border-t border-gray-100 flex flex-wrap gap-2">
-                    <span className="text-sm font-bold text-gray-400 mr-2">Tags:</span>
-                    {post.categories?.map((cat: any) => (
-                        <Link href={`/recursos/blog?cat=${cat.title}`} key={cat.title} className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm rounded-md transition-colors">
-                            #{cat.title}
-                        </Link>
-                    ))}
+                <div className="mt-16 pt-10 border-t border-gray-100">
+                    <CommentsSection postSlug={slug} />
                 </div>
             </div>
 
-            {/* Direita: Autor Card (Sticky) */}
-            <div className="lg:col-span-3 hidden lg:block">
-                <div className="sticky top-32">
-                    <div className="bg-[#FAFAFA] rounded-2xl p-6 border border-gray-100">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Sobre o Autor</p>
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-12 h-12 rounded-full overflow-hidden bg-white border border-gray-200">
-                                {post.author?.image ? (
-                                    <Image src={urlFor(post.author.image).width(100).url()} width={48} height={48} alt="" className="object-cover h-full w-full" />
-                                ) : <div className="w-full h-full bg-brand-purple" />}
+            {/* DIREITA: SIDEBAR DO AUTOR */}
+            <aside className="lg:col-span-4 relative hidden lg:block">
+                <div className="sticky top-10 space-y-8">
+                    
+                    <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] text-center relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-gray-50 to-white"></div>
+                        <div className="relative z-10">
+                            <div className="w-24 h-24 mx-auto rounded-full p-1 bg-white shadow-lg mb-4 relative">
+                                <div className="w-full h-full rounded-full overflow-hidden bg-gray-100 relative">
+                                    {post.author?.image ? (
+                                        <Image src={urlFor(post.author.image).width(200).url()} fill alt={post.author.name} className="object-cover" />
+                                    ) : <div className="w-full h-full bg-brand-purple text-white flex items-center justify-center text-2xl font-bold">F</div>}
+                                </div>
                             </div>
-                            <div>
-                                <h4 className="font-bold text-gray-900 text-sm">{post.author?.name}</h4>
-                                <p className="text-xs text-brand-purple font-medium">{post.author?.role}</p>
+
+                            <h3 className="text-xl font-bold text-gray-900 mb-1 flex items-center justify-center gap-1.5">
+                                {post.author?.name}
+                                {/* SELO DE VERIFICADO SOLICITADO */}
+                                {post.author?.isOfficial && (
+                                    <CheckCircle size={16} className="text-green-500" fill="transparent" strokeWidth={3} />
+                                )}
+                            </h3>
+                            
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
+                                {post.author?.role || 'Autor'}
+                            </p>
+
+                            {/* Badge Oficial */}
+                            {post.author?.isOfficial && (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-[10px] font-bold uppercase tracking-wide mb-5 border border-green-100">
+                                    <ShieldCheck size={12} /> Membro Oficial
+                                </div>
+                            )}
+
+                            <p className="text-sm text-gray-500 leading-relaxed mb-6">
+                                {post.author?.bio || "Criando conteúdo de valor para a comunidade Facillit."}
+                            </p>
+
+                            <div className="flex justify-center gap-3">
+                                {post.author?.socials?.linkedin && <a href={post.author.socials.linkedin} className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-[#0077b5] transition-all"><Linkedin size={18}/></a>}
+                                {post.author?.socials?.twitter && <a href={post.author.socials.twitter} className="p-2 bg-gray-50 rounded-full text-gray-400 hover:text-black transition-all"><Twitter size={18}/></a>}
                             </div>
                         </div>
-                        <p className="text-sm text-gray-500 leading-relaxed mb-4">
-                            {post.author?.bio || "Criando conteúdo para transformar a educação."}
-                        </p>
-                        <button className="w-full py-2 rounded-lg bg-white border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm">
-                            Ver Perfil Completo
-                        </button>
+                    </div>
+
+                    <div className="pt-2">
+                        <NewsletterBox simple={true} />
                     </div>
                 </div>
-            </div>
+            </aside>
 
         </div>
-      </article>
-
-      {/* --- SEÇÃO DE COMENTÁRIOS E NEWSLETTER --- */}
-      <div className="bg-gray-50 border-t border-gray-200 py-16" id="comentarios">
-        <div className="container mx-auto px-4 max-w-4xl space-y-16">
-            <NewsletterBox />
-            <CommentsSection postSlug={slug} />
-        </div>
-      </div>
-
-      {/* --- LEIA MAIS (Footer Navigation) --- */}
-      {post.related?.length > 0 && (
-        <div className="bg-white border-t border-gray-200 py-20">
-            <div className="container mx-auto px-4 max-w-6xl">
-                <div className="flex items-center justify-between mb-10">
-                    <h3 className="text-2xl font-black text-gray-900">Continue Lendo</h3>
-                    <Link href="/recursos/blog" className="text-sm font-bold text-brand-purple flex items-center gap-1 hover:gap-2 transition-all">
-                        Ver tudo <ArrowRight size={16}/>
-                    </Link>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {post.related.map((item: any) => (
-                        <Link href={`/recursos/blog/${item.slug.current}`} key={item.slug.current} className="group flex gap-6 items-start hover:bg-gray-50 p-4 rounded-2xl transition-colors border border-transparent hover:border-gray-100">
-                            <div className="w-32 h-24 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 relative">
-                                {item.mainImage && <Image src={urlFor(item.mainImage).width(300).url()} fill alt={item.title} className="object-cover" />}
-                            </div>
-                            <div className="flex-1">
-                                <h4 className="text-lg font-bold text-gray-900 group-hover:text-brand-purple transition-colors mb-2 leading-snug">
-                                    {item.title}
-                                </h4>
-                                <p className="text-sm text-gray-500 line-clamp-2">{item.excerpt}</p>
-                            </div>
-                        </Link>
-                    ))}
-                </div>
-            </div>
-        </div>
-      )}
+      </main>
     </div>
   )
 }

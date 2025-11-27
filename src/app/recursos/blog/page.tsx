@@ -2,218 +2,182 @@ import { client, urlFor } from '@/lib/sanity'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Metadata } from 'next'
-import { ArrowRight, ChevronRight } from 'lucide-react'
-import { BlogControls } from '@/components/blog/BlogControls'
+import { ArrowRight, Calendar, Clock, Sparkles, CheckCircle } from 'lucide-react'
 
-// --- CONFIGURAÇÕES ---
 export const metadata: Metadata = {
-  title: 'Facillit Journal | Conhecimento',
-  description: 'Aprofunde-se no universo da educação e tecnologia.',
+  title: 'Facillit Hub | Blog',
+  description: 'Central de conhecimento e inovação.',
 }
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// --- BUSCA DE DADOS (Blindada) ---
-async function getBlogData(search: string = '', category: string = '') {
-  const searchQuery = search ? `*${search}*` : "";
-  
+async function getBlogData() {
   const query = `{
-    "posts": *[_type == "post" 
-      && ($search == "" || title match $search || body[].children[].text match $search)
-      && ($category == "" || $category in categories[]->title)
-    ] | order(publishedAt desc) {
+    // Trazemos exatamente os 4 últimos posts para a seção "Últimas Publicações"
+    // Sem filtros, garantindo que apareçam sempre os mais recentes
+    "posts": *[_type == "post"] | order(publishedAt desc)[0...4] {
       _id, title, slug, excerpt, mainImage, publishedAt,
       "categories": categories[]->{title},
-      "author": author->{name, image, role},
+      "author": author->{name, image, isOfficial},
       "estimatedReadingTime": coalesce(round(length(pt::text(body)) / 5 / 180 ), 5) + 1
     },
     
-    "categories": *[_type == "category"] | order(title asc) {title, _id},
-
+    // Destaque Principal (O mais recente de todos para o Hero)
     "heroPost": *[_type == "post"] | order(publishedAt desc)[0] {
-        title, slug, excerpt, mainImage, publishedAt, "categories": categories[]->{title}, "author": author->{name, image}
+        _id, title, slug, excerpt, mainImage, publishedAt, "categories": categories[]->{title}, "author": author->{name, image, isOfficial}
     }
   }`
 
   try {
-    return await client.fetch(query, { search: searchQuery, category: category || "" });
+    return await client.fetch(query);
   } catch (error) {
     console.error("SANITY ERROR:", error);
     return null;
   }
 }
 
-// --- PÁGINA ---
-export default async function BlogPage({ searchParams }: { searchParams: Promise<{ q: string, cat: string }> }) {
-  const { q, cat } = await searchParams;
-  const data = await getBlogData(q, cat);
+export default async function BlogPage() {
+  const data = await getBlogData();
 
-  if (!data) return <div className="p-20 text-center text-gray-500">Serviço indisponível no momento.</div>;
+  if (!data) return <div className="min-h-screen flex items-center justify-center text-gray-500">Carregando...</div>;
 
-  const { posts, categories, heroPost } = data;
-  const isFiltering = !!q || !!cat;
+  const { posts, heroPost } = data;
   
-  // Se estiver filtrando, escondemos o Hero para focar na busca
-  const showHero = !isFiltering && heroPost;
-  // Na lista, removemos o hero para não duplicar (apenas visualmente) se não houver filtro
-  const listPosts = isFiltering ? posts : posts.filter((p:any) => p._id !== heroPost?._id);
+  // Nesta versão, mostramos a lista "posts" diretamente (os 4 últimos),
+  // mesmo que o "heroPost" esteja contido nela.
+  const listPosts = posts || [];
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] font-inter text-gray-900 selection:bg-black selection:text-white">
+    <div className="min-h-screen bg-[#F8F9FA] font-inter text-gray-900 selection:bg-brand-purple/20 selection:text-brand-purple">
       
-      {/* HEADER MINIMALISTA */}
-      <header className="border-b border-gray-100 bg-white sticky top-0 z-30">
-        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-            <Link href="/" className="text-xl font-black tracking-tighter">
-                FACILLIT<span className="text-gray-300">.</span>
-            </Link>
-            <div className="w-64 hidden md:block">
-                <BlogControls categories={categories} simpleMode={true} />
+      <main className="container mx-auto px-6 py-12 max-w-7xl">
+        
+        {/* HEADER SIMPLES */}
+        <div className="mb-12 flex items-center gap-3">
+            <div className="w-10 h-10 bg-brand-purple/10 rounded-xl flex items-center justify-center text-brand-purple">
+                <Sparkles size={20} />
+            </div>
+            <div>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight">Blog Facillit</h1>
+                <p className="text-sm text-gray-500">Insights, tutoriais e novidades.</p>
             </div>
         </div>
-      </header>
 
-      <main className="container mx-auto px-6 py-12 max-w-6xl">
-        
-        {/* HERO SECTION (EDITORIAL STYLE) */}
-        {showHero && (
-            <section className="mb-24 group">
-                <Link href={`/recursos/blog/${heroPost.slug.current}`} className="block">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                        <div className="order-2 lg:order-1 space-y-6">
-                            <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-gray-400">
-                                <span className="text-brand-purple">Destaque</span>
-                                <span>•</span>
-                                <span>{new Date(heroPost.publishedAt).toLocaleDateString('pt-BR')}</span>
+        {/* HERO SECTION */}
+        {heroPost && (
+            <section className="mb-20">
+                <Link href={`/recursos/blog/${heroPost.slug.current}`} className="group relative block rounded-[2.5rem] overflow-hidden bg-gray-900 shadow-2xl hover:shadow-brand-purple/20 transition-all duration-500">
+                    <div className="relative h-[500px] w-full">
+                        {heroPost.mainImage && (
+                            <Image 
+                                src={urlFor(heroPost.mainImage).width(1200).url()} 
+                                alt={heroPost.title} 
+                                fill 
+                                className="object-cover opacity-80 group-hover:opacity-60 group-hover:scale-105 transition-all duration-700"
+                                priority
+                            />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                        
+                        <div className="absolute bottom-0 left-0 p-8 md:p-16 w-full max-w-4xl">
+                            <div className="flex items-center gap-3 mb-4">
+                                <span className="px-3 py-1 bg-brand-purple text-white text-[10px] font-black uppercase tracking-widest rounded-full">
+                                    Destaque
+                                </span>
+                                {heroPost.categories?.[0] && (
+                                    <span className="text-gray-300 text-xs font-bold uppercase tracking-wider border-l border-white/20 pl-3">
+                                        {heroPost.categories[0].title}
+                                    </span>
+                                )}
                             </div>
-                            <h2 className="text-4xl lg:text-6xl font-black leading-[1.05] group-hover:text-gray-600 transition-colors">
+                            <h2 className="text-3xl md:text-5xl lg:text-6xl font-black text-white mb-6 leading-[1.1]">
                                 {heroPost.title}
                             </h2>
-                            <p className="text-lg text-gray-500 leading-relaxed max-w-md">
-                                {heroPost.excerpt}
-                            </p>
-                            <div className="pt-4 flex items-center gap-3">
-                                {heroPost.author?.image && (
-                                    <Image src={urlFor(heroPost.author.image).width(40).url()} width={40} height={40} alt="" className="rounded-full grayscale group-hover:grayscale-0 transition-all" />
-                                )}
-                                <div>
-                                    <p className="text-sm font-bold text-gray-900">{heroPost.author?.name}</p>
-                                    <p className="text-xs text-gray-400">Ler artigo <ArrowRight size={10} className="inline"/></p>
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    {heroPost.author?.image ? (
+                                        <Image src={urlFor(heroPost.author.image).width(40).url()} width={32} height={32} alt="" className="rounded-full border border-white/20" />
+                                    ) : <div className="w-8 h-8 bg-brand-purple rounded-full"/>}
+                                    <span className="text-white font-bold text-sm flex items-center gap-1.5">
+                                        {heroPost.author?.name}
+                                        {/* Verificado Verde no Hero */}
+                                        {heroPost.author?.isOfficial && <CheckCircle size={14} className="text-green-500" fill="white" strokeWidth={3} />}
+                                    </span>
                                 </div>
                             </div>
-                        </div>
-                        <div className="order-1 lg:order-2 relative aspect-[4/3] lg:aspect-square rounded-none overflow-hidden bg-gray-100">
-                            {heroPost.mainImage && (
-                                <Image 
-                                    src={urlFor(heroPost.mainImage).width(800).url()} 
-                                    alt={heroPost.title} 
-                                    fill 
-                                    className="object-cover group-hover:scale-105 transition-transform duration-700"
-                                    priority
-                                />
-                            )}
                         </div>
                     </div>
                 </Link>
             </section>
         )}
 
-        {/* FEED & SIDEBAR */}
-        <div className="flex flex-col lg:flex-row gap-16 lg:gap-24 border-t border-gray-100 pt-16">
+        {/* LISTA DE ARTIGOS (GRID) */}
+        <div className="mb-12">
+            <h3 className="text-xl font-bold text-gray-900 mb-8 flex items-center gap-2">
+                Últimas Publicações
+            </h3>
             
-            {/* FEED DE LISTA (Esquerda) */}
-            <div className="flex-1">
-                <div className="flex items-center justify-between mb-12">
-                    <h3 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                        {isFiltering ? (
-                            // CORREÇÃO AQUI: Trocado " por &quot; para evitar erro de build
-                            <>Resultados: <span className="text-gray-400">&quot;{q || cat}&quot;</span></>
-                        ) : 'Últimas Publicações'}
-                    </h3>
-                    <Link href="/recursos/blog" className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-brand-purple transition-colors">
-                        Ver tudo
-                    </Link>
-                </div>
-
-                <div className="space-y-16">
-                    {listPosts.length > 0 ? listPosts.map((post: any) => (
-                        <Link href={`/recursos/blog/${post.slug.current}`} key={post._id} className="group block">
-                            <article className="flex flex-col md:flex-row gap-8">
-                                <div className="w-full md:w-1/3 aspect-[3/2] bg-gray-100 overflow-hidden relative">
-                                    {post.mainImage && (
-                                        <Image 
-                                            src={urlFor(post.mainImage).width(400).url()} 
-                                            alt={post.title} 
-                                            fill 
-                                            className="object-cover transition-transform duration-500 group-hover:scale-105"
-                                        />
-                                    )}
-                                </div>
-                                <div className="flex-1 flex flex-col justify-center py-2">
-                                    <div className="flex items-center gap-3 mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">
-                                        {post.categories?.[0] && <span className="text-brand-purple">{post.categories[0].title}</span>}
-                                        <span>{new Date(post.publishedAt).toLocaleDateString('pt-BR')}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {listPosts.map((post: any) => (
+                    <Link href={`/recursos/blog/${post.slug.current}`} key={post._id} className="group flex flex-col h-full">
+                        <article className="bg-white rounded-[2rem] p-3 border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-1 transition-all duration-300 h-full flex flex-col">
+                            
+                            {/* Imagem */}
+                            <div className="relative h-48 w-full rounded-[1.5rem] overflow-hidden bg-gray-100 mb-4">
+                                {post.mainImage && (
+                                    <Image 
+                                        src={urlFor(post.mainImage).width(600).height(400).url()} 
+                                        alt={post.title} 
+                                        fill 
+                                        className="object-cover group-hover:scale-105 transition-transform duration-700"
+                                    />
+                                )}
+                                {post.categories?.[0] && (
+                                    <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-gray-900 shadow-sm">
+                                        {post.categories[0].title}
                                     </div>
-                                    <h4 className="text-2xl font-bold text-gray-900 mb-3 leading-tight group-hover:underline decoration-2 underline-offset-4 decoration-brand-purple">
-                                        {post.title}
-                                    </h4>
-                                    <p className="text-gray-500 leading-relaxed mb-4 line-clamp-2">
-                                        {post.excerpt}
-                                    </p>
-                                    <span className="text-sm font-bold flex items-center gap-2 text-gray-900 mt-auto">
-                                        Ler agora <ChevronRight size={14} className="text-brand-purple"/>
-                                    </span>
+                                )}
+                            </div>
+
+                            {/* Conteúdo */}
+                            <div className="px-2 pb-2 flex-1 flex flex-col">
+                                <div className="flex items-center gap-3 mb-3 text-xs font-bold text-gray-400">
+                                    <span className="flex items-center gap-1"><Calendar size={12}/> {new Date(post.publishedAt).toLocaleDateString('pt-BR')}</span>
+                                    <span className="flex items-center gap-1"><Clock size={12}/> {post.estimatedReadingTime} min</span>
                                 </div>
-                            </article>
-                        </Link>
-                    )) : (
-                        <div className="py-20 text-center border-y border-gray-100">
-                            <p className="text-gray-400">Nenhum artigo encontrado para sua busca.</p>
-                            <Link href="/recursos/blog" className="text-brand-purple font-bold mt-2 inline-block">Limpar filtros</Link>
-                        </div>
-                    )}
-                </div>
+
+                                <h3 className="text-base font-bold text-gray-900 mb-3 leading-snug group-hover:text-brand-purple transition-colors line-clamp-2">
+                                    {post.title}
+                                </h3>
+                                
+                                <div className="flex items-center justify-between pt-4 border-t border-gray-50 mt-auto">
+                                    <div className="flex items-center gap-2">
+                                        {post.author?.image ? (
+                                            <Image src={urlFor(post.author.image).width(24).url()} width={24} height={24} alt="" className="rounded-full ring-1 ring-white" />
+                                        ) : <div className="w-6 h-6 rounded-full bg-gray-100"/>}
+                                        <span className="text-xs font-bold text-gray-600 flex items-center gap-1">
+                                            {post.author?.name}
+                                            {/* Verificado Verde no Grid */}
+                                            {post.author?.isOfficial && <CheckCircle size={12} className="text-green-500" fill="transparent" strokeWidth={3} />}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    </Link>
+                ))}
             </div>
-
-            {/* SIDEBAR (Direita) */}
-            <aside className="w-full lg:w-64 space-y-12">
-                
-                {/* Categorias */}
-                <div>
-                    <h4 className="font-bold text-gray-900 mb-6 uppercase text-xs tracking-widest">Tópicos</h4>
-                    <ul className="space-y-3">
-                        <li>
-                            <Link href="/recursos/blog" className={`text-sm font-medium transition-colors ${!cat ? 'text-brand-purple font-bold' : 'text-gray-500 hover:text-gray-900'}`}>
-                                Todos
-                            </Link>
-                        </li>
-                        {categories.map((c:any) => (
-                            <li key={c._id}>
-                                <Link href={`/recursos/blog?cat=${c.title}`} className={`text-sm font-medium transition-colors flex items-center justify-between ${cat === c.title ? 'text-brand-purple font-bold' : 'text-gray-500 hover:text-gray-900'}`}>
-                                    {c.title}
-                                    {cat === c.title && <div className="w-1.5 h-1.5 bg-brand-purple rounded-full"/>}
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-
-                {/* Newsletter Box Custom */}
-                <div className="bg-gray-900 text-white p-6 text-center">
-                    <h4 className="font-bold text-lg mb-2">Newsletter</h4>
-                    <p className="text-gray-400 text-xs mb-4">Receba novidades semanais.</p>
-                    <div className="opacity-90">
-                        {/* Reutilizando o componente mas com tema dark forçado via container */}
-                        <div className="[&_input]:bg-gray-800 [&_input]:border-gray-700 [&_input]:text-white [&_button]:bg-white [&_button]:text-black">
-                             <BlogControls categories={[]} simpleMode={true} /> 
-                        </div>
-                    </div>
-                </div>
-
-            </aside>
-
         </div>
+
+        {/* BOTÃO "VER TODOS" */}
+        <div className="text-center pt-8 border-t border-gray-200">
+            <Link href="/recursos/blog/explorar" className="inline-flex items-center gap-2 px-8 py-3 bg-white border border-gray-200 rounded-full text-sm font-bold text-gray-600 hover:bg-gray-50 hover:text-brand-purple hover:border-brand-purple/30 transition-all shadow-sm group">
+                Ver todos os artigos
+                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform"/>
+            </Link>
+        </div>
+
       </main>
     </div>
   )
