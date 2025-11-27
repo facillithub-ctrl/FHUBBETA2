@@ -147,6 +147,36 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
         <div className="prose prose-lg prose-slate prose-headings:font-bold prose-a:text-blue-600 hover:prose-a:text-blue-700 max-w-none text-slate-700 leading-8">
             <PortableText value={post.body} components={components} />
         </div>
+        {/* Author Box Premium */}
+        <div className="mt-16 p-8 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-brand-purple to-brand-green p-[3px] flex-shrink-0">
+                <div className="w-full h-full bg-white rounded-full overflow-hidden relative">
+                    {/* Placeholder de avatar */}
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center text-2xl font-bold text-gray-500">FH</div>
+                </div>
+            </div>
+            <div>
+                <p className="text-xs font-bold text-brand-green uppercase tracking-wider mb-1">Escrito por</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{post.authorName || 'Equipe Facillit Hub'}</h3>
+                <p className="text-gray-600 text-sm leading-relaxed mb-4">
+                    Especialistas em tecnologia educacional e produtividade. Nossa missão é simplificar processos complexos para escolas e empresas.
+                </p>
+                <div className="flex justify-center md:justify-start gap-3">
+                    <button className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:border-brand-purple hover:text-brand-purple transition-all"><i className="fab fa-linkedin-in"></i></button>
+                    <button className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:border-brand-purple hover:text-brand-purple transition-all"><i className="fab fa-twitter"></i></button>
+                </div>
+            </div>
+        </div>
+
+        {/* Barra de Compartilhamento */}
+        <div className="mt-8 flex items-center justify-between py-6 border-y border-gray-100">
+            <span className="font-bold text-gray-900 flex items-center gap-2"><Share2 size={18} /> Compartilhar:</span>
+            <div className="flex gap-2">
+                <button className="px-4 py-2 rounded-lg bg-[#1877F2] text-white text-sm font-bold hover:opacity-90 transition-opacity"><i className="fab fa-facebook-f mr-2"></i> Facebook</button>
+                <button className="px-4 py-2 rounded-lg bg-[#1DA1F2] text-white text-sm font-bold hover:opacity-90 transition-opacity"><i className="fab fa-twitter mr-2"></i> Twitter</button>
+                <button className="px-4 py-2 rounded-lg bg-[#25D366] text-white text-sm font-bold hover:opacity-90 transition-opacity"><i className="fab fa-whatsapp mr-2"></i> WhatsApp</button>
+            </div>
+        </div>
 
         {/* CTA Newsletter (Engajamento) */}
         <div className="my-16">

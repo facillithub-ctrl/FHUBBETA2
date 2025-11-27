@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import createClient from '@/utils/supabase/client'
-import { postComment } from '@/app/recursos/blog/actions' // Caminho ajustado
-import { User, MessageSquare, Send, Loader2 } from 'lucide-react'
+import { postComment } from '@/app/recursos/blog/actions'
+import { User, MessageSquare, Send, Loader2, Trash2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import { useToast } from '@/contexts/ToastContext' // Assumindo que você tem esse contexto
 
 interface Comment {
   id: string
@@ -20,29 +21,30 @@ export function CommentsSection({ postSlug }: { postSlug: string }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [user, setUser] = useState<any>(null)
   const supabase = createClient()
+  const { addToast } = useToast()
+
+  // UseCallback para estabilizar a função e evitar loop no useEffect
+  const fetchComments = useCallback(async () => {
+    const { data } = await supabase
+      .from('blog_comments')
+      .select('*')
+      .eq('post_slug', postSlug)
+      .order('created_at', { ascending: false })
+    if (data) setComments(data)
+    setLoadingComments(false)
+  }, [postSlug, supabase])
 
   useEffect(() => {
-    async function loadData() {
-      // 1. Pega usuário
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
-
-      // 2. Pega comentários
-      const { data } = await supabase
-        .from('blog_comments')
-        .select('*')
-        .eq('post_slug', postSlug)
-        // .eq('is_approved', true) // Descomente se habilitar moderação no SQL
-        .order('created_at', { ascending: false })
-
-      if (data) setComments(data)
-      setLoadingComments(false)
+    const getUser = async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        setUser(user)
     }
-    loadData()
-  }, [postSlug]) // Dependência simplificada para evitar loop
+    getUser()
+    fetchComments()
+  }, [fetchComments, supabase]) // Dependências corrigidas
 
   async function handlePostComment(formData: FormData) {
-    if (!user) return alert("Faça login para comentar")
+    if (!user) return addToast({ title: "Erro", message: "Faça login para comentar", type: "error" })
     
     setIsSubmitting(true)
     formData.append('postSlug', postSlug)
@@ -50,98 +52,97 @@ export function CommentsSection({ postSlug }: { postSlug: string }) {
     const result = await postComment(formData)
     
     if (result.success) {
-      // Atualiza lista localmente para feedback instantâneo
-      const newComment = {
-        id: Math.random().toString(),
-        content: formData.get('content') as string,
-        created_at: new Date().toISOString(),
-        user_id: user.id
-      }
-      setComments([newComment, ...comments])
-      
-      // Limpa formulário
+      addToast({ title: "Sucesso", message: "Comentário enviado!", type: "success" })
       const form = document.getElementById('comment-form') as HTMLFormElement
       form?.reset()
+      fetchComments() // Recarrega a lista real
     } else {
-      alert(result.error)
+      addToast({ title: "Erro", message: result.error as string, type: "error" })
     }
     setIsSubmitting(false)
   }
 
   return (
-    <div className="pt-10 border-t border-gray-100">
-      <div className="flex items-center gap-2 mb-8">
-        <MessageSquare className="text-blue-600" />
-        <h3 className="text-2xl font-bold text-gray-900">Comentários ({comments.length})</h3>
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mt-12">
+      <div className="flex items-center gap-3 mb-8 border-b border-gray-100 pb-4">
+        <div className="p-2 bg-brand-purple/10 rounded-lg text-brand-purple">
+            <MessageSquare size={24} />
+        </div>
+        <h3 className="text-2xl font-bold text-gray-900">Comentários <span className="text-gray-400 text-lg ml-1">({comments.length})</span></h3>
       </div>
 
       {/* Formulário */}
-      <div className="mb-10 bg-gray-50 p-6 rounded-xl border border-gray-100">
-        {user ? (
-          <form id="comment-form" action={handlePostComment}>
-            <div className="flex gap-4">
-              <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0 text-white font-bold">
-                {user.email?.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1">
+      <div className="mb-10 flex gap-4">
+        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 border border-gray-200 overflow-hidden">
+             {user ? (
+                 <span className="font-bold text-brand-purple">{user.email?.charAt(0).toUpperCase()}</span>
+             ) : (
+                 <User size={20} className="text-gray-400" />
+             )}
+        </div>
+        <div className="flex-1">
+            {user ? (
+            <form id="comment-form" action={handlePostComment} className="relative">
                 <textarea
-                  name="content"
-                  placeholder="Escreva seu comentário..."
-                  rows={3}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none bg-white"
-                  required
+                    name="content"
+                    placeholder="Compartilhe sua opinião..."
+                    rows={3}
+                    className="w-full px-4 py-3 pr-12 rounded-xl border border-gray-200 focus:ring-2 focus:ring-brand-purple focus:border-transparent outline-none resize-none bg-gray-50 transition-all text-sm"
+                    required
                 />
-                <div className="flex justify-end mt-2">
-                  <button
+                <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium text-sm hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-                  >
+                    className="absolute bottom-3 right-3 p-2 bg-brand-purple text-white rounded-lg hover:bg-brand-dark transition-colors disabled:opacity-50 shadow-sm"
+                >
                     {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                    Publicar
-                  </button>
-                </div>
-              </div>
+                </button>
+            </form>
+            ) : (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center">
+                <p className="text-gray-500 mb-3">Você precisa estar conectado para comentar.</p>
+                <a href="/login" className="inline-block px-6 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-100 transition-colors shadow-sm">
+                    Fazer Login
+                </a>
             </div>
-          </form>
-        ) : (
-          <div className="text-center py-6">
-            <p className="text-gray-500 mb-3">Você precisa estar logado para participar da conversa.</p>
-            <a href="/login" className="inline-block px-6 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 font-bold hover:bg-gray-50 transition-colors">
-              Fazer Login
-            </a>
-          </div>
-        )}
+            )}
+        </div>
       </div>
 
       {/* Lista */}
       <div className="space-y-6">
         {loadingComments ? (
-          <div className="text-center py-8">
-            <Loader2 className="animate-spin mx-auto text-blue-600" />
-          </div>
+          <div className="text-center py-10"><Loader2 className="animate-spin mx-auto text-brand-purple" /></div>
         ) : comments.length > 0 ? (
           comments.map((comment) => (
-            <div key={comment.id} className="flex gap-4 animate-in fade-in slide-in-from-bottom-2">
-              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-500">
-                <User size={20} />
+            <div key={comment.id} className="group flex gap-4 animate-in fade-in">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-purple to-brand-green p-[2px] flex-shrink-0">
+                  <div className="w-full h-full bg-white rounded-full flex items-center justify-center">
+                    <span className="text-xs font-bold text-brand-purple">U</span>
+                  </div>
               </div>
               <div className="flex-1">
-                <div className="bg-white border border-gray-100 p-4 rounded-lg rounded-tl-none shadow-sm">
-                  <p className="text-gray-800 text-sm">{comment.content}</p>
+                <div className="bg-gray-50 p-4 rounded-2xl rounded-tl-none">
+                    <div className="flex justify-between items-start mb-1">
+                        <span className="font-bold text-sm text-gray-900">Usuário</span>
+                        <span className="text-xs text-gray-400">
+                            {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: ptBR })}
+                        </span>
+                    </div>
+                    <p className="text-gray-700 text-sm leading-relaxed">{comment.content}</p>
                 </div>
-                <div className="flex items-center gap-4 mt-1 ml-1 text-xs text-gray-400">
-                  <span>Usuário</span>
-                  <span>•</span>
-                  <span>
-                    {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: ptBR })}
-                  </span>
+                {/* Ações do Comentário (Futuro: Responder, Curtir) */}
+                <div className="flex gap-4 mt-1 ml-2">
+                    <button className="text-xs font-bold text-gray-400 hover:text-brand-purple transition-colors">Responder</button>
+                    <button className="text-xs font-bold text-gray-400 hover:text-brand-purple transition-colors">Curtir</button>
                 </div>
               </div>
             </div>
           ))
         ) : (
-          <p className="text-gray-400 text-center italic py-8">Seja o primeiro a comentar!</p>
+          <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+              <p className="text-gray-400 italic">Seja o primeiro a comentar!</p>
+          </div>
         )}
       </div>
     </div>
