@@ -34,7 +34,7 @@ export type AIFeedback = {
   essay_id?: string;
   detailed_feedback: { competency: string; feedback: string }[];
   rewrite_suggestions: { original: string; suggestion: string }[];
-  actionable_items: string[];
+  actionable_items: string[] | { text: string; is_completed: boolean }[];
   created_at?: string;
 };
 
@@ -84,7 +84,6 @@ export type ActionPlan = {
 
 // --- FUNÇÕES PRINCIPAIS ---
 
-// Salva ou Atualiza Redação
 export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -147,7 +146,6 @@ export async function saveOrUpdateEssay(essayData: Partial<Essay>) {
   return { data: upsertedEssay };
 }
 
-// Busca Temas
 export async function getPrompts() {
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.from('essay_prompts').select('*').order('created_at', { ascending: false });
@@ -155,7 +153,6 @@ export async function getPrompts() {
     return { data: data || [] };
 }
 
-// Busca Redações do Aluno
 export async function getEssaysForStudent() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -178,7 +175,6 @@ export async function getEssaysForStudent() {
   return { data: essaysWithGrades };
 }
 
-// Busca Detalhes
 export async function getEssayDetails(essayId: string) {
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase.from('essays').select(`*, profiles (full_name)`).eq('id', essayId).maybeSingle();
@@ -186,7 +182,6 @@ export async function getEssayDetails(essayId: string) {
     return { data: data as (Essay & { profiles: { full_name: string | null } | null }) };
 }
 
-// Busca Correção Completa
 export async function getCorrectionForEssay(essayId: string) {
     const supabase = await createSupabaseServerClient();
     const { data: correctionBase } = await supabase.from('essay_corrections').select(`*, profiles ( full_name, verification_badge )`).eq('essay_id', essayId).maybeSingle();
@@ -200,10 +195,11 @@ export async function getCorrectionForEssay(essayId: string) {
     return { data: finalData };
 }
 
-// Salva Feedback IA (Corrigido: Sem correction_id)
+// --- SALVAR FEEDBACK IA (Corrigido e usando updated_at) ---
 export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
+    
     if (!user) return { error: 'Não autorizado' };
 
     const { data, error } = await supabase
@@ -214,7 +210,7 @@ export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
             rewrite_suggestions: aiFeedbackData.rewrite_suggestions,
             actionable_items: aiFeedbackData.actionable_items,
             updated_at: new Date().toISOString()
-        })
+        }, { onConflict: 'essay_id' })
         .select()
         .single();
 
@@ -227,7 +223,6 @@ export async function saveAIFeedback(essayId: string, aiFeedbackData: any) {
     return { data };
 }
 
-// Estatísticas
 export async function getStudentStatistics() {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -273,25 +268,77 @@ export async function getUserActionPlans() {
 
     const plans: ActionPlan[] = [];
     const seenItems = new Set();
+    
     feedbacks.forEach(fb => {
         const essayTitle = essays.find(e => e.id === fb.essay_id)?.title || 'Redação';
-        fb.actionable_items?.forEach((item: string) => {
-            if (!seenItems.has(item)) {
-                seenItems.add(item);
-                plans.push({ id: crypto.randomUUID(), text: item, is_completed: false, source_essay: essayTitle });
-            }
-        });
+        // Verifica se é array de strings ou objetos
+        const items = fb.actionable_items;
+        
+        if (Array.isArray(items)) {
+            items.forEach((item: any) => {
+                const itemText = typeof item === 'string' ? item : item.text;
+                const isCompleted = typeof item === 'string' ? false : item.is_completed;
+                
+                if (!seenItems.has(itemText)) {
+                    seenItems.add(itemText);
+                    plans.push({ 
+                        id: crypto.randomUUID(), 
+                        text: itemText, 
+                        is_completed: isCompleted, 
+                        source_essay: essayTitle 
+                    });
+                }
+            });
+        }
     });
     return { data: plans.slice(0, 5) };
 }
 
-// --- CORREÇÃO DO ERRO DE BUILD: Função Adicionada ---
+export async function getSavedFeedbacks() {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { data: [] };
+
+    const { data } = await supabase
+        .from('essays')
+        .select(`
+            id, 
+            title, 
+            submitted_at, 
+            ai_feedback!inner (
+                detailed_feedback,
+                actionable_items,
+                created_at
+            )
+        `)
+        .eq('student_id', user.id)
+        .order('submitted_at', { ascending: false });
+
+    return { data: data || [] };
+}
+
+export async function toggleActionPlanItem(essayId: string, itemText: string, newStatus: boolean) {
+    const supabase = await createSupabaseServerClient();
+    
+    const { data: feedback } = await supabase.from('ai_feedback').select('*').eq('essay_id', essayId).single();
+    if (!feedback || !Array.isArray(feedback.actionable_items)) return { error: 'Feedback não encontrado' };
+
+    const updatedItems = feedback.actionable_items.map((item: any) => {
+        if (typeof item === 'string') {
+            return item === itemText ? { text: item, is_completed: newStatus } : { text: item, is_completed: false };
+        }
+        return item.text === itemText ? { ...item, is_completed: newStatus } : item;
+    });
+
+    const { error } = await supabase.from('ai_feedback').update({ actionable_items: updatedItems, updated_at: new Date().toISOString() }).eq('id', feedback.id);
+    if (error) return { error: error.message };
+    revalidatePath('/dashboard/applications/write');
+    return { success: true };
+}
+
 export async function checkForPlagiarism(_text: string) {
-    // Simulação de delay
     await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const hasPlagiarism = Math.random() > 0.8; // 20% chance de "achar" algo
-    
+    const hasPlagiarism = Math.random() > 0.8;
     if (hasPlagiarism) {
         return { 
             data: { 
@@ -303,7 +350,6 @@ export async function checkForPlagiarism(_text: string) {
     return { data: { similarity_percentage: Math.random() * 2, matches: [] } };
 }
 
-// Outros exports necessários
 export async function saveStudyPlan(plan: any) { return { success: true }; }
 export async function getPendingEssaysForTeacher(teacherId: string, organizationId: string | null) { return { data: [] }; }
 export async function getCorrectedEssaysForTeacher(teacherId: string, organizationId: string | null) { return { data: [] }; }
@@ -313,7 +359,6 @@ export async function getLatestEssayForDashboard() {
     if (!user) return { data: null };
     const { data } = await supabase.from('essays').select('id, title, status, essay_corrections(final_grade), prompts(title)').eq('student_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (!data) return { data: null };
-    // Correção para build type check
     const promptTitle = Array.isArray(data.prompts) ? data.prompts[0]?.title : (data.prompts as any)?.title;
     return { data: { ...data, final_grade: data.essay_corrections?.[0]?.final_grade ?? null, prompts: promptTitle ? { title: promptTitle } : null } };
 }
