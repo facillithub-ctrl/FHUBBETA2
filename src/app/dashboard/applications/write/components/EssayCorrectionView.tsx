@@ -18,7 +18,7 @@ import { useToast } from '@/contexts/ToastContext';
 type CorrectionWithDetails = EssayCorrection & {
   profiles: { full_name: string | null; verification_badge: string | null } | null;
   ai_feedback: AIFeedback | null;
-  annotations?: Annotation[]; // Adicionado para evitar erro de propriedade inexistente
+  annotations?: Annotation[];
 };
 
 type FullEssayDetails = Essay & {
@@ -26,7 +26,7 @@ type FullEssayDetails = Essay & {
   profiles: { full_name: string | null } | null;
 };
 
-// Tipo auxiliar para as chaves de nota
+// Tipo auxiliar para chaves de nota
 type GradeKey = 'grade_c1' | 'grade_c2' | 'grade_c3' | 'grade_c4' | 'grade_c5';
 
 export default function EssayCorrectionView({ essayId, onBack }: { essayId: string, onBack: () => void }) {
@@ -44,7 +44,7 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                 const essayRes = await getEssayDetails(essayId);
                 if (essayRes.data) {
                     const correctionRes = await getCorrectionForEssay(essayId);
-                    // Cast forçado para compatibilidade de tipos se necessário
+                    // Cast forçado para garantir compatibilidade
                     const finalCorrection = correctionRes.data ? { ...correctionRes.data } as unknown as CorrectionWithDetails : null;
 
                     // Lógica de Aba Inicial: Se não houver correção humana mas houver IA, foca na IA
@@ -135,7 +135,10 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
 
     if (!data) return <div className="text-center p-10 text-gray-500">Redação não encontrada.</div>;
 
-    const aiData = Array.isArray(correction?.ai_feedback) ? correction?.ai_feedback[0] : correction?.ai_feedback;
+    // CORREÇÃO: Tratamento robusto para aiData e inferência de array
+    const rawAiData = correction?.ai_feedback;
+    const aiData = (Array.isArray(rawAiData) ? rawAiData[0] : rawAiData) as AIFeedback | null | undefined;
+    
     const hasHumanCorrection = !!correction?.feedback;
 
     return (
@@ -344,7 +347,8 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                                                     <p className="text-xs text-indigo-700">Baseada nos critérios do ENEM.</p>
                                                 </div>
                                             </div>
-                                            {aiData.detailed_feedback?.map((item, idx) => (
+                                            {/* CORREÇÃO: Tipagem explícita para o parâmetro item */}
+                                            {aiData.detailed_feedback?.map((item: { competency: string; feedback: string }, idx: number) => (
                                                 <div key={idx} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm group hover:border-indigo-200 transition-colors">
                                                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover:bg-indigo-500 transition-colors"></span>
@@ -389,7 +393,8 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                                                 </div>
                                             </div>
                                             <div className="space-y-2">
-                                                {aiData.actionable_items.map((item, idx) => (
+                                                {/* CORREÇÃO: Tipagem explícita para o parâmetro item */}
+                                                {aiData.actionable_items.map((item: string, idx: number) => (
                                                     <div key={idx} className="flex gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-blue-200 transition-colors cursor-default group">
                                                         <div className="mt-0.5 w-5 h-5 rounded border border-gray-300 flex items-center justify-center text-white group-hover:border-blue-400">
                                                             <i className="fas fa-check text-[10px] opacity-0 group-hover:opacity-20"></i>
