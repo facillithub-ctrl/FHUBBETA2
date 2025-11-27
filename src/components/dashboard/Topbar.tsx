@@ -1,166 +1,88 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Bell, Search, Menu, CheckCircle2, Settings, User, LogOut, Loader2 } from "lucide-react";
-import Link from "next/link";
-import Image from "next/image";
-import { UserProfile } from "@/app/dashboard/types";
-import createClient from "@/utils/supabase/client"; // <--- CORRIGIDO: Sem chaves { }
-import { useRouter } from "next/navigation";
+import { useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import createClient from '@/utils/supabase/client';
+import type { UserProfile } from '@/app/dashboard/types';
+import { VerificationBadge } from '@/components/VerificationBadge';
 
-interface TopbarProps {
-  onMenuClick: () => void;
-  user: UserProfile;
-}
+type TopbarProps = {
+  userProfile: UserProfile;
+  toggleSidebar: () => void;
+};
 
-export default function Topbar({ onMenuClick, user }: TopbarProps) {
+export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const router = useRouter();
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const supabase = createClient();
 
-  const profileRef = useRef<HTMLDivElement>(null);
-  const notifRef = useRef<HTMLDivElement>(null);
-
-  // Fecha dropdowns ao clicar fora
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) setIsProfileOpen(false);
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) setIsNotifOpen(false);
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  if (!userProfile) return null;
 
   const handleLogout = async () => {
-    setIsLoggingOut(true);
-    const supabase = createClient();
     await supabase.auth.signOut();
-    router.push("/login");
+    router.push('/login');
+    router.refresh();
   };
 
-  // Nome para exibição: Prioridade Full Name -> Nickname -> Email
-  const displayName = user.full_name || user.nickname || user.email?.split('@')[0] || "Usuário";
+  const displayName = userProfile.fullName || userProfile.nickname || "Usuário";
+  const initials = displayName.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-white/80 dark:bg-[#0f0f12]/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 transition-all">
-      
-      {/* Esquerda: Botão Hambúrguer (Visível apenas em Mobile) */}
       <div className="flex items-center gap-4">
-        <button 
-          onClick={onMenuClick}
-          className="p-2 -ml-2 text-gray-600 dark:text-gray-300 lg:hidden hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-          aria-label="Abrir menu"
-        >
-          <Menu size={24} />
+        <button onClick={toggleSidebar} className="p-2 text-gray-500 hover:text-royal-blue focus:outline-none lg:hidden transition-colors">
+          <i className="fas fa-bars text-xl"></i>
         </button>
+        <div className="hidden md:block">
+            <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Bem-vindo, <span className="text-dark-text dark:text-white font-bold">{displayName.split(' ')[0]}</span>
+            </h2>
+        </div>
       </div>
 
-      {/* Direita: Ações e Perfil */}
       <div className="flex items-center gap-4">
-        
-        {/* Busca (Desktop) */}
-        <div className="hidden md:flex items-center bg-gray-100 dark:bg-gray-800/50 px-3 py-1.5 rounded-lg border border-transparent focus-within:border-brand-purple/30 transition-all w-64">
-          <Search size={16} className="text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Pesquisar..." 
-            className="ml-2 bg-transparent border-none outline-none text-sm w-full text-gray-700 dark:text-gray-200 placeholder-gray-400"
-          />
-        </div>
+        <button className="relative p-2 text-gray-400 hover:text-royal-blue transition-colors">
+          <i className="far fa-bell text-xl"></i>
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+        </button>
 
-        {/* Notificações */}
-        <div className="relative" ref={notifRef}>
-          <button 
-            onClick={() => setIsNotifOpen(!isNotifOpen)}
-            className="relative p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-          >
-            <Bell size={20} />
-            {/* Bolinha de notificação */}
-            <span className="absolute top-2 right-2 w-2 h-2 bg-brand-green rounded-full border border-white dark:border-[#0f0f12]"></span>
-          </button>
-          
-          {/* Dropdown Notificações */}
-          {isNotifOpen && (
-             <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-[#1a1a1e] rounded-xl shadow-xl border border-gray-100 dark:border-gray-800 p-4 animate-fade-in-up z-50">
-                <p className="text-sm font-semibold mb-2 text-gray-800 dark:text-white">Notificações</p>
-                <div className="text-xs text-gray-500 text-center py-4">Você não tem novas notificações.</div>
-             </div>
-          )}
-        </div>
-
-        <div className="h-6 w-px bg-gray-200 dark:bg-gray-800 hidden sm:block"></div>
-
-        {/* Perfil do Usuário */}
-        <div className="relative" ref={profileRef}>
-          <button 
-            onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="flex items-center gap-3 focus:outline-none group"
-          >
-            {/* Texto (Nome e Badge) */}
-            <div className="text-right hidden md:block">
-              <div className="flex items-center justify-end gap-1">
-                <span className="text-xs font-bold text-gray-700 dark:text-gray-200 group-hover:text-brand-purple transition-colors">
-                  {displayName}
-                </span>
-                {user.is_verified && <CheckCircle2 size={12} className="text-brand-green fill-brand-green/10" />}
-              </div>
-              <p className="text-[10px] text-gray-400 truncate max-w-[120px]">
-                {user.user_category || "Membro"}
-              </p>
+        <div className="relative">
+          <button onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="flex items-center gap-3 focus:outline-none group">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-bold text-dark-text dark:text-white group-hover:text-royal-blue transition-colors">{displayName}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{userProfile.userCategory || 'Usuário'}</p>
             </div>
-
-            {/* Avatar */}
-            <div className={`p-[2px] rounded-full bg-gradient-to-tr ${user.is_verified ? "from-brand-purple to-brand-green" : "from-gray-300 to-gray-400"}`}>
-              <div className="p-[2px] bg-white dark:bg-[#0f0f12] rounded-full">
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 relative flex items-center justify-center">
-                  {user.avatar_url ? (
-                    <Image 
-                      src={user.avatar_url} 
-                      alt="Avatar" 
-                      fill 
-                      className="object-cover" 
-                    />
-                  ) : (
-                    <span className="text-xs font-bold text-brand-purple">
-                       {displayName.charAt(0).toUpperCase()}
-                    </span>
-                  )}
+            <div className="relative">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-royal-blue to-cyan-400 p-[2px] shadow-md group-hover:shadow-royal-blue/30 transition-all">
+                    <div className="w-full h-full rounded-full bg-white dark:bg-gray-800 overflow-hidden relative flex items-center justify-center">
+                        {userProfile.avatarUrl ? <Image src={userProfile.avatarUrl} alt="Avatar" width={40} height={40} className="object-cover w-full h-full" /> : <span className="font-bold text-royal-blue text-sm">{initials}</span>}
+                    </div>
                 </div>
-              </div>
+                {userProfile.verification_badge && <div className="absolute -bottom-1 -right-1 bg-white dark:bg-gray-900 rounded-full p-0.5"><VerificationBadge badge={userProfile.verification_badge} size="10px" /></div>}
             </div>
           </button>
 
-          {/* Dropdown Perfil */}
-          {isProfileOpen && (
-            <div className="absolute right-0 mt-3 w-60 bg-white dark:bg-[#1a1a1e] rounded-xl shadow-2xl border border-gray-100 dark:border-gray-800 py-2 animate-fade-in-up z-50 origin-top-right">
-              <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 mb-1">
-                <p className="text-sm font-bold text-gray-800 dark:text-white truncate">{displayName}</p>
-                <p className="text-xs text-gray-500 truncate">{user.email}</p>
-              </div>
-
-              <div className="px-2 space-y-1">
-                <Link href="/dashboard/account" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-brand-purple/5 hover:text-brand-purple rounded-lg transition-colors">
-                  <User size={16} />
-                  <span>Acessar Facillit Account</span>
+          {isDropdownOpen && (
+            <>
+              <div className="fixed inset-0 z-10 cursor-default" onClick={() => setIsDropdownOpen(false)}></div>
+              <div className="absolute right-0 mt-3 w-56 bg-white dark:bg-[#1a1b1e] rounded-xl shadow-2xl border border-gray-100 dark:border-gray-800 py-2 z-20 animate-fade-in-down">
+                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 sm:hidden">
+                    <p className="text-sm font-bold text-dark-text dark:text-white">{displayName}</p>
+                </div>
+                <Link href="/dashboard/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-royal-blue transition-colors" onClick={() => setIsDropdownOpen(false)}>
+                  <i className="far fa-user w-5 text-center"></i> Meu Perfil
                 </Link>
-                <Link href="/dashboard/settings" className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                  <Settings size={16} />
-                  <span>Configurações</span>
+                <Link href="/dashboard/settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-royal-blue transition-colors" onClick={() => setIsDropdownOpen(false)}>
+                  <i className="fas fa-cog w-5 text-center"></i> Configurações
                 </Link>
-              </div>
-
-              <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800 px-2">
-                <button 
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
-                >
-                  {isLoggingOut ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} />}
-                  <span>{isLoggingOut ? "Saindo..." : "Sair"}</span>
+                <div className="h-px bg-gray-100 dark:bg-gray-800 my-1"></div>
+                <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors">
+                  <i className="fas fa-sign-out-alt w-5 text-center"></i> Sair
                 </button>
               </div>
-            </div>
+            </>
           )}
         </div>
       </div>

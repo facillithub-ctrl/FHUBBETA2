@@ -1,172 +1,145 @@
 "use client";
 
-import { useEffect, useState, useTransition, useRef, MouseEvent, ReactNode } from 'react';
+import { useEffect, useState, useTransition, useRef, MouseEvent } from 'react';
 import { Essay, getEssayDetails, submitCorrection, Annotation, AIFeedback } from '../actions';
 import Image from 'next/image';
 import createClient from '@/utils/supabase/client';
-
-// --- TIPOS ---
+import { useToast } from '@/contexts/ToastContext';
 
 type EssayWithProfile = Essay & {
     profiles: { full_name: string | null } | null;
 };
 
-type CommonError = { id: string; error_type: string };
-
 type AnnotationPopupProps = {
     position: { top: number; left: number };
-    onSave: (comment: string, marker: Annotation['marker']) => void;
+    onSave: (comment: string, marker: 'sugestao' | 'acerto' | 'erro') => void;
     onClose: () => void;
 };
 
-// Componente do Popup de Anotação (Posicionado Absolute no Body ou Container Relativo)
 const AnnotationPopup = ({ position, onSave, onClose }: AnnotationPopupProps) => {
     const [comment, setComment] = useState('');
-    const [marker, setMarker] = useState<Annotation['marker']>('sugestao');
-
-    // Foca no textarea ao abrir
+    const [marker, setMarker] = useState<'sugestao' | 'acerto' | 'erro'>('sugestao');
     const textRef = useRef<HTMLTextAreaElement>(null);
-    useEffect(() => {
-        if (textRef.current) textRef.current.focus();
-    }, []);
 
-    const handleSave = () => {
-        if (comment.trim()) {
-            onSave(comment, marker);
-        }
-    };
+    useEffect(() => { if (textRef.current) textRef.current.focus(); }, []);
 
     return (
-        <div
-            className="absolute z-50 bg-white dark:bg-dark-card shadow-xl rounded-lg p-3 w-72 border border-gray-200 dark:border-gray-600 animate-fade-in"
+        <div 
+            className="fixed z-[9999] bg-white dark:bg-gray-800 shadow-2xl rounded-xl p-4 w-80 border border-gray-100 dark:border-gray-600 animate-fade-in ring-1 ring-black/5"
             style={{ top: position.top, left: position.left }}
-            // Impede que o clique no popup feche o popup (propagação)
             onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
         >
-            <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-bold text-gray-500 uppercase">Novo Comentário</span>
-                <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><i className="fas fa-times"></i></button>
+            <div className="flex justify-between items-center mb-3">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <i className="fas fa-comment-alt"></i> Novo Comentário
+                </span>
+                <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+                    <i className="fas fa-times"></i>
+                </button>
             </div>
             <textarea
                 ref={textRef}
-                placeholder="Digite seu comentário aqui..."
+                placeholder="Escreva sua observação..."
                 rows={3}
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                className="w-full p-2 border rounded-md text-sm dark:bg-gray-700 dark:border-gray-600 mb-3 focus:ring-2 focus:ring-royal-blue focus:outline-none"
+                className="w-full p-3 border border-gray-200 rounded-lg text-sm bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white mb-3 focus:ring-2 focus:ring-royal-blue/50 focus:border-royal-blue focus:outline-none transition-all resize-none placeholder-gray-400"
             />
-            <div className="flex justify-between items-center gap-2">
-                <select
-                    value={marker}
-                    onChange={(e) => setMarker(e.target.value as Annotation['marker'])}
-                    className="text-xs p-1.5 border rounded-md dark:bg-gray-700 dark:border-gray-600 flex-1"
+            <div className="flex justify-between items-center gap-3">
+                <div className="relative flex-1">
+                    <select
+                        value={marker}
+                        onChange={(e) => setMarker(e.target.value as any)}
+                        className="w-full text-xs font-medium p-2 pl-3 pr-8 border border-gray-200 rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white appearance-none cursor-pointer hover:border-royal-blue transition-colors focus:outline-none focus:ring-2 focus:ring-royal-blue/20"
+                    >
+                        <option value="sugestao">💡 Sugestão</option>
+                        <option value="acerto">✅ Acerto</option>
+                        <option value="erro">❌ Erro</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400">
+                        <i className="fas fa-chevron-down text-[10px]"></i>
+                    </div>
+                </div>
+                <button 
+                    onClick={() => { if(comment.trim()) onSave(comment, marker) }} 
+                    className="text-xs bg-royal-blue text-white px-5 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-all shadow-sm hover:shadow-md active:scale-95"
                 >
-                    <option value="sugestao">💡 Sugestão</option>
-                    <option value="acerto">✅ Acerto</option>
-                    <option value="erro">❌ Erro</option>
-                </select>
-                <button onClick={handleSave} className="text-xs bg-royal-blue text-white px-4 py-2 rounded-md font-bold hover:bg-blue-700">Salvar</button>
+                    Salvar
+                </button>
             </div>
         </div>
     );
 };
 
-// --- COMPONENTE PRINCIPAL ---
 export default function CorrectionInterface({ essayId, onBack }: { essayId: string; onBack: () => void }) {
     const [essay, setEssay] = useState<EssayWithProfile | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const supabase = createClient();
-
+    const { addToast } = useToast();
+    
+    // Estados de Correção
     const [feedback, setFeedback] = useState('');
     const [grades, setGrades] = useState({ c1: 0, c2: 0, c3: 0, c4: 0, c5: 0 });
+    const [badge, setBadge] = useState('');
+    const [additionalLink, setAdditionalLink] = useState('');
+    const [annotations, setAnnotations] = useState<Annotation[]>([]);
+    
+    // Estados de UI
+    const [popupState, setPopupState] = useState<{ visible: boolean; top: number; left: number; selectionText?: string; position?: Annotation['position'] }>({ visible: false, top: 0, left: 0 });
     const [isSubmitting, startTransition] = useTransition();
     
-    const [commonErrors, setCommonErrors] = useState<CommonError[]>([]);
-    const [selectedErrors, setSelectedErrors] = useState<Set<string>>(new Set());
-
-    // Estado para Áudio
+    // Refs e Áudio
+    const imageContainerRef = useRef<HTMLDivElement>(null);
     const [isRecording, setIsRecording] = useState(false);
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [isUploadingAudio, setIsUploadingAudio] = useState(false);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
-
-    // Estado para Anotações
-    const [annotations, setAnnotations] = useState<Annotation[]>([]);
-    const [popupState, setPopupState] = useState<{ visible: boolean; top: number; left: number; selectionText?: string; position?: Annotation['position'] }>({ visible: false, top: 0, left: 0 });
     
-    // Refs para container de texto e imagem
-    const textContainerRef = useRef<HTMLDivElement>(null);
-    const imageContainerRef = useRef<HTMLDivElement>(null);
-
-    // Estados para desenho na imagem
+    // Desenho na Imagem
     const [isDrawing, setIsDrawing] = useState(false);
     const [selectionBox, setSelectionBox] = useState<{ x: number, y: number, width: number, height: number } | null>(null);
     const startCoords = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
 
-    const [manualAIFeedback, setManualAIFeedback] = useState<AIFeedback>({
-        detailed_feedback: Array(5).fill({ competency: '', feedback: '' }).map((_, i) => ({ competency: `Competência ${i + 1}`, feedback: '' })),
-        actionable_items: [''],
-        rewrite_suggestions: [],
-    });
+    const supabase = createClient();
 
     useEffect(() => {
-        const fetchInitialData = async () => {
+        const load = async () => {
             setIsLoading(true);
-            const { data: errorsData } = await supabase.from('common_errors').select('id, error_type');
-            setCommonErrors(errorsData || []);
-
-            const result = await getEssayDetails(essayId);
-            if (result.data) setEssay(result.data as EssayWithProfile);
-            else setError(result.error || 'Erro ao carregar');
+            const { data } = await getEssayDetails(essayId);
+            if (data) setEssay(data as EssayWithProfile);
             setIsLoading(false);
         };
-        fetchInitialData();
-    }, [essayId, supabase]);
+        load();
+    }, [essayId]);
 
-    // --- FUNÇÕES DE ANOTAÇÃO DE TEXTO ---
-    
-    const handleTextMouseUp = (e: MouseEvent<HTMLDivElement>) => {
+    // --- MANIPULAÇÃO DE SELEÇÃO DE TEXTO ---
+    const handleTextMouseUp = () => {
         const selection = window.getSelection();
-        
-        // Verifica se há seleção válida dentro do container de texto
-        if (selection && !selection.isCollapsed && selection.toString().trim() !== '' && textContainerRef.current?.contains(selection.anchorNode)) {
+        if (selection && !selection.isCollapsed && selection.toString().trim()) {
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
             
-            // Calcula posição relativa ao viewport + scroll para garantir que o popup apareça perto do texto
-            // Adiciona um pequeno offset para não cobrir o texto
-            setPopupState({ 
-                visible: true, 
-                left: rect.left + (rect.width / 2) - 100, // Centraliza horizontalmente (aprox)
-                top: rect.bottom + window.scrollY + 10, // Abaixo da seleção
-                selectionText: selection.toString() 
+            setPopupState({
+                visible: true,
+                top: rect.bottom + 10,
+                left: rect.left + (rect.width / 2) - 140, 
+                selectionText: selection.toString()
             });
-        } else {
-            // Se clicou e não selecionou nada, fecha o popup (a menos que o clique tenha sido NO popup, tratado no onMouseDown dele)
-            // Nota: O evento onMouseDown do popup tem stopPropagation, então aqui é seguro fechar se chegar no container
-            // Mas precisamos cuidado para não fechar imediatamente ao terminar de selecionar.
-            // A lógica de fechar é melhor gerida por um botão de fechar ou clique fora específico.
         }
     };
 
-    // --- FUNÇÕES DE ANOTAÇÃO DE IMAGEM ---
-
+    // --- MANIPULAÇÃO DE SELEÇÃO EM IMAGEM ---
     const handleImageMouseDown = (e: MouseEvent<HTMLDivElement>) => {
         if (popupState.visible) {
-            setPopupState({ ...popupState, visible: false });
+            setPopupState(prev => ({ ...prev, visible: false }));
             return;
         }
-        e.preventDefault(); // Evita drag da imagem
+        e.preventDefault();
         setIsDrawing(true);
         const rect = imageContainerRef.current!.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        startCoords.current = { x, y };
-        setSelectionBox({ x, y, width: 0, height: 0 });
+        startCoords.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        setSelectionBox({ x: startCoords.current.x, y: startCoords.current.y, width: 0, height: 0 });
     };
 
     const handleImageMouseMove = (e: MouseEvent<HTMLDivElement>) => {
@@ -184,59 +157,40 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
 
     const handleImageMouseUp = (e: MouseEvent<HTMLDivElement>) => {
         setIsDrawing(false);
-        if (selectionBox && (selectionBox.width > 10 || selectionBox.height > 10)) { // Mínimo de tamanho para evitar cliques acidentais
+        if (selectionBox && (selectionBox.width > 10 || selectionBox.height > 10)) {
             const rect = imageContainerRef.current!.getBoundingClientRect();
-            
-            // Posição relativa em porcentagem para responsividade
             const position = {
                 x: (selectionBox.x / rect.width) * 100,
                 y: (selectionBox.y / rect.height) * 100,
                 width: (selectionBox.width / rect.width) * 100,
                 height: (selectionBox.height / rect.height) * 100,
             };
-
-            // Posiciona o popup perto da caixa desenhada
-            setPopupState({ 
-                visible: true, 
-                left: e.pageX, 
-                top: e.pageY + 10, 
-                position 
+            setPopupState({
+                visible: true,
+                left: e.clientX,
+                top: e.clientY + 10,
+                position
             });
         }
         setSelectionBox(null);
     };
 
-    const handleSaveAnnotation = (comment: string, marker: Annotation['marker']) => {
-        let newAnnotation: Annotation;
-        
-        if (popupState.selectionText) {
-            newAnnotation = {
-                id: crypto.randomUUID(),
-                type: 'text',
-                selection: popupState.selectionText,
-                comment,
-                marker,
-            };
-        } else if (popupState.position) {
-            newAnnotation = {
-                id: crypto.randomUUID(),
-                type: 'image',
-                position: popupState.position,
-                comment,
-                marker,
-            };
-        } else { return; }
+    const handleSaveAnnotation = (comment: string, marker: 'erro' | 'acerto' | 'sugestao') => {
+        const newAnnotation: Annotation = {
+            id: crypto.randomUUID(),
+            type: popupState.position ? 'image' : 'text',
+            comment,
+            marker,
+            selection: popupState.selectionText,
+            position: popupState.position
+        };
 
         setAnnotations(prev => [...prev, newAnnotation]);
-        setPopupState({ ...popupState, visible: false, selectionText: undefined, position: undefined });
-        
-        // Limpa seleção de texto do navegador
-        if (window.getSelection) {
-            window.getSelection()?.removeAllRanges();
-        }
+        setPopupState({ visible: false, top: 0, left: 0 });
+        if (window.getSelection) window.getSelection()?.removeAllRanges();
     };
 
-    // ... (Lógica de Gravação de Áudio e Upload mantém-se igual à anterior) ...
+    // --- ÁUDIO ---
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -250,223 +204,243 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
             };
             mediaRecorderRef.current.start();
             setIsRecording(true);
-        } catch { alert("Erro ao acessar microfone."); }
-    };
-    const stopRecording = () => { mediaRecorderRef.current?.stop(); setIsRecording(false); };
-    const uploadAudio = async () => {
-        if (!audioBlob) return null;
-        setIsUploadingAudio(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        const filePath = `audio-feedbacks/${user?.id}/${essayId}-${Date.now()}.webm`;
-        const { error } = await supabase.storage.from('audio_feedbacks').upload(filePath, audioBlob);
-        if (error) { setIsUploadingAudio(false); return null; }
-        const { data } = supabase.storage.from('audio_feedbacks').getPublicUrl(filePath);
-        setIsUploadingAudio(false);
-        return data.publicUrl;
+        } catch { addToast({ title: "Erro", message: "Erro ao acessar microfone.", type: "error" }); }
     };
 
+    const stopRecording = () => { mediaRecorderRef.current?.stop(); setIsRecording(false); };
+
+    // --- SUBMISSÃO ---
     const handleSubmit = async () => {
         const final_grade = Object.values(grades).reduce((a, b) => a + b, 0);
-        if (!feedback) return alert("Adicione um feedback geral.");
-        
+        if (!feedback) return addToast({ title: "Atenção", message: "O feedback geral é obrigatório.", type: "error" });
+
         startTransition(async () => {
-            let url = null;
-            if (audioBlob) url = await uploadAudio();
-            
+            let uploadedAudioUrl = null;
+            if (audioBlob) {
+                setIsUploadingAudio(true);
+                const { data: { user } } = await supabase.auth.getUser();
+                const filePath = `audio-feedbacks/${user?.id}/${essayId}-${Date.now()}.webm`;
+                const { error } = await supabase.storage.from('audio_feedbacks').upload(filePath, audioBlob);
+                if (!error) {
+                    const { data } = supabase.storage.from('audio_feedbacks').getPublicUrl(filePath);
+                    uploadedAudioUrl = data.publicUrl;
+                }
+                setIsUploadingAudio(false);
+            }
+
             const result = await submitCorrection({
-                essay_id: essayId, feedback, grade_c1: grades.c1, grade_c2: grades.c2, grade_c3: grades.c3, grade_c4: grades.c4, grade_c5: grades.c5,
-                final_grade, audio_feedback_url: url, annotations, ai_feedback: manualAIFeedback,
+                essay_id: essayId,
+                feedback,
+                grade_c1: grades.c1, grade_c2: grades.c2, grade_c3: grades.c3, grade_c4: grades.c4, grade_c5: grades.c5,
+                final_grade,
+                audio_feedback_url: uploadedAudioUrl,
+                annotations,
+                badge: badge || null,
+                additional_link: additionalLink || null
             });
 
             if (!result.error) {
-                alert('Correção enviada!');
+                addToast({ title: "Sucesso", message: "Correção enviada!", type: "success" });
                 onBack();
             } else {
-                alert('Erro ao enviar: ' + result.error);
+                addToast({ title: "Erro", message: "Erro ao enviar correção.", type: "error" });
+                console.error(result.error);
             }
         });
     };
 
-    // Renderização do texto com anotações já salvas
-    const renderAnnotatedText = (text: string) => {
-        // Esta é uma implementação simplificada. Para destacar múltiplas ocorrências da mesma palavra corretamente,
-        // seria necessário um algoritmo mais complexo baseado em índices de range.
-        // Esta versão assume substituição global para visualização rápida.
-        
+    const renderAnnotatedText = (content: string) => {
         const textAnnotations = annotations.filter(a => a.type === 'text');
-        if (!textAnnotations.length) return <div className="whitespace-pre-wrap">{text}</div>;
+        if (textAnnotations.length === 0) {
+            return <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap text-lg leading-relaxed font-serif text-gray-800 dark:text-gray-200" dangerouslySetInnerHTML={{ __html: content }} />;
+        }
 
-        let parts: (string | ReactNode)[] = [text];
-        
-        textAnnotations.forEach((anno) => {
-            const newParts: (string | ReactNode)[] = [];
-            parts.forEach(part => {
-                if (typeof part !== 'string') {
-                    newParts.push(part);
-                    return;
-                }
-                // Divide a string pela seleção da anotação
-                // Nota: Isso destaca TODAS as ocorrências da string selecionada. 
-                const split = part.split(anno.selection!);
-                split.forEach((str, idx) => {
-                    newParts.push(str);
-                    if (idx < split.length - 1) {
-                        newParts.push(
-                            <mark key={`${anno.id}-${idx}`} className="bg-yellow-200 dark:bg-yellow-900 cursor-pointer relative group rounded px-1">
-                                {anno.selection}
-                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-48 bg-black text-white text-xs p-2 rounded hidden group-hover:block z-50">
-                                    {anno.comment}
-                                </span>
-                            </mark>
-                        );
-                    }
-                });
-            });
-            parts = newParts;
-        });
-
-        return <div className="whitespace-pre-wrap leading-relaxed">{parts}</div>;
+        return (
+            <div className="relative">
+                <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap text-lg leading-relaxed font-serif text-gray-800 dark:text-gray-200" dangerouslySetInnerHTML={{ __html: content }} />
+                <div className="mt-8 space-y-3">
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Comentários Realizados</h4>
+                    {textAnnotations.map((anno) => (
+                         <div key={anno.id} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg shadow-sm dark:bg-yellow-900/20 dark:border-yellow-800 flex gap-3 items-start group">
+                            <div className="bg-yellow-100 text-yellow-600 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold mt-0.5 shrink-0">
+                                <i className="fas fa-quote-right"></i>
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-1 border-l-2 border-yellow-400 pl-2 italic">
+                                    "{anno.selection?.substring(0, 60)}{anno.selection && anno.selection.length > 60 ? '...' : ''}"
+                                </p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{anno.comment}</p>
+                            </div>
+                            <button onClick={() => setAnnotations(annotations.filter(a => a.id !== anno.id))} className="ml-auto text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i className="fas fa-trash"></i>
+                            </button>
+                         </div>
+                    ))}
+                </div>
+            </div>
+        );
     };
 
-    if (isLoading || !essay) return <div className="p-8 text-center">Carregando...</div>;
+    if (isLoading || !essay) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-royal-blue"></div></div>;
 
     return (
-        <div className="relative">
-            {/* POPUP DE ANOTAÇÃO */}
+        <div className="relative min-h-screen pb-20 bg-gray-50 dark:bg-gray-900">
             {popupState.visible && (
-                <AnnotationPopup
-                    position={{ top: popupState.top, left: popupState.left }}
-                    onSave={handleSaveAnnotation}
-                    onClose={() => setPopupState(prev => ({ ...prev, visible: false }))}
+                <AnnotationPopup 
+                    position={popupState} 
+                    onSave={handleSaveAnnotation} 
+                    onClose={() => setPopupState(prev => ({ ...prev, visible: false }))} 
                 />
             )}
 
-            <div className="flex justify-between items-center mb-4">
-                <button onClick={onBack} className="text-sm text-gray-600 hover:text-royal-blue flex items-center gap-2"><i className="fas fa-arrow-left"></i> Voltar</button>
-                <h2 className="font-bold text-xl">Corrigindo: {essay.title}</h2>
+            {/* Topbar Fixa */}
+            <div className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 dark:bg-gray-900/90 dark:border-gray-800 px-6 py-4 shadow-sm mb-6 flex justify-between items-center">
+                 <div className="flex items-center gap-4">
+                    <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors">
+                        <i className="fas fa-arrow-left"></i>
+                    </button>
+                    <div>
+                        <h1 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">{essay.title || "Redação sem Título"}</h1>
+                        <p className="text-xs text-gray-500">{essay.profiles?.full_name} • {essay.submitted_at ? new Date(essay.submitted_at).toLocaleDateString() : ''}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4">
+                     <div className="text-right">
+                        <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Nota Atual</p>
+                        <p className="text-2xl font-black text-royal-blue">{Object.values(grades).reduce((a, b) => a + b, 0)}</p>
+                    </div>
+                     <button 
+                        onClick={handleSubmit} 
+                        disabled={isSubmitting || isUploadingAudio}
+                        className="bg-green-600 text-white px-6 py-2.5 rounded-lg font-bold hover:bg-green-700 transition-all shadow-md hover:shadow-lg active:scale-95 disabled:opacity-50 disabled:scale-100 flex items-center gap-2"
+                    >
+                        {isSubmitting ? <i className="fas fa-circle-notch fa-spin"></i> : <i className="fas fa-check"></i>}
+                        {isSubmitting ? 'Enviando...' : 'Finalizar'}
+                    </button>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 xl:grid-cols-3 gap-8">
                 
-                {/* COLUNA DA REDAÇÃO (TEXTO OU IMAGEM) */}
-                <div className="bg-white dark:bg-dark-card p-4 rounded-lg shadow border dark:border-gray-700 relative min-h-[500px]">
+                {/* --- ÁREA DA REDAÇÃO (CANVAS) --- */}
+                <div className="xl:col-span-2 bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 min-h-[80vh] p-8 relative overflow-hidden" onMouseUp={handleTextMouseUp}>
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
                     {essay.image_submission_url ? (
-                        <div
+                        <div 
+                            className="relative w-full h-full flex justify-center cursor-crosshair"
                             ref={imageContainerRef}
                             onMouseDown={handleImageMouseDown}
                             onMouseMove={handleImageMouseMove}
                             onMouseUp={handleImageMouseUp}
-                            className="relative w-full h-full cursor-crosshair select-none"
                         >
-                            <Image src={essay.image_submission_url} alt="Redação" width={800} height={1000} className="w-full h-auto rounded" draggable={false} />
+                            <Image src={essay.image_submission_url} alt="Redação" width={800} height={1200} className="object-contain max-w-full h-auto rounded-lg shadow-lg" draggable={false} />
                             
-                            {/* Caixa de Seleção em Tempo Real */}
                             {isDrawing && selectionBox && (
-                                <div className="absolute border-2 border-royal-blue bg-royal-blue/20" style={{ left: selectionBox.x, top: selectionBox.y, width: selectionBox.width, height: selectionBox.height, pointerEvents: 'none' }} />
+                                <div className="absolute border-2 border-royal-blue bg-royal-blue/10 rounded" style={{ left: selectionBox.x, top: selectionBox.y, width: selectionBox.width, height: selectionBox.height, pointerEvents: 'none' }} />
                             )}
 
-                            {/* Anotações Salvas na Imagem */}
                             {annotations.filter(a => a.type === 'image').map(a => (
-                                <div key={a.id} className="absolute border-2 border-yellow-500 bg-yellow-500/20 group" style={{ left: `${a.position!.x}%`, top: `${a.position!.y}%`, width: `${a.position!.width}%`, height: `${a.position!.height}%` }}>
-                                    <div className="absolute -top-8 left-0 bg-black text-white text-xs p-1 rounded hidden group-hover:block z-10 whitespace-nowrap">{a.comment}</div>
+                                <div key={a.id} className="absolute border-2 border-yellow-400 bg-yellow-400/20 cursor-help group rounded" style={{ left: `${a.position!.x}%`, top: `${a.position!.y}%`, width: `${a.position!.width}%`, height: `${a.position!.height}%` }}>
+                                    <div className="absolute -top-2 -right-2">
+                                        <button onClick={(e) => { e.stopPropagation(); setAnnotations(annotations.filter(an => an.id !== a.id)); }} className="bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"><i className="fas fa-times"></i></button>
+                                    </div>
+                                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0 shadow-xl arrow-bottom whitespace-nowrap z-20">
+                                        {a.comment}
+                                    </div>
                                 </div>
                             ))}
                         </div>
-                    ) : (
-                        <div 
-                            ref={textContainerRef}
-                            onMouseUp={handleTextMouseUp}
-                            className="prose dark:prose-invert max-w-none p-2 cursor-text"
-                        >
-                            {renderAnnotatedText(essay.content || '')}
-                        </div>
-                    )}
+                    ) : renderAnnotatedText(essay.content || '')}
                 </div>
 
-                {/* COLUNA DE FERRAMENTAS DE CORREÇÃO */}
-                <div className="bg-gray-50 dark:bg-gray-800 p-6 rounded-lg h-fit space-y-6">
+                {/* --- PAINEL DE FERRAMENTAS (SIDEBAR) --- */}
+                <div className="space-y-6">
                     
                     {/* Notas */}
-                    <div>
-                        <h3 className="font-bold mb-3">Atribuir Notas (0-200)</h3>
-                        <div className="grid grid-cols-5 gap-2">
+                    <div className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                        <h3 className="font-bold text-sm uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2"><i className="fas fa-star text-yellow-400"></i> Avaliação por Competência</h3>
+                        <div className="space-y-4">
                             {[1, 2, 3, 4, 5].map(i => (
-                                <div key={i}>
-                                    <label className="block text-xs text-center mb-1 text-gray-500">C{i}</label>
+                                <div key={i} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-2 rounded-lg">
+                                    <label className="text-sm font-bold text-gray-700 dark:text-gray-300 ml-2">Comp. {i}</label>
                                     <input 
-                                        type="number" min="0" max="200" step="20"
-                                        value={grades[`c${i}` as keyof typeof grades]}
-                                        onChange={(e) => setGrades({...grades, [`c${i}`]: Number(e.target.value)})}
-                                        className="w-full p-1 text-center border rounded dark:bg-gray-700"
+                                        type="number" 
+                                        value={grades[`c${i}` as keyof typeof grades]} 
+                                        onChange={e => setGrades({...grades, [`c${i}`]: Math.min(200, Math.max(0, Number(e.target.value)))})} 
+                                        className="w-20 p-1.5 text-center border rounded-md font-bold text-royal-blue focus:ring-2 focus:ring-royal-blue focus:outline-none bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        step="20" min="0" max="200"
                                     />
                                 </div>
                             ))}
                         </div>
-                        <div className="mt-2 text-right font-bold text-lg text-royal-blue">
-                            Total: {Object.values(grades).reduce((a, b) => a + b, 0)}
-                        </div>
                     </div>
 
-                    {/* Erros Comuns */}
-                    <div>
-                        <h3 className="font-bold mb-2 text-sm">Tags de Erros</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {commonErrors.map(err => (
-                                <button 
-                                    key={err.id} 
-                                    onClick={() => {
-                                        const newSet = new Set(selectedErrors);
-                                        newSet.has(err.id) ? newSet.delete(err.id) : newSet.add(err.id);
-                                        setSelectedErrors(newSet);
-                                    }}
-                                    className={`text-xs px-2 py-1 rounded-full border ${selectedErrors.has(err.id) ? 'bg-royal-blue text-white' : 'bg-white dark:bg-gray-700'}`}
-                                >
-                                    {err.error_type}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Feedback Geral */}
-                    <div>
-                        <h3 className="font-bold mb-2">Feedback Geral</h3>
+                    {/* Feedback */}
+                    <div className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                        <h3 className="font-bold text-sm uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2"><i className="fas fa-comment-dots text-blue-500"></i> Análise e Feedback</h3>
                         <textarea 
-                            rows={5} 
-                            value={feedback} 
+                            rows={6} 
+                            value={feedback}
                             onChange={e => setFeedback(e.target.value)}
-                            className="w-full p-3 border rounded-md dark:bg-gray-700 focus:ring-2 focus:ring-royal-blue focus:outline-none"
-                            placeholder="Escreva uma análise construtiva..."
+                            placeholder="Escreva uma análise construtiva sobre os pontos fortes e fracos..."
+                            className="w-full p-4 border rounded-xl text-sm mb-4 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-royal-blue focus:outline-none dark:bg-gray-800 dark:border-gray-700 dark:text-white resize-none transition-colors"
                         />
                         
-                        {/* Gravador de Áudio */}
-                        <div className="mt-3 flex items-center gap-3">
-                             {!isRecording && !audioUrl && (
-                                <button onClick={startRecording} className="flex items-center gap-2 text-sm text-gray-600 bg-white border px-3 py-1.5 rounded hover:bg-gray-50">
-                                    <i className="fas fa-microphone text-red-500"></i> Gravar Áudio
+                        <div className="flex flex-col gap-3">
+                            {!isRecording && !audioUrl && (
+                                <button onClick={startRecording} className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm font-bold text-gray-500 hover:border-royal-blue hover:text-royal-blue hover:bg-blue-50 transition-all">
+                                    <i className="fas fa-microphone"></i> Gravar Feedback em Áudio
                                 </button>
-                             )}
-                             {isRecording && (
-                                <button onClick={stopRecording} className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded animate-pulse">
-                                    <i className="fas fa-stop"></i> Parar (Gravando...)
+                            )}
+                            {isRecording && (
+                                <button onClick={stopRecording} className="flex items-center justify-center gap-2 w-full py-3 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-bold animate-pulse">
+                                    <div className="w-3 h-3 bg-red-600 rounded-full"></div> Parar Gravação...
                                 </button>
-                             )}
-                             {audioUrl && (
-                                 <div className="flex items-center gap-2 w-full bg-white p-2 rounded border">
-                                     <audio src={audioUrl} controls className="h-8 w-full" />
-                                     <button onClick={() => { setAudioBlob(null); setAudioUrl(null); }} className="text-red-500 hover:text-red-700"><i className="fas fa-trash"></i></button>
-                                 </div>
-                             )}
+                            )}
+                            {audioUrl && (
+                                <div className="flex items-center gap-3 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-xl border border-blue-100 dark:border-blue-800">
+                                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-blue-500 shadow-sm"><i className="fas fa-play"></i></div>
+                                    <audio src={audioUrl} controls className="flex-1 h-8 w-full" />
+                                    <button onClick={() => { setAudioBlob(null); setAudioUrl(null); }} className="text-gray-400 hover:text-red-500 transition-colors"><i className="fas fa-trash-alt"></i></button>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* Ações Finais */}
-                    <button 
-                        onClick={handleSubmit} 
-                        disabled={isSubmitting || isUploadingAudio}
-                        className="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors shadow-lg"
-                    >
-                        {isSubmitting ? 'Enviando...' : 'Finalizar Correção'}
-                    </button>
+                    {/* Extras */}
+                    <div className="bg-white dark:bg-dark-card p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                        <h3 className="font-bold text-sm uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2"><i className="fas fa-award text-purple-500"></i> Reconhecimento & Recursos</h3>
+                        
+                        <div className="mb-4">
+                            <label className="block text-xs font-bold text-gray-400 mb-2">Atribuir Selo</label>
+                            <select 
+                                value={badge} 
+                                onChange={e => setBadge(e.target.value)} 
+                                className="w-full p-2.5 border rounded-lg text-sm bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                            >
+                                <option value="">Selecionar Selo...</option>
+                                <option value="Exemplar">🏆 Redação Exemplar</option>
+                                <option value="Destaque">⭐ Destaque da Turma</option>
+                                <option value="Criativo">🎨 Criatividade</option>
+                                <option value="Analítico">🧠 Pensamento Analítico</option>
+                                <option value="Superação">🚀 Superação</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 mb-2">Recomendação de Estudo</label>
+                            <div className="relative">
+                                <i className="fas fa-link absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input 
+                                    type="text" 
+                                    value={additionalLink} 
+                                    onChange={e => setAdditionalLink(e.target.value)} 
+                                    placeholder="Cole um link aqui..." 
+                                    className="w-full pl-9 p-2.5 border rounded-lg text-sm bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                                />
+                            </div>
+                        </div>
+                    </div>
 
                 </div>
             </div>

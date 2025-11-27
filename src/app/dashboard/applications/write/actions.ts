@@ -53,6 +53,9 @@ export type EssayCorrection = {
     annotations?: Annotation[] | null;
     ai_feedback?: AIFeedback | null;
     created_at?: string;
+    // NOVOS CAMPOS PARA PROFESSOR
+    badge?: string | null;
+    additional_link?: string | null;
     profiles?: { full_name: string | null, verification_badge: string | null } | null;
 };
 
@@ -232,13 +235,9 @@ export async function getPendingEssaysForTeacher(teacherId: string, organization
         .select('id, title, submitted_at, profiles(full_name)')
         .eq('status', 'submitted');
 
-    // Lógica: Se for professor institucional, filtra pela organização.
-    // Se for GLOBAL (organizationId null), NÃO FILTRA, mostrando todas as redações submetidas.
     if (organizationId) {
         query = query.eq('organization_id', organizationId);
     } 
-    // Se quiser que o global veja SÓ as sem organização, descomente:
-    // else { query = query.is('organization_id', null); }
 
     const { data, error } = await query.order('submitted_at', { ascending: true });
 
@@ -247,39 +246,41 @@ export async function getPendingEssaysForTeacher(teacherId: string, organization
 }
 
 export async function getCorrectedEssaysForTeacher(teacherId: string, organizationId: string | null) {
-    const supabase = await createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
-    let query = supabase
-      .from('essays')
-      .select(`
-          id,
-          title,
-          submitted_at,
-          profiles ( full_name ),
-          essay_corrections!inner ( final_grade, corrector_id )
-      `)
-      .eq('status', 'corrected');
-      
-    // Professor vê apenas o que ELE corrigiu para histórico pessoal
-    // OU vê todas da escola se for gestão? Vamos manter "minhas correções" por enquanto.
-    query = query.eq('essay_corrections.corrector_id', teacherId);
+  let query = supabase
+    .from('essays')
+    .select(`
+        id,
+        title,
+        submitted_at,
+        profiles ( full_name ),
+        essay_corrections!inner ( final_grade, corrector_id )
+    `)
+    .eq('status', 'corrected');
+    
+  query = query.eq('essay_corrections.corrector_id', teacherId);
 
-    const { data, error } = await query.order('submitted_at', { ascending: false });
+  const { data, error } = await query.order('submitted_at', { ascending: false });
 
-    if (error) return { data: [] };
-    return { data };
+  if (error) return { data: [] };
+  return { data };
 }
 
 export async function submitCorrection(correctionData: Omit<EssayCorrection, 'id' | 'corrector_id' | 'created_at' | 'profiles'>) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
+
     if (!user) return { error: 'Usuário não autenticado.' };
 
     const { ai_feedback, ...humanData } = correctionData;
 
     const { data: correction, error } = await supabase
         .from('essay_corrections')
-        .insert({ ...humanData, corrector_id: user.id })
+        .insert({ 
+            ...humanData, 
+            corrector_id: user.id 
+        })
         .select()
         .single();
 
@@ -393,7 +394,6 @@ export async function toggleActionPlanItem(itemId: string, itemText: string, new
     return { success: true };
 }
 
-// --- OUTROS ---
 export async function checkForPlagiarism(_text: string) {
     await new Promise(resolve => setTimeout(resolve, 1500));
     const hasPlagiarism = Math.random() > 0.8;
@@ -415,3 +415,4 @@ export async function calculateWritingStreak() { return { data: 0 }; }
 export async function getUserStateRank() { return { data: null }; }
 export async function getFrequentErrors() { return { data: [] }; }
 export async function getCurrentEvents() { return { data: [] }; }
+export async function createNotification() { return { error: null }; }

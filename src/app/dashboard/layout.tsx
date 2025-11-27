@@ -1,58 +1,67 @@
-import createClient from "@/utils/supabase/server";
-import { redirect } from "next/navigation";
-import DashboardClientLayout from "./DashboardClientLayout";
-import { UserProfile } from "./types";
+import { redirect } from 'next/navigation';
+import createSupabaseServerClient from '@/utils/supabase/server';
+import type { UserProfile } from './types';
+import DashboardClientLayout from './DashboardClientLayout';
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
+  const supabase = await createSupabaseServerClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect('/login');
   }
-
-  // Busca dados reais da tabela profiles
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*") // Seleciona tudo para garantir que temos todos os campos
-    .eq("id", user.id)
+  
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
     .single();
 
-  // Monta o objeto HÍBRIDO (compatível com novo e antigo design)
-  const userData: UserProfile = {
-    id: user.id,
-    email: user.email!,
-    
-    // --- Padrão Novo (snake_case) ---
-    full_name: profile?.full_name || user.user_metadata?.full_name || "Estudante",
-    nickname: profile?.nickname || user.user_metadata?.name?.split(' ')[0] || "Visitante",
-    avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url,
-    is_verified: profile?.is_verified || false,
-    active_modules: profile?.active_modules || [],
-    organization_id: profile?.organization_id || null,
-    user_category: profile?.user_category || null,
+  if (error && error.code !== 'PGRST116') {
+    console.error("Erro ao buscar perfil:", error); 
+    // Não redireciona imediatamente para evitar loop se o erro for temporário, 
+    // mas se não tiver perfil, o objeto abaixo lida com isso.
+  }
 
-    // --- Padrão Legado (camelCase - Mapeamento) ---
-    fullName: profile?.full_name || user.user_metadata?.full_name,
-    avatarUrl: profile?.avatar_url || user.user_metadata?.avatar_url,
-    userCategory: profile?.user_category,
-    schoolName: profile?.school_name, // Supondo que exista no select *
-    pronoun: profile?.pronoun,
-    birthDate: profile?.birth_date,
-    target_exam: profile?.target_exam,
-    verification_badge: profile?.verification_badge,
-    has_completed_onboarding: profile?.has_completed_onboarding
+  // Constrói o objeto UserProfile garantindo que não seja undefined
+  const userProfile: UserProfile = profile ? {
+    id: profile.id,
+    fullName: profile.full_name,
+    userCategory: profile.user_category,
+    avatarUrl: profile.avatar_url,
+    pronoun: profile.pronoun,
+    nickname: profile.nickname,
+    birthDate: profile.birth_date,
+    schoolName: profile.school_name,
+    organization_id: profile.organization_id,
+    target_exam: profile.target_exam,
+    verification_badge: profile.verification_badge,
+    active_modules: profile.active_modules,
+    has_completed_onboarding: profile.has_completed_onboarding,
+  } : {
+    // Fallback seguro para novos usuários sem perfil completo
+    id: user.id,
+    fullName: user.email?.split('@')[0] || 'Usuário',
+    userCategory: null,
+    avatarUrl: null,
+    pronoun: null,
+    nickname: null,
+    birthDate: null,
+    schoolName: null,
+    organization_id: null,
+    target_exam: null,
+    verification_badge: null,
+    active_modules: [],
+    has_completed_onboarding: false,
   };
 
   return (
-    <DashboardClientLayout user={userData}>
+    <DashboardClientLayout userProfile={userProfile}>
       {children}
     </DashboardClientLayout>
   );

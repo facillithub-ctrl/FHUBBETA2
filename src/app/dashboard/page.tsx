@@ -1,11 +1,12 @@
 import createSupabaseServerClient from '@/utils/supabase/server';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { getLatestEssayForDashboard } from '@/app/dashboard/applications/write/actions';
 import { getStudentTestDashboardData, getCampaignsForStudent } from '@/app/dashboard/applications/test/actions';
 import CountdownWidget from '@/components/dashboard/CountdownWidget';
-import { UserProfile } from './types';
+import type { UserProfile } from './types';
 
-// --- COMPONENTE DE DASHBOARD DO ALUNO (O que já existia) ---
+// --- DASHBOARD DO ALUNO ---
 const StudentDashboard = ({ profile, latestEssay, latestTest, campaigns, examDate, welcomeMessage }: any) => (
   <>
     <h1 className="text-3xl font-bold text-dark-text dark:text-white mb-1">Olá, {profile?.full_name?.split(' ')[0]}!</h1>
@@ -22,9 +23,7 @@ const StudentDashboard = ({ profile, latestEssay, latestTest, campaigns, examDat
               <i className="fas fa-trophy text-yellow-300 text-3xl"></i>
               <div>
                 <h2 className="text-lg font-bold">Campanha Ativa: {campaigns[0].title}</h2>
-                <p className="text-sm opacity-90">
-                  Prepare-se para o SAEB 2025 e concorra a prêmios!
-                </p>
+                <p className="text-sm opacity-90">Prepare-se para o SAEB 2025 e concorra a prêmios!</p>
               </div>
             </div>
             <Link href="/dashboard/applications/test" className="mt-4 md:mt-0 bg-white text-royal-blue text-center font-bold py-2 px-6 rounded-lg hover:bg-gray-200 transition-colors">
@@ -33,7 +32,6 @@ const StudentDashboard = ({ profile, latestEssay, latestTest, campaigns, examDat
           </div>
         )}
 
-        {/* Cards de Módulos do Aluno */}
         <div className="bg-white dark:bg-dark-card rounded-lg shadow-md p-6 flex flex-col h-full">
           <div className="flex items-center mb-4"><i className="fas fa-pen-alt text-xl text-royal-blue mr-3"></i><h2 className="text-lg font-bold dark:text-white">Facillit Write</h2></div>
           <div className="flex-grow">
@@ -57,9 +55,8 @@ const StudentDashboard = ({ profile, latestEssay, latestTest, campaigns, examDat
   </>
 );
 
-// --- COMPONENTE DE DASHBOARD DO PROFESSOR/ADMIN ---
+// --- DASHBOARD DE GESTÃO (PROFESSOR/DIRETOR) ---
 const ManagementDashboard = ({ profile, welcomeMessage }: { profile: UserProfile, welcomeMessage: string }) => {
-  const isAdmin = profile.userCategory === 'administrator';
   const isDirector = profile.userCategory === 'diretor';
 
   return (
@@ -69,37 +66,33 @@ const ManagementDashboard = ({ profile, welcomeMessage }: { profile: UserProfile
             <h1 className="text-3xl font-bold text-dark-text dark:text-white mb-1">Painel de Gestão</h1>
             <p className="text-text-muted dark:text-gray-400">{welcomeMessage}</p>
           </div>
-          {isAdmin && <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold">Modo Administrador</span>}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Card de Redação para Prof/Admin */}
         <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-sm border-l-4 border-royal-blue hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start mb-4">
                 <div className="bg-blue-100 p-3 rounded-lg text-royal-blue"><i className="fas fa-pen-fancy text-xl"></i></div>
                 <span className="text-xs font-bold text-gray-400 uppercase">Correção</span>
             </div>
             <h3 className="text-lg font-bold text-dark-text dark:text-white mb-2">Facillit Write</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Corrija redações, gerencie temas e acompanhe o desempenho dos alunos.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Corrija redações, gerencie temas e acompanhe o desempenho.</p>
             <Link href="/dashboard/applications/write" className="block w-full py-2 text-center border-2 border-royal-blue text-royal-blue rounded-lg font-bold hover:bg-royal-blue hover:text-white transition-colors">
                 Gerenciar Redações
             </Link>
         </div>
 
-        {/* Card de Testes para Prof/Admin */}
         <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-sm border-l-4 border-green-500 hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start mb-4">
                 <div className="bg-green-100 p-3 rounded-lg text-green-600"><i className="fas fa-clipboard-list text-xl"></i></div>
                 <span className="text-xs font-bold text-gray-400 uppercase">Avaliação</span>
             </div>
             <h3 className="text-lg font-bold text-dark-text dark:text-white mb-2">Facillit Test</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Crie simulados, campanhas de prova e visualize resultados das turmas.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Crie simulados, campanhas e visualize resultados.</p>
             <Link href="/dashboard/applications/test" className="block w-full py-2 text-center border-2 border-green-500 text-green-600 rounded-lg font-bold hover:bg-green-500 hover:text-white transition-colors">
                 Gerenciar Testes
             </Link>
         </div>
 
-        {/* Card de Gestão Escolar (Só para Diretor/Admin/Prof) */}
         <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-sm border-l-4 border-purple-500 hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start mb-4">
                 <div className="bg-purple-100 p-3 rounded-lg text-purple-600"><i className="fas fa-school text-xl"></i></div>
@@ -107,35 +100,17 @@ const ManagementDashboard = ({ profile, welcomeMessage }: { profile: UserProfile
             </div>
             <h3 className="text-lg font-bold text-dark-text dark:text-white mb-2">Facillit Edu</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                {isDirector ? "Gerencie turmas, professores e alunos da sua instituição." : "Acesse suas turmas e diários de classe."}
+                {isDirector ? "Gerencie turmas, professores e alunos." : "Acesse suas turmas e diários de classe."}
             </p>
             <Link href="/dashboard/applications/edu" className="block w-full py-2 text-center border-2 border-purple-500 text-purple-600 rounded-lg font-bold hover:bg-purple-500 hover:text-white transition-colors">
                 Acessar Edu
             </Link>
         </div>
-
-        {/* Atalho para Admin Geral */}
-        {isAdmin && (
-             <div className="bg-gray-800 text-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow col-span-1 md:col-span-3 lg:col-span-1 flex flex-col justify-between">
-                <div>
-                    <div className="flex items-center gap-3 mb-4">
-                        <i className="fas fa-cogs text-2xl text-gray-400"></i>
-                        <h3 className="text-lg font-bold">Admin Global</h3>
-                    </div>
-                    <p className="text-sm text-gray-300 mb-6">Acesso às configurações globais, gestão de todas as escolas e atualizações do sistema.</p>
-                </div>
-                <Link href="/admin" className="block w-full py-2 text-center bg-white text-gray-900 rounded-lg font-bold hover:bg-gray-200 transition-colors">
-                    Ir para Admin
-                </Link>
-            </div>
-        )}
       </div>
     </>
   );
 };
 
-
-// --- PÁGINA PRINCIPAL ---
 export default async function DashboardPage() {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -147,19 +122,21 @@ export default async function DashboardPage() {
     ]);
 
     const profile = profileResult.data;
-    
+
+    // --- REDIRECT DE SEGURANÇA PARA ADMIN ---
+    if (profile?.user_category === 'administrator') {
+        redirect('/admin');
+    }
+
     const getWelcomeMessage = (pronoun: string | null): string => {
         const hour = new Date().getHours();
         const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
-        return `${greeting}! Vamos trabalhar?`;
+        return `${greeting}!`;
     };
     const welcomeMessage = getWelcomeMessage(profile?.pronoun);
-
-    // Lógica de Decisão de Dashboard
     const role = profile?.user_category;
 
     if (role === 'aluno' || role === 'vestibulando') {
-        // Carrega dados específicos de aluno APENAS se for aluno
         const [essayRes, testRes, campaignsRes] = await Promise.all([
             getLatestEssayForDashboard(),
             getStudentTestDashboardData(),
@@ -184,16 +161,18 @@ export default async function DashboardPage() {
             score: testRes.data.recentAttempts[0].score,
         } : null;
 
-        return <StudentDashboard 
-            profile={profile} 
-            latestEssay={latestEssay} 
-            latestTest={latestTest} 
-            campaigns={campaignsRes.data} 
-            examDate={examDate} 
-            welcomeMessage={welcomeMessage} 
-        />;
+        return (
+            // @ts-ignore
+            <StudentDashboard 
+                profile={profile} 
+                latestEssay={latestEssay} 
+                latestTest={latestTest} 
+                campaigns={campaignsRes.data} 
+                examDate={examDate} 
+                welcomeMessage={welcomeMessage} 
+            />
+        );
     } else {
-        // Retorna Dashboard de Gestão para Professor, Diretor e Admin
         return <ManagementDashboard profile={profile} welcomeMessage={welcomeMessage} />;
     }
 }

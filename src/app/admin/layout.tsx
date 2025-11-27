@@ -15,45 +15,36 @@ export default async function AdminLayout({
     redirect('/login');
   }
 
-  // Busca o perfil completo do usuário
+  // Busca o perfil completo
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single();
 
-  // Verificação de segurança: garante que o usuário é um administrador
+  // Verificação de segurança: Apenas administradores
   if (!profile || profile.user_category !== 'administrator') {
     redirect('/dashboard');
   }
   
-  // Constrói o objeto UserProfile HÍBRIDO (compatível com admin antigo e dashboard nova)
+  // Monta o objeto UserProfile, mapeando os campos do banco para o tipo do frontend
   const userProfile: UserProfile = {
     id: profile.id,
-    email: user.email!, // Adicionado: Obrigatório
-    
-    // --- Campos Novos (snake_case) ---
-    full_name: profile.full_name,
-    nickname: profile.nickname,
-    avatar_url: profile.avatar_url,
-    is_verified: profile.is_verified || false,
-    active_modules: profile.active_modules,
-    organization_id: profile.organization_id,
-    user_category: profile.user_category,
-
-    // --- Campos Legados (camelCase - Mapeamento para Admin) ---
-    fullName: profile.full_name,
+    fullName: profile.full_name, // Mapeamento crítico: full_name (BD) -> fullName (Type)
     userCategory: profile.user_category,
     avatarUrl: profile.avatar_url,
     pronoun: profile.pronoun,
+    nickname: profile.nickname,
     has_completed_onboarding: profile.has_completed_onboarding,
+    active_modules: profile.active_modules,
     birthDate: profile.birth_date,
     schoolName: profile.school_name,
+    organization_id: profile.organization_id,
     target_exam: profile.target_exam,
     verification_badge: profile.verification_badge,
+    email: user.email // Opcional, útil para fallback
   };
 
-  // Renderiza o Client Layout e passa o userProfile completo
   return (
     <AdminClientLayout userProfile={userProfile}>
       {children}

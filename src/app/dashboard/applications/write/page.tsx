@@ -14,7 +14,6 @@ import {
 } from './actions';
 import type { UserProfile } from '../../types';
 
-// Tipo auxiliar para transformação de dados
 type EssayListItem = {
   id: string;
   title: string | null;
@@ -41,10 +40,13 @@ export default async function WritePage() {
     redirect('/login');
   }
 
-  const userRole = profile.user_category || '';
+  // Se for Admin, manda para a área de Admin
+  if (profile.user_category === 'administrator') {
+    redirect('/admin/write');
+  }
 
-  // --- 1. ROTA PARA ALUNO ---
-  if (['aluno', 'vestibulando'].includes(userRole)) {
+  // --- ROTA PARA ALUNO ---
+  if (['aluno', 'vestibulando'].includes(profile.user_category || '')) {
     const [
         essaysResult,
         promptsResult,
@@ -92,23 +94,17 @@ export default async function WritePage() {
     );
   }
 
-  // --- 2. ROTA PARA PROFESSOR, DIRETOR E ADMINISTRADOR ---
-  // Todos estes perfis devem ver o PAINEL DE CORREÇÃO nesta rota.
-  // O Admin tem funcionalidades extras na rota /admin, mas aqui ele age como corretor "super".
-  if (['professor', 'gestor', 'administrator', 'diretor'].includes(userRole)) {
-     
-     // Busca redações baseadas no ID do usuário e sua organização (ou null se global)
+  // --- ROTA PARA PROFESSOR E DIRETOR ---
+  if (['professor', 'gestor', 'diretor'].includes(profile.user_category || '')) {
      const [pendingEssaysResult, correctedEssaysResult] = await Promise.all([
         getPendingEssaysForTeacher(user.id, profile.organization_id),
         getCorrectedEssaysForTeacher(user.id, profile.organization_id)
      ]);
      
-    // Função auxiliar para garantir a tipagem correta para o componente
     const transformData = (data: any[] | null): EssayListItem[] => {
       if (!data) return [];
       return data.map(item => ({
         ...item,
-        // Garante que profiles é um objeto único e não array, tratando inconsistências do Supabase
         profiles: Array.isArray(item.profiles) ? item.profiles[0] || null : item.profiles,
       }));
     };
@@ -125,11 +121,10 @@ export default async function WritePage() {
     );
   }
 
-  // Fallback para perfis não reconhecidos
   return (
     <div className="p-8 text-center">
         <h1 className="text-2xl font-bold mb-2">Módulo de Redação</h1>
-        <p className="text-gray-500">O seu perfil ({userRole}) não tem acesso configurado para este módulo.</p>
+        <p className="text-gray-500">Acesso restrito.</p>
     </div>
   );
 }

@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import type { UserProfile } from '@/app/dashboard/types';
-import AdminSidebar from './AdminSidebar'; // Usa a sidebar exclusiva que criamos
-import Topbar from '@/components/dashboard/Topbar'; // Reutiliza a Topbar existente
+import AdminSidebar from './AdminSidebar';
+import Topbar from '@/components/dashboard/Topbar';
 import { ToastProvider } from '@/contexts/ToastContext';
 
 type AdminClientLayoutProps = {
@@ -16,23 +16,25 @@ export default function AdminClientLayout({ userProfile, children }: AdminClient
 
   return (
     <ToastProvider>
-      <div className="flex h-screen bg-background-light dark:bg-gray-900">
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-900 font-sans">
         {/* Sidebar Específica do Admin */}
         <AdminSidebar 
           isMobileOpen={isSidebarOpen} 
           setIsMobileOpen={setSidebarOpen} 
         />
         
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Topbar comum (pode ser substituída por uma AdminTopbar se precisar de ações diferentes) */}
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          {/* Topbar: Passamos userProfile explicitamente */}
           <Topbar 
             userProfile={userProfile} 
             toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
           />
           
           {/* Área de Conteúdo Principal */}
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 bg-gray-50 dark:bg-gray-900">
-            {children}
+          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 md:p-8 scroll-smooth">
+            <div className="max-w-7xl mx-auto min-h-[calc(100vh-8rem)]">
+               {children}
+            </div>
           </main>
         </div>
       </div>

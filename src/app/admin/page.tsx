@@ -1,7 +1,7 @@
 import { getWriteModuleData } from '../admin/actions';
-import ManageStudents from './components/ManageStudents';
-import ManageProfessors from './components/ManageProfessors';
-import ManagePrompts from './components/ManagePrompts';
+import ManageStudents from './write/components/ManageStudents';
+import ManageProfessors from './write/components/ManageProfessors';
+import ManagePrompts from './write/components/ManagePrompts';
 
 export default async function AdminWritePage() {
     const { data, error } = await getWriteModuleData();
