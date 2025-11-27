@@ -27,24 +27,33 @@ export default async function AdminLayout({
     redirect('/dashboard');
   }
   
-  // Constrói o objeto UserProfile para passar como prop
+  // Constrói o objeto UserProfile HÍBRIDO (compatível com admin antigo e dashboard nova)
   const userProfile: UserProfile = {
     id: profile.id,
+    email: user.email!, // Adicionado: Obrigatório
+    
+    // --- Campos Novos (snake_case) ---
+    full_name: profile.full_name,
+    nickname: profile.nickname,
+    avatar_url: profile.avatar_url,
+    is_verified: profile.is_verified || false,
+    active_modules: profile.active_modules,
+    organization_id: profile.organization_id,
+    user_category: profile.user_category,
+
+    // --- Campos Legados (camelCase - Mapeamento para Admin) ---
     fullName: profile.full_name,
     userCategory: profile.user_category,
     avatarUrl: profile.avatar_url,
     pronoun: profile.pronoun,
-    nickname: profile.nickname,
     has_completed_onboarding: profile.has_completed_onboarding,
-    active_modules: profile.active_modules,
     birthDate: profile.birth_date,
     schoolName: profile.school_name,
-    organization_id: profile.organization_id, // <-- CORREÇÃO AQUI
     target_exam: profile.target_exam,
     verification_badge: profile.verification_badge,
   };
 
-  // Renderiza o Client Layout e passa o userProfile buscado como prop
+  // Renderiza o Client Layout e passa o userProfile completo
   return (
     <AdminClientLayout userProfile={userProfile}>
       {children}
