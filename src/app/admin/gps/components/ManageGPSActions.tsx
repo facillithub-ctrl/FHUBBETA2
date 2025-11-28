@@ -70,13 +70,15 @@ export default function ManageGPSActions({ initialActions }: { initialActions: a
         let newType = field === 'type' ? value : routeType;
         let newId = field === 'id' ? value : resourceId;
 
-        if (field === 'module') setCurrentAction(prev => ({ ...prev, module: value }));
+        // CORREÇÃO AQUI: Tipagem explícita para (prev: any)
+        if (field === 'module') setCurrentAction((prev: any) => ({ ...prev, module: value }));
         if (field === 'type') setRouteType(value);
         if (field === 'id') setResourceId(value);
 
         if (newType !== 'external') {
             const link = generateLink(newMod, newType, newId);
-            setCurrentAction(prev => ({ ...prev, action_link: link, module: newMod }));
+            // CORREÇÃO AQUI: Tipagem explícita para (prev: any)
+            setCurrentAction((prev: any) => ({ ...prev, action_link: link, module: newMod }));
         }
     };
 
