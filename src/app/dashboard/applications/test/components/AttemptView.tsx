@@ -1,3 +1,5 @@
+// facillithub-ctrl/fhubbeta2/FHUBBETA2-2a11ce6e0e3b57e80795e04299e58a66a7ac9ee9/src/app/dashboard/applications/test/components/AttemptView.tsx
+
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
@@ -93,7 +95,30 @@ export default function AttemptView({ test, onFinish }: Props) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   
   const { addToast } = useToast();
+
+  // --- FAILSAFE: Validação de Dados ---
+  // Impede o crash "Cannot read properties of undefined (reading 'points')"
+  if (!test || !test.questions || test.questions.length === 0) {
+      return (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-in fade-in">
+              <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-3xl text-gray-400 mb-4">
+                  <i className="fas fa-exclamation-triangle"></i>
+              </div>
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">Erro nos dados da prova</h2>
+              <p className="text-gray-500 mb-6">Não foi possível carregar as questões deste simulado ou ele está vazio.</p>
+              <button onClick={onFinish} className="px-6 py-2 bg-royal-blue text-white rounded-lg font-bold hover:bg-blue-700 transition-colors">
+                  Voltar ao Painel
+              </button>
+          </div>
+      );
+  }
+
+  // Agora é seguro acessar
   const question = test.questions[currentQuestionIndex];
+  
+  // Segurança extra caso o índice saia dos limites (embora improvável)
+  if (!question) return null;
+
   const progress = Math.round(((Object.keys(answers).length) / test.questions.length) * 100);
 
   // --- EFEITOS ---
@@ -105,13 +130,13 @@ export default function AttemptView({ test, onFinish }: Props) {
     return () => clearInterval(timer);
   }, [status]);
 
-  // Anti-Cheat (Visibilidade) - CORRIGIDO O ERRO DO TOAST
+  // Anti-Cheat (Visibilidade)
   useEffect(() => {
     const handleVisibility = () => {
         if (document.hidden && status === 'active') {
             setWarnings(prev => {
                 const newCount = prev + 1;
-                // setTimeout joga para o próximo ciclo de render, evitando o erro "Cannot update..."
+                // setTimeout evita erro de atualização durante renderização
                 setTimeout(() => {
                     addToast({ 
                         title: "Modo Foco", 
@@ -148,7 +173,7 @@ export default function AttemptView({ test, onFinish }: Props) {
             time_spent_seconds: 0
         }));
 
-        // Pequeno delay artificial para dar sensação de processamento
+        // Pequeno delay artificial para experiência do usuário
         await new Promise(r => setTimeout(r, 1500));
 
         const result = await submitTestAttempt(test.id, formattedAnswers, timeSpent);

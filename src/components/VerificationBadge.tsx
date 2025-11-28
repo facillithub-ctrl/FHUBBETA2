@@ -2,7 +2,7 @@ import React from 'react';
 
 type VerificationBadgeProps = {
   badge: string | null | undefined;
-  size?: '10px' | '12px';
+  size?: '4px' | '12px';
 };
 
 const badgeDetails = {
@@ -23,13 +23,13 @@ const badgeDetails = {
   },
 };
 
-export const VerificationBadge = ({ badge, size = '10px' }: VerificationBadgeProps) => {
+export const VerificationBadge = ({ badge, size = '4px' }: VerificationBadgeProps) => {
   if (!badge || !badgeDetails[badge as keyof typeof badgeDetails]) {
     return null;
   }
 
   const details = badgeDetails[badge as keyof typeof badgeDetails];
-  const sizeClass = size === '10px' ? 'text-sm' : 'text-base';
+  const sizeClass = size === '4px' ? 'text-sm' : 'text-base';
 
   return (
     <span className={`relative group inline-flex items-center ${details.color} ${sizeClass}`}>

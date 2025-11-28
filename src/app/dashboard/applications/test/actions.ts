@@ -7,10 +7,12 @@ import {
   StudentDashboardData, 
   TestWithQuestions, 
   StudentCampaign,
-  QuestionContent
+  BloomTaxonomy,
+  DifficultyLevel,
+  AIStudySuggestion
 } from "./types";
 
-// --- TIPOS AUXILIARES PARA CAMPANHAS E PROFESSOR ---
+// --- TIPOS AUXILIARES ---
 export type Campaign = {
     id: string;
     title: string;
@@ -76,7 +78,6 @@ export async function getTeacherDashboardData() {
   return { activeTests: tests || [], classes, isInstitutional: !!profile?.organization_id };
 }
 
-// Alias usado pelo CampaignManager
 export const getTestsForTeacher = async () => {
     const data = await getTeacherDashboardData();
     return { data: data.activeTests as Test[], error: null };
@@ -127,11 +128,13 @@ export async function createFullTest(testData: any, questions: Question[]) {
         content: q.content,
         points: testData.test_type === 'avaliativo' ? (q.points || 1) : 0,
         thematic_axis: sanitize(q.thematic_axis),
+        // Mapeamento explícito para colunas legadas e JSONB novo
         bloom_taxonomy: sanitize(q.metadata?.bloom_taxonomy),
         cognitive_skill: sanitize(q.metadata?.cognitive_skill),
         difficulty_level: sanitize(q.metadata?.difficulty_level),
         ai_explanation: sanitize(q.metadata?.ai_explanation),
-        estimated_time_seconds: q.metadata?.estimated_time_seconds || 0
+        estimated_time_seconds: q.metadata?.estimated_time_seconds || 0,
+        metadata: q.metadata || {} // Salva o metadata completo para análise futura
       }));
 
       const { error: questionsError } = await supabase.from('questions').insert(questionsToInsert);
@@ -221,7 +224,7 @@ export async function deleteCampaign(campaignId: string) {
 }
 
 // =================================================================
-// 3. DASHBOARD DO ALUNO
+// 3. DASHBOARD DO ALUNO (INTELLIGENCE & ANALYTICS)
 // =================================================================
 
 export async function getStudentTestDashboardData(): Promise<StudentDashboardData | null> {
@@ -229,10 +232,42 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: profile } = await supabase.from('profiles').select('level, current_xp, next_level_xp, streak_days, badges').eq('id', user.id).single();
-  const { data: attempts } = await supabase.from('test_attempts').select(`id, score, time_spent_seconds, completed_at, tests (id, title, subject, difficulty)`).eq('student_id', user.id).order('completed_at', { ascending: false });
-  const { data: insights } = await supabase.from('student_insights').select('*').eq('student_id', user.id).eq('is_active', true);
+  // 1. Dados Básicos e Gamification
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('level, current_xp, next_level_xp, streak_days, badges')
+    .eq('id', user.id)
+    .single();
 
+  // 2. Tentativas Recentes
+  const { data: attempts } = await supabase
+    .from('test_attempts')
+    .select(`
+        id, score, time_spent_seconds, completed_at, 
+        tests (id, title, subject, difficulty)
+    `)
+    .eq('student_id', user.id)
+    .order('completed_at', { ascending: false });
+
+  // 3. Respostas Detalhadas (A Chave para a Análise Profunda)
+  // Cruzamos as respostas com os metadados das questões para saber ONDE o aluno erra
+  const { data: detailedAnswers } = await supabase
+    .from('student_answers')
+    .select(`
+      is_correct,
+      questions (
+        id,
+        bloom_taxonomy,
+        metadata,
+        difficulty_level,
+        tests (subject)
+      )
+    `)
+    .eq('student_id', user.id);
+
+  // --- PROCESSAMENTO DE DADOS (Real-time Analytics) ---
+
+  // A. Performance por Matéria
   const subjectMap = new Map();
   attempts?.forEach((att: any) => {
     const subject = att.tests?.subject || 'Geral';
@@ -240,24 +275,246 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
     subjectMap.set(subject, { total: current.total + (att.score || 0), count: current.count + 1 });
   });
 
-  const performanceBySubject = Array.from(subjectMap.entries()).map(([materia, data]: any) => ({ materia, nota: Math.round(data.total / data.count), simulados: data.count }));
+  const performanceBySubject = Array.from(subjectMap.entries()).map(([materia, data]: any) => ({ 
+    materia, 
+    nota: Math.round(data.total / data.count), 
+    simulados: data.count 
+  }));
+
+  // B. Métricas Gerais
   const totalTests = attempts?.length || 0;
   const avgScore = totalTests > 0 ? attempts!.reduce((acc, curr) => acc + (curr.score || 0), 0) / totalTests : 0;
+  const totalQuestionsAnswered = detailedAnswers?.length || 0;
+  
+  // C. Bloom Analysis (Habilidades Cognitivas)
+  const bloomStats = new Map<string, { correct: number, total: number }>();
+  
+  detailedAnswers?.forEach((ans: any) => {
+    // Tenta pegar do metadata JSON (novo) ou da coluna direta (legado)
+    const rawBloom = ans.questions?.metadata?.bloom_taxonomy || ans.questions?.bloom_taxonomy || 'lembrar';
+    const bloom = typeof rawBloom === 'string' ? rawBloom : 'lembrar'; // Fallback seguro
+    
+    const current = bloomStats.get(bloom) || { correct: 0, total: 0 };
+    bloomStats.set(bloom, {
+        total: current.total + 1,
+        correct: current.correct + (ans.is_correct ? 1 : 0)
+    });
+  });
+
+  const bloomAnalysis = Array.from(bloomStats.entries()).map(([skill, stats]) => ({
+      skill: skill as BloomTaxonomy,
+      score: stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0,
+      total_questions: stats.total
+  }));
+
+  // D. Heatmap (Matéria x Dificuldade)
+  const heatStats = new Map<string, { correct: number, total: number }>();
+
+  detailedAnswers?.forEach((ans: any) => {
+      const subject = ans.questions?.tests?.subject || 'Geral';
+      const difficulty = ans.questions?.metadata?.difficulty_level || ans.questions?.difficulty_level || 'medio';
+      const key = `${subject}|${difficulty}`;
+
+      const current = heatStats.get(key) || { correct: 0, total: 0 };
+      heatStats.set(key, {
+          total: current.total + 1,
+          correct: current.correct + (ans.is_correct ? 1 : 0)
+      });
+  });
+
+  const heatmapData = Array.from(heatStats.entries()).map(([key, stats]) => {
+      const [subject, difficulty] = key.split('|');
+      return {
+          subject,
+          difficulty: difficulty as DifficultyLevel,
+          score: Math.round((stats.correct / stats.total) * 100)
+      };
+  });
+
+  // E. Error Analysis (Derivado dos dados reais)
+  // Calculamos a % de erros baseada nos metadados de "tipo de erro" se existirem, ou heurística básica
+  const errorStats = new Map<string, number>();
+  let totalErrors = 0;
+  
+  detailedAnswers?.filter((a: any) => !a.is_correct).forEach((ans: any) => {
+      totalErrors++;
+      // Se não houver metadado de erro, assumimos "lacuna_conteudo" ou distribuímos baseados no bloom
+      const errorType = ans.questions?.metadata?.error_type || 'conteudo'; 
+      errorStats.set(errorType, (errorStats.get(errorType) || 0) + 1);
+  });
+
+  const errorAnalysis = Array.from(errorStats.entries()).map(([type, count]) => ({
+      type: type as any,
+      count,
+      percentage: totalErrors > 0 ? Math.round((count / totalErrors) * 100) : 0
+  }));
+
+  // F. Smart Coach (Rota de Estudos baseada nos erros)
+  // Lógica: Pega a matéria com pior desempenho e sugere ações
+  let studyRoute: AIStudySuggestion[] = [];
+  
+  if (performanceBySubject.length > 0) {
+      // Ordena por nota (menor para maior)
+      const sortedSubjects = [...performanceBySubject].sort((a, b) => a.nota - b.nota);
+      const weakest = sortedSubjects[0];
+      
+      if (weakest && weakest.nota < 70) {
+          studyRoute.push({
+              id: 'ia-1',
+              type: 'video',
+              title: `Reforço: ${weakest.materia} Essencial`,
+              estimated_time: '12 min',
+              priority: 'high',
+              reason: `Detectamos dificuldade crítica em ${weakest.materia} (${weakest.nota}% de aproveitamento).`
+          });
+          studyRoute.push({
+              id: 'ia-2',
+              type: 'practice',
+              title: `Quiz Rápido: ${weakest.materia}`,
+              estimated_time: '5 min',
+              priority: 'medium',
+              reason: 'Pratique 5 questões focadas apenas nos seus erros recentes.'
+          });
+      }
+  }
+
+  // Preenchimento de Insights Básicos (se tabela student_insights não tiver dados)
+  const insights = [
+    { 
+        id: 'gen-1', 
+        type: 'pattern', 
+        message: bloomAnalysis.length > 0 ? `Você tem um desempenho de ${bloomAnalysis.find(b => b.skill === 'analisar')?.score || 0}% em questões de Análise, mas cai em Memorização.` : "Continue resolvendo questões para gerar insights.",
+        confidence: 0.8 
+    }
+  ];
 
   return {
-    stats: { simuladosFeitos: totalTests, mediaGeral: Math.round(avgScore), taxaAcerto: Math.round(avgScore), tempoMedio: 0 },
-    gamification: { level: profile?.level || 1, current_xp: profile?.current_xp || 0, next_level_xp: profile?.next_level_xp || 1000, streak_days: profile?.streak_days || 0, badges: profile?.badges || [] },
-    insights: insights || [],
+    stats: { 
+        simuladosFeitos: totalTests, 
+        mediaGeral: Math.round(avgScore), 
+        taxaAcerto: Math.round(avgScore), 
+        tempoMedio: 0, // Pode ser calculado com time_spent_seconds
+        questionsAnsweredTotal: totalQuestionsAnswered
+    },
+    gamification: { 
+        level: profile?.level || 1, 
+        current_xp: profile?.current_xp || 0, 
+        next_level_xp: profile?.next_level_xp || 1000, 
+        streak_days: profile?.streak_days || 0, 
+        badges: profile?.badges || [] 
+    },
+    insights: insights as any, 
     performanceBySubject,
-    history: [],
-    competencyMap: [],
-    recentAttempts: attempts?.slice(0, 5) || []
+    history: attempts?.map(a => ({ date: new Date(a.completed_at).toLocaleDateString('pt-BR'), avgScore: a.score })).reverse() || [],
+    competencyMap: [], 
+    recentAttempts: attempts?.slice(0, 5) || [],
+    bloomAnalysis,
+    heatmapData,
+    errorAnalysis,
+    studyRoute
   };
 }
 export const getStudentDashboardData = getStudentTestDashboardData;
 
 // =================================================================
-// 4. EXECUÇÃO DE PROVA
+// 4. MODO TURBO (GERAÇÃO DE TESTE ADAPTATIVO)
+// =================================================================
+
+export async function generateTurboTest() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Usuário não autenticado." };
+
+  try {
+    // 1. Identificar Fraquezas (Últimas 50 questões erradas)
+    const { data: wrongAnswers } = await supabase
+        .from('student_answers')
+        .select('questions(id, test_id, tests(subject))')
+        .eq('student_id', user.id)
+        .eq('is_correct', false)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    // Contagem de erros por matéria
+    const subjectErrors: Record<string, number> = {};
+    wrongAnswers?.forEach((ans: any) => {
+        const subj = ans.questions?.tests?.subject;
+        if (subj) subjectErrors[subj] = (subjectErrors[subj] || 0) + 1;
+    });
+
+    // Determina a matéria foco (a com mais erros) ou pega aleatória se não houver erros
+    let targetSubject = Object.keys(subjectErrors).reduce((a, b) => subjectErrors[a] > subjectErrors[b] ? a : b, '');
+    
+    // 2. Buscar Questões do Banco
+    // Se houver matéria foco, busca questões dela. Se não, busca aleatórias.
+    let query = supabase.from('questions').select('*, tests!inner(subject)').limit(50); // Pega um pool maior para randomizar
+    
+    if (targetSubject) {
+        query = query.eq('tests.subject', targetSubject);
+    }
+
+    const { data: questionPool } = await query;
+    
+    if (!questionPool || questionPool.length < 3) {
+        // Fallback: busca qualquer questão se não achou da matéria específica
+        const { data: fallbackPool } = await supabase.from('questions').select('*, tests!inner(subject)').limit(20);
+        if (!fallbackPool || fallbackPool.length === 0) {
+             return { error: "Banco de questões insuficiente para gerar Modo Turbo." };
+        }
+    }
+
+    // Seleciona 5 questões aleatórias do pool (ou menos se não houver 5)
+    const available = questionPool && questionPool.length > 0 ? questionPool : [];
+    const selectedQuestions = available
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 5);
+
+    // 3. Criar o Teste "Efêmero" (Turbo)
+    // Criamos um teste real no banco, mas marcado como gerado automaticamente
+    const { data: newTest, error: createError } = await supabase
+        .from('tests')
+        .insert({
+            title: targetSubject ? `Modo Turbo: ${targetSubject}` : `Modo Turbo: Treino Geral`,
+            description: 'Treino intensivo de 5 minutos gerado por IA baseado nos seus erros recentes.',
+            subject: targetSubject || 'Geral',
+            duration_minutes: 5,
+            difficulty: 'medio', 
+            test_type: 'avaliativo',
+            created_by: user.id, // O próprio aluno é "dono" deste teste gerado
+            is_public: false,
+            question_count: selectedQuestions.length,
+            points: selectedQuestions.length,
+            is_knowledge_test: false
+        })
+        .select()
+        .single();
+
+    if (createError) throw new Error(createError.message);
+
+    // 4. Copiar as questões para este novo teste
+    const questionsToInsert = selectedQuestions.map(q => ({
+        test_id: newTest.id,
+        question_type: q.question_type,
+        content: q.content,
+        points: 1,
+        difficulty_level: q.difficulty_level,
+        metadata: q.metadata,
+        bloom_taxonomy: q.bloom_taxonomy,
+        cognitive_skill: q.cognitive_skill
+    }));
+
+    await supabase.from('questions').insert(questionsToInsert);
+
+    return { success: true, testId: newTest.id };
+
+  } catch (err: any) {
+    console.error("Erro no Modo Turbo:", err);
+    return { error: "Falha ao gerar Modo Turbo. Tente novamente." };
+  }
+}
+
+// =================================================================
+// 5. EXECUÇÃO DE PROVA E OUTRAS AÇÕES
 // =================================================================
 
 export async function submitTestAttempt(testId: string, answers: StudentAnswerPayload[], timeSpent: number) {
@@ -276,6 +533,7 @@ export async function submitTestAttempt(testId: string, answers: StudentAnswerPa
         const studentAns = answersMap.get(q.id);
         let correct = false;
         if (test.test_type === 'avaliativo') {
+            // Verificação simples. Idealmente, expandir para tipos complexos de questão
             if (String(studentAns) === String(q.content.correct_option)) {
                 correct = true;
                 score += (q.points || 1);
@@ -288,43 +546,44 @@ export async function submitTestAttempt(testId: string, answers: StudentAnswerPa
     const finalScore = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
 
     // Salvar Tentativa (UPSERT)
+    // Removemos o 'onConflict' para permitir que o aluno refaça o teste múltiplas vezes se desejar, gerando histórico
     const { data: attempt, error } = await supabase
         .from('test_attempts')
-        .upsert({
+        .insert({
             test_id: testId,
             student_id: user.id,
             score: finalScore,
             time_spent_seconds: timeSpent,
             status: 'completed',
             completed_at: new Date().toISOString()
-        }, { onConflict: 'student_id, test_id' })
+        })
         .select()
         .single();
 
     if (error) return { error: error.message };
 
     // Salvar Respostas
-    await supabase.from('student_answers').delete().eq('attempt_id', attempt.id);
-    
+    // Como é um novo attempt, apenas inserimos
     const answersToInsert = processed.map(p => ({
         attempt_id: attempt.id,
         question_id: p.question_id,
         student_id: user.id,
-        answer: { value: p.answer }, // JSONB wrapper
+        answer: { value: p.answer }, 
         is_correct: p.is_correct
     }));
 
     await supabase.from('student_answers').insert(answersToInsert);
 
+    // Atualiza gamificação (exemplo simples)
+    const { data: profile } = await supabase.from('profiles').select('current_xp').eq('id', user.id).single();
+    if (profile) {
+        await supabase.from('profiles').update({ current_xp: (profile.current_xp || 0) + 50 }).eq('id', user.id);
+    }
+
     revalidatePath('/dashboard/applications/test');
     return { success: true, attemptId: attempt.id, score: finalScore };
 }
 
-// =================================================================
-// 5. RELATÓRIOS & LISTAGENS
-// =================================================================
-
-// --- A FUNÇÃO QUE FALTAVA ---
 export async function getSurveyResults(testId: string) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -344,7 +603,6 @@ export async function getSurveyResults(testId: string) {
 
     if (error) return { error: error.message };
 
-    // Achatar dados para o frontend
     const results = data.flatMap((attempt: any) => {
         return (attempt.student_answers || []).map((ans: any) => ({
             student_name: attempt.student?.full_name || 'Anônimo',

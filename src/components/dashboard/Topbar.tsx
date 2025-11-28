@@ -83,7 +83,7 @@ export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
                     {displayName.split(' ')[0]}
                   </span>
                   {userProfile.verification_badge && (
-                      <VerificationBadge badge={userProfile.verification_badge} size="12px" />
+                      <VerificationBadge badge={userProfile.verification_badge} size="4px" />
                   )}
               </div>
               <p className="text-[10px] font-semibold text-gray-400 mt-0.5 flex items-center gap-1">
