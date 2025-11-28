@@ -128,13 +128,12 @@ export async function createFullTest(testData: any, questions: Question[]) {
         content: q.content,
         points: testData.test_type === 'avaliativo' ? (q.points || 1) : 0,
         thematic_axis: sanitize(q.thematic_axis),
-        // Mapeamento explícito para colunas legadas e JSONB novo
         bloom_taxonomy: sanitize(q.metadata?.bloom_taxonomy),
         cognitive_skill: sanitize(q.metadata?.cognitive_skill),
         difficulty_level: sanitize(q.metadata?.difficulty_level),
         ai_explanation: sanitize(q.metadata?.ai_explanation),
         estimated_time_seconds: q.metadata?.estimated_time_seconds || 0,
-        metadata: q.metadata || {} // Salva o metadata completo para análise futura
+        metadata: q.metadata || {} 
       }));
 
       const { error: questionsError } = await supabase.from('questions').insert(questionsToInsert);
@@ -249,8 +248,7 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
     .eq('student_id', user.id)
     .order('completed_at', { ascending: false });
 
-  // 3. Respostas Detalhadas (A Chave para a Análise Profunda)
-  // Cruzamos as respostas com os metadados das questões para saber ONDE o aluno erra
+  // 3. Respostas Detalhadas
   const { data: detailedAnswers } = await supabase
     .from('student_answers')
     .select(`
@@ -267,7 +265,6 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
 
   // --- PROCESSAMENTO DE DADOS (Real-time Analytics) ---
 
-  // A. Performance por Matéria
   const subjectMap = new Map();
   attempts?.forEach((att: any) => {
     const subject = att.tests?.subject || 'Geral';
@@ -281,18 +278,15 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
     simulados: data.count 
   }));
 
-  // B. Métricas Gerais
   const totalTests = attempts?.length || 0;
   const avgScore = totalTests > 0 ? attempts!.reduce((acc, curr) => acc + (curr.score || 0), 0) / totalTests : 0;
   const totalQuestionsAnswered = detailedAnswers?.length || 0;
   
-  // C. Bloom Analysis (Habilidades Cognitivas)
   const bloomStats = new Map<string, { correct: number, total: number }>();
   
   detailedAnswers?.forEach((ans: any) => {
-    // Tenta pegar do metadata JSON (novo) ou da coluna direta (legado)
     const rawBloom = ans.questions?.metadata?.bloom_taxonomy || ans.questions?.bloom_taxonomy || 'lembrar';
-    const bloom = typeof rawBloom === 'string' ? rawBloom : 'lembrar'; // Fallback seguro
+    const bloom = typeof rawBloom === 'string' ? rawBloom : 'lembrar'; 
     
     const current = bloomStats.get(bloom) || { correct: 0, total: 0 };
     bloomStats.set(bloom, {
@@ -307,7 +301,6 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
       total_questions: stats.total
   }));
 
-  // D. Heatmap (Matéria x Dificuldade)
   const heatStats = new Map<string, { correct: number, total: number }>();
 
   detailedAnswers?.forEach((ans: any) => {
@@ -331,14 +324,11 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
       };
   });
 
-  // E. Error Analysis (Derivado dos dados reais)
-  // Calculamos a % de erros baseada nos metadados de "tipo de erro" se existirem, ou heurística básica
   const errorStats = new Map<string, number>();
   let totalErrors = 0;
   
   detailedAnswers?.filter((a: any) => !a.is_correct).forEach((ans: any) => {
       totalErrors++;
-      // Se não houver metadado de erro, assumimos "lacuna_conteudo" ou distribuímos baseados no bloom
       const errorType = ans.questions?.metadata?.error_type || 'conteudo'; 
       errorStats.set(errorType, (errorStats.get(errorType) || 0) + 1);
   });
@@ -349,12 +339,9 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
       percentage: totalErrors > 0 ? Math.round((count / totalErrors) * 100) : 0
   }));
 
-  // F. Smart Coach (Rota de Estudos baseada nos erros)
-  // Lógica: Pega a matéria com pior desempenho e sugere ações
   let studyRoute: AIStudySuggestion[] = [];
   
   if (performanceBySubject.length > 0) {
-      // Ordena por nota (menor para maior)
       const sortedSubjects = [...performanceBySubject].sort((a, b) => a.nota - b.nota);
       const weakest = sortedSubjects[0];
       
@@ -378,7 +365,6 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
       }
   }
 
-  // Preenchimento de Insights Básicos (se tabela student_insights não tiver dados)
   const insights = [
     { 
         id: 'gen-1', 
@@ -393,7 +379,7 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
         simuladosFeitos: totalTests, 
         mediaGeral: Math.round(avgScore), 
         taxaAcerto: Math.round(avgScore), 
-        tempoMedio: 0, // Pode ser calculado com time_spent_seconds
+        tempoMedio: 0, 
         questionsAnsweredTotal: totalQuestionsAnswered
     },
     gamification: { 
@@ -426,7 +412,6 @@ export async function generateTurboTest() {
   if (!user) return { error: "Usuário não autenticado." };
 
   try {
-    // 1. Identificar Fraquezas (Últimas 50 questões erradas)
     const { data: wrongAnswers } = await supabase
         .from('student_answers')
         .select('questions(id, test_id, tests(subject))')
@@ -435,19 +420,15 @@ export async function generateTurboTest() {
         .order('created_at', { ascending: false })
         .limit(50);
 
-    // Contagem de erros por matéria
     const subjectErrors: Record<string, number> = {};
     wrongAnswers?.forEach((ans: any) => {
         const subj = ans.questions?.tests?.subject;
         if (subj) subjectErrors[subj] = (subjectErrors[subj] || 0) + 1;
     });
 
-    // Determina a matéria foco (a com mais erros) ou pega aleatória se não houver erros
     let targetSubject = Object.keys(subjectErrors).reduce((a, b) => subjectErrors[a] > subjectErrors[b] ? a : b, '');
     
-    // 2. Buscar Questões do Banco
-    // Se houver matéria foco, busca questões dela. Se não, busca aleatórias.
-    let query = supabase.from('questions').select('*, tests!inner(subject)').limit(50); // Pega um pool maior para randomizar
+    let query = supabase.from('questions').select('*, tests!inner(subject)').limit(50); 
     
     if (targetSubject) {
         query = query.eq('tests.subject', targetSubject);
@@ -456,21 +437,17 @@ export async function generateTurboTest() {
     const { data: questionPool } = await query;
     
     if (!questionPool || questionPool.length < 3) {
-        // Fallback: busca qualquer questão se não achou da matéria específica
         const { data: fallbackPool } = await supabase.from('questions').select('*, tests!inner(subject)').limit(20);
         if (!fallbackPool || fallbackPool.length === 0) {
              return { error: "Banco de questões insuficiente para gerar Modo Turbo." };
         }
     }
 
-    // Seleciona 5 questões aleatórias do pool (ou menos se não houver 5)
     const available = questionPool && questionPool.length > 0 ? questionPool : [];
     const selectedQuestions = available
         .sort(() => 0.5 - Math.random())
         .slice(0, 5);
 
-    // 3. Criar o Teste "Efêmero" (Turbo)
-    // Criamos um teste real no banco, mas marcado como gerado automaticamente
     const { data: newTest, error: createError } = await supabase
         .from('tests')
         .insert({
@@ -480,7 +457,7 @@ export async function generateTurboTest() {
             duration_minutes: 5,
             difficulty: 'medio', 
             test_type: 'avaliativo',
-            created_by: user.id, // O próprio aluno é "dono" deste teste gerado
+            created_by: user.id, 
             is_public: false,
             question_count: selectedQuestions.length,
             points: selectedQuestions.length,
@@ -491,7 +468,6 @@ export async function generateTurboTest() {
 
     if (createError) throw new Error(createError.message);
 
-    // 4. Copiar as questões para este novo teste
     const questionsToInsert = selectedQuestions.map(q => ({
         test_id: newTest.id,
         question_type: q.question_type,
@@ -533,7 +509,6 @@ export async function submitTestAttempt(testId: string, answers: StudentAnswerPa
         const studentAns = answersMap.get(q.id);
         let correct = false;
         if (test.test_type === 'avaliativo') {
-            // Verificação simples. Idealmente, expandir para tipos complexos de questão
             if (String(studentAns) === String(q.content.correct_option)) {
                 correct = true;
                 score += (q.points || 1);
@@ -545,8 +520,6 @@ export async function submitTestAttempt(testId: string, answers: StudentAnswerPa
 
     const finalScore = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
 
-    // Salvar Tentativa (UPSERT)
-    // Removemos o 'onConflict' para permitir que o aluno refaça o teste múltiplas vezes se desejar, gerando histórico
     const { data: attempt, error } = await supabase
         .from('test_attempts')
         .insert({
@@ -562,8 +535,6 @@ export async function submitTestAttempt(testId: string, answers: StudentAnswerPa
 
     if (error) return { error: error.message };
 
-    // Salvar Respostas
-    // Como é um novo attempt, apenas inserimos
     const answersToInsert = processed.map(p => ({
         attempt_id: attempt.id,
         question_id: p.question_id,
@@ -574,10 +545,29 @@ export async function submitTestAttempt(testId: string, answers: StudentAnswerPa
 
     await supabase.from('student_answers').insert(answersToInsert);
 
-    // Atualiza gamificação (exemplo simples)
-    const { data: profile } = await supabase.from('profiles').select('current_xp').eq('id', user.id).single();
+    // --- LÓGICA DE GAMIFICAÇÃO & XP ---
+    const { data: profile } = await supabase.from('profiles').select('current_xp, level, next_level_xp').eq('id', user.id).single();
+    
     if (profile) {
-        await supabase.from('profiles').update({ current_xp: (profile.current_xp || 0) + 50 }).eq('id', user.id);
+        // Cálculo de XP: 50 XP base + (Nota * 10). Ex: Nota 80 = 800 + 50 = 850 XP
+        const xpEarned = Math.round(finalScore * 10) + 50; 
+        
+        let newXp = (profile.current_xp || 0) + xpEarned;
+        let newLevel = profile.level || 1;
+        let nextLevelXp = profile.next_level_xp || 1000;
+
+        // Loop de Level Up (caso ganhe XP suficiente para múltiplos níveis)
+        while (newXp >= nextLevelXp) {
+            newXp -= nextLevelXp;
+            newLevel += 1;
+            nextLevelXp = Math.round(nextLevelXp * 1.2); // Aumenta dificuldade em 20%
+        }
+
+        await supabase.from('profiles').update({ 
+            current_xp: newXp,
+            level: newLevel,
+            next_level_xp: nextLevelXp
+        }).eq('id', user.id);
     }
 
     revalidatePath('/dashboard/applications/test');

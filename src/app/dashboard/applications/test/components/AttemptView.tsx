@@ -1,15 +1,12 @@
-// facillithub-ctrl/fhubbeta2/FHUBBETA2-2a11ce6e0e3b57e80795e04299e58a66a7ac9ee9/src/app/dashboard/applications/test/components/AttemptView.tsx
-
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { submitTestAttempt, StudentAnswerPayload } from '../actions';
 import { TestWithQuestions } from '../types';
 import { useToast } from '@/contexts/ToastContext';
 
 // --- COMPONENTES INTERNOS ---
 
-// Modal de Confirmação Elegante
 const ConfirmFinishModal = ({ 
     isOpen, 
     onCancel, 
@@ -53,7 +50,6 @@ const ConfirmFinishModal = ({
     );
 };
 
-// Tela de Calculando (Loading com Animação)
 const CalculatingScreen = () => (
     <div className="flex flex-col items-center justify-center h-[60vh] animate-in fade-in duration-500">
         <div className="relative w-32 h-32 mb-8">
@@ -68,7 +64,6 @@ const CalculatingScreen = () => (
     </div>
 );
 
-// Display do Timer
 const TimerDisplay = ({ seconds }: { seconds: number }) => {
     const format = (s: number) => {
         const m = Math.floor(s / 60);
@@ -96,8 +91,37 @@ export default function AttemptView({ test, onFinish }: Props) {
   
   const { addToast } = useToast();
 
-  // --- FAILSAFE: Validação de Dados ---
-  // Impede o crash "Cannot read properties of undefined (reading 'points')"
+  // --- HOOKS (Sempre no topo, antes de qualquer return) ---
+
+  // Timer
+  useEffect(() => {
+    if (status !== 'active') return;
+    const timer = setInterval(() => setTimeSpent(prev => prev + 1), 1000);
+    return () => clearInterval(timer);
+  }, [status]);
+
+  // Anti-Cheat (Visibilidade)
+  useEffect(() => {
+    const handleVisibility = () => {
+        if (document.hidden && status === 'active') {
+            setWarnings(prev => {
+                const newCount = prev + 1;
+                setTimeout(() => {
+                    addToast({ 
+                        title: "Modo Foco", 
+                        message: `Saída de tela detectada (${newCount}).`, 
+                        type: "warning" 
+                    });
+                }, 0);
+                return newCount;
+            });
+        }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [status, addToast]);
+
+  // --- FAILSAFE: Validação de Dados (Após Hooks) ---
   if (!test || !test.questions || test.questions.length === 0) {
       return (
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-in fade-in">
@@ -113,44 +137,12 @@ export default function AttemptView({ test, onFinish }: Props) {
       );
   }
 
-  // Agora é seguro acessar
+  // --- VARIÁVEIS DERIVADAS ---
   const question = test.questions[currentQuestionIndex];
-  
-  // Segurança extra caso o índice saia dos limites (embora improvável)
-  if (!question) return null;
+  // Segurança extra caso o índice esteja fora (ex: deleção em tempo real)
+  if (!question) return null; 
 
   const progress = Math.round(((Object.keys(answers).length) / test.questions.length) * 100);
-
-  // --- EFEITOS ---
-
-  // Timer
-  useEffect(() => {
-    if (status !== 'active') return;
-    const timer = setInterval(() => setTimeSpent(prev => prev + 1), 1000);
-    return () => clearInterval(timer);
-  }, [status]);
-
-  // Anti-Cheat (Visibilidade)
-  useEffect(() => {
-    const handleVisibility = () => {
-        if (document.hidden && status === 'active') {
-            setWarnings(prev => {
-                const newCount = prev + 1;
-                // setTimeout evita erro de atualização durante renderização
-                setTimeout(() => {
-                    addToast({ 
-                        title: "Modo Foco", 
-                        message: `Saída de tela detectada (${newCount}).`, 
-                        type: "warning" 
-                    });
-                }, 0);
-                return newCount;
-            });
-        }
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [status, addToast]);
 
   // --- HANDLERS ---
 
@@ -173,8 +165,7 @@ export default function AttemptView({ test, onFinish }: Props) {
             time_spent_seconds: 0
         }));
 
-        // Pequeno delay artificial para experiência do usuário
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 1500)); // UX delay
 
         const result = await submitTestAttempt(test.id, formattedAnswers, timeSpent);
 
@@ -222,15 +213,10 @@ export default function AttemptView({ test, onFinish }: Props) {
       );
   }
 
-  // MODO ATIVO (PROVA)
   return (
     <div className="min-h-screen pb-20 animate-in fade-in">
-      
-      {/* HEADER FIXO (Sticky) */}
       <div className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b dark:border-gray-700 shadow-sm">
           <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-              
-              {/* Info Esquerda */}
               <div className="flex items-center gap-4">
                   <div className="hidden md:block">
                       <h2 className="font-bold text-sm dark:text-white truncate max-w-[200px]">{test.title}</h2>
@@ -243,13 +229,11 @@ export default function AttemptView({ test, onFinish }: Props) {
                   </div>
               </div>
 
-              {/* Timer Central (Mobile e Desktop) */}
               <div className="absolute left-1/2 transform -translate-x-1/2 bg-blue-50 dark:bg-blue-900/30 text-royal-blue px-4 py-1.5 rounded-full font-bold text-lg flex items-center gap-2 shadow-inner border border-blue-100 dark:border-blue-800">
                   <i className="far fa-clock text-sm animate-pulse"></i>
                   <TimerDisplay seconds={timeSpent} />
               </div>
 
-              {/* Botão Finalizar Único */}
               <button 
                   onClick={handleRequestFinish}
                   className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all active:scale-95 flex items-center gap-2"
@@ -260,9 +244,7 @@ export default function AttemptView({ test, onFinish }: Props) {
       </div>
 
       <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6 mt-4">
-          {/* Conteúdo da Questão */}
           <div className="bg-white dark:bg-gray-800 p-6 md:p-10 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 min-h-[400px] flex flex-col relative">
-              
               <div className="mb-6 flex justify-between items-start">
                   <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider">
                       Questão {currentQuestionIndex + 1}
@@ -270,7 +252,6 @@ export default function AttemptView({ test, onFinish }: Props) {
                   {question.points > 0 && <span className="text-xs font-bold text-yellow-600 bg-yellow-50 px-2 py-1 rounded border border-yellow-100">{question.points} pts</span>}
               </div>
 
-              {/* Enunciado */}
               <div className="mb-8">
                   {question.content.base_text && (
                       <div className="mb-6 p-5 bg-gray-50 dark:bg-gray-700/30 rounded-xl text-sm leading-relaxed border-l-4 border-royal-blue/20" dangerouslySetInnerHTML={{ __html: question.content.base_text }} />
@@ -278,7 +259,6 @@ export default function AttemptView({ test, onFinish }: Props) {
                   <div className="text-lg md:text-xl font-medium text-gray-800 dark:text-white leading-relaxed" dangerouslySetInnerHTML={{ __html: question.content.statement }} />
               </div>
 
-              {/* Opções */}
               <div className="space-y-3 flex-grow">
                   {question.question_type === 'multiple_choice' && question.content.options?.map((opt, idx) => {
                       const isSelected = answers[question.id] === idx;
@@ -303,7 +283,6 @@ export default function AttemptView({ test, onFinish }: Props) {
                   })}
               </div>
 
-              {/* Navegação entre Questões */}
               <div className="flex justify-between items-center mt-10 pt-6 border-t dark:border-gray-700">
                   <button 
                       onClick={() => setCurrentQuestionIndex(p => Math.max(0, p - 1))}
@@ -331,7 +310,6 @@ export default function AttemptView({ test, onFinish }: Props) {
               </div>
           </div>
 
-          {/* Navegador de Bolinhas */}
           <div className="flex flex-wrap gap-2 justify-center pb-8">
               {test.questions.map((_, idx) => {
                   const isAnswered = answers[test.questions[idx].id] !== undefined;

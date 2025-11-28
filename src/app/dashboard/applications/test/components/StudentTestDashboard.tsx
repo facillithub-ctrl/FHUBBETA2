@@ -31,7 +31,7 @@ const GamificationHeader = ({ data }: { data: any }) => {
   const progress = Math.min((safeData.current_xp / safeData.next_level_xp) * 100, 100);
   
   return (
-    <div className="bg-brand-gradient-hover rounded-2xl p-6 text-white mb-8 shadow-xl relative overflow-hidden animate-in fade-in duration-700">
+    <div className="bg-gradient-to-r from-royal-blue to-indigo-900 rounded-2xl p-6 text-white mb-8 shadow-xl relative overflow-hidden animate-in fade-in duration-700">
       <div className="absolute top-0 right-0 p-4 opacity-10 text-9xl transform translate-x-10 -translate-y-10 pointer-events-none">
         <i className="fas fa-trophy"></i>
       </div>
@@ -84,8 +84,8 @@ const TabsHeader = ({ activeTab, onChange }: { activeTab: string, onChange: (t: 
   <div className="flex space-x-2 rounded-xl bg-white dark:bg-gray-800 p-2 mb-8 overflow-x-auto no-scrollbar shadow-sm border border-gray-100 dark:border-gray-700">
       {[
           { id: 'overview', label: 'Visão Geral', icon: 'fa-chart-pie' },
-          { id: 'analytics', label: 'Análise Profunda', icon: 'fa-microscope' }, // Nova aba
-          { id: 'ai_study', label: 'Smart Coach IA', icon: 'fa-robot' }, // Nova aba
+          { id: 'analytics', label: 'Análise Profunda', icon: 'fa-microscope' }, 
+          { id: 'ai_study', label: 'Smart Coach IA', icon: 'fa-robot' }, 
           { id: 'browse', label: 'Simulados & Treinos', icon: 'fa-book-open' },
           { id: 'results', label: 'Histórico', icon: 'fa-history' },
       ].map((tab) => (
@@ -154,7 +154,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
           if (result.error) {
               addToast({ title: "Erro", message: result.error, type: "error" });
           } else if (result.testId) {
-              // Carrega imediatamente o teste gerado
               await handleInitiateTest(result.testId);
               addToast({ title: "Pronto!", message: "Modo Turbo iniciado. Boa sorte!", type: "success" });
           }
@@ -253,7 +252,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
   );
 
   const renderAnalytics = () => {
-    // Dados reais agora vêm do backend
     const bloomData = dashboardData?.bloomAnalysis || [];
     const errorData = dashboardData?.errorAnalysis || [];
     const heatmapData = dashboardData?.heatmapData || [];
@@ -365,17 +363,16 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
   };
 
   const renderAIStudy = () => {
-    // Agora usando dados reais passados via props dashboardData
     const studyRoute = dashboardData?.studyRoute || [];
     const insights = dashboardData?.insights || [];
     
     return (
         <div className="space-y-8 animate-in fade-in">
-            {/* Banner Modo Turbo - AGORA FUNCIONAL */}
-            <div className="bg-brand-gradient rounded-2xl p-8 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 group">
+            {/* Banner Modo Turbo */}
+            <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 group">
                 <div className="relative z-10">
                     <h2 className="text-3xl font-black italic uppercase tracking-wider mb-2 flex items-center gap-3">
-                        <i className="fas fa-bolt text-yellow-300 animate-pulse"></i> Modo Turbo 5'
+                        <i className="fas fa-bolt text-yellow-300 animate-pulse"></i> Modo Turbo 5&apos;
                     </h2>
                     <p className="text-violet-100 text-lg max-w-lg">
                         Nossa IA identificou seus pontos fracos. Gere um treino flash de 5 minutos focado APENAS no que você precisa.
@@ -388,7 +385,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
                 >
                     {isLoading ? <i className="fas fa-circle-notch fa-spin"></i> : "INICIAR AGORA"}
                 </button>
-                {/* Efeitos visuais */}
                 <div className="absolute inset-0 bg-[url('/assets/images/noise.png')] opacity-10"></div>
                 <div className="absolute -right-10 -bottom-20 text-[180px] opacity-10 rotate-12 group-hover:rotate-6 transition-transform duration-700">
                     <i className="fas fa-stopwatch"></i>
@@ -443,7 +439,7 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
                                     <span className="text-xs font-bold uppercase text-purple-600 dark:text-purple-400">{insight.type === 'pattern' ? 'Padrão Identificado' : 'Ponto de Atenção'}</span>
                                 </div>
                                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-                                    "{insight.message}"
+                                    &quot;{insight.message}&quot;
                                 </p>
                             </div>
                         )) : (
