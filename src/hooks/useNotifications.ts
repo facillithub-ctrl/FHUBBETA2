@@ -1,5 +1,5 @@
 // src/hooks/useNotifications.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react'; // Adicionado useCallback
 import createClient from '@/utils/supabase/client';
 
 export type NotificationItem = {
@@ -16,31 +16,37 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  
+  // supabase client é estável, mas para garantir no callback podemos movê-lo ou ignorar dependência
   const supabase = createClient();
 
-  const fetchNotifications = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  // Envolvemos a função em useCallback para ela ter uma referência estável
+  const fetchNotifications = useCallback(async () => {
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-    const { data } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(20); // Traz as últimas 20 para ser rápido
+        const { data } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-    if (data) {
-      setNotifications(data as NotificationItem[]);
-      setUnreadCount(data.filter((n: any) => !n.is_read).length);
+        if (data) {
+        setNotifications(data as NotificationItem[]);
+        setUnreadCount(data.filter((n: any) => !n.is_read).length);
+        }
+    } catch (error) {
+        console.error("Erro ao buscar notificações", error);
+    } finally {
+        setLoading(false);
     }
-    setLoading(false);
-  };
+  }, []); // Dependências vazias pois createClient é externo/estável
 
   const markAsRead = async (id: string) => {
-    // Otimização Otimista (atualiza a UI antes do banco)
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
     setUnreadCount(prev => Math.max(0, prev - 1));
-
     await supabase.from('notifications').update({ is_read: true }).eq('id', id);
   };
 
@@ -55,20 +61,7 @@ export function useNotifications() {
 
   useEffect(() => {
     fetchNotifications();
-
-    // Opcional: Escutar novas notificações em tempo real (se quiser gastar cota do Realtime)
-    // Se preferir economizar (como pediu), pode remover este bloco e só atualizar ao recarregar
-    const channel = supabase
-      .channel('realtime-notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
-          const newNotif = payload.new as NotificationItem;
-          setNotifications(prev => [newNotif, ...prev]);
-          setUnreadCount(prev => prev + 1);
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [fetchNotifications]); // Agora o linter fica feliz
 
   return { notifications, unreadCount, markAsRead, markAllAsRead, loading, refetch: fetchNotifications };
 }

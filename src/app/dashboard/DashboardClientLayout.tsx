@@ -18,7 +18,6 @@ export default function DashboardClientLayout({ userProfile, children }: LayoutP
 
   if (!userProfile) return null;
 
-  // Se o onboarding não foi concluído, mostra a página de seleção
   if (!userProfile.has_completed_onboarding) {
     return (
       <ToastProvider>
@@ -38,9 +37,10 @@ export default function DashboardClientLayout({ userProfile, children }: LayoutP
           setIsDesktopCollapsed={setDesktopCollapsed}
         />
         <div className="flex-1 flex flex-col overflow-hidden h-full relative">
+          {/* CORREÇÃO AQUI: onToggleSidebar */}
           <Topbar 
             userProfile={userProfile} 
-            toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
+            onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
           />
           <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-gray-900">
             {children}

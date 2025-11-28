@@ -17,20 +17,18 @@ export default function AdminClientLayout({ userProfile, children }: AdminClient
   return (
     <ToastProvider>
       <div className="flex h-screen bg-gray-50 dark:bg-gray-900 font-sans">
-        {/* Sidebar Específica do Admin */}
         <AdminSidebar 
           isMobileOpen={isSidebarOpen} 
           setIsMobileOpen={setSidebarOpen} 
         />
         
         <div className="flex-1 flex flex-col overflow-hidden relative">
-          {/* Topbar: Passamos userProfile explicitamente */}
+          {/* CORREÇÃO AQUI: onToggleSidebar em vez de toggleSidebar */}
           <Topbar 
             userProfile={userProfile} 
-            toggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
+            onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} 
           />
           
-          {/* Área de Conteúdo Principal */}
           <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900 p-4 md:p-8 scroll-smooth">
             <div className="max-w-7xl mx-auto min-h-[calc(100vh-8rem)]">
                {children}
