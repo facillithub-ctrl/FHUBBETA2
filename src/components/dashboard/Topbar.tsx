@@ -2,23 +2,26 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useNotifications } from '@/hooks/useNotifications'; // Importe o hook que criamos
-import { UserProfile } from '@/app/dashboard/types'; // Ajuste o caminho conforme seus tipos
+import { useNotifications } from '@/hooks/useNotifications';
+import { UserProfile } from '@/app/dashboard/types';
 
 interface TopbarProps {
   onToggleSidebar: () => void;
-  userProfile: UserProfile; // Supondo que você receba isso
+  userProfile: UserProfile;
 }
 
 export default function Topbar({ onToggleSidebar, userProfile }: TopbarProps) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
-  // Formata data relativa (ex: "há 2 min")
+  // Tratamento seguro para o nome do usuário
+  const displayName = userProfile?.fullName || 'Usuário';
+  const displayInitial = displayName[0]?.toUpperCase() || 'U';
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diff = Math.floor((now.getTime() - date.getTime()) / 60000); // minutos
+    const diff = Math.floor((now.getTime() - date.getTime()) / 60000);
     if (diff < 60) return `${diff} min atrás`;
     if (diff < 1440) return `${Math.floor(diff / 60)}h atrás`;
     return date.toLocaleDateString('pt-BR');
@@ -27,12 +30,10 @@ export default function Topbar({ onToggleSidebar, userProfile }: TopbarProps) {
   return (
     <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 sticky top-0 z-30">
       
-      {/* Botão Menu Mobile */}
       <div className="flex items-center gap-4">
         <button onClick={onToggleSidebar} className="lg:hidden text-gray-500 hover:text-brand-purple">
           <i className="fas fa-bars text-xl"></i>
         </button>
-        {/* Breadcrumbs ou Título poderiam vir aqui */}
       </div>
 
       <div className="flex items-center gap-6">
@@ -49,10 +50,8 @@ export default function Topbar({ onToggleSidebar, userProfile }: TopbarProps) {
             )}
           </button>
 
-          {/* Dropdown de Notificações */}
           {isNotifOpen && (
             <>
-              {/* Overlay invisível para fechar ao clicar fora */}
               <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>
               
               <div className="absolute right-0 mt-3 w-80 md:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden flex flex-col max-h-[500px] animate-fade-in-up">
@@ -79,7 +78,6 @@ export default function Topbar({ onToggleSidebar, userProfile }: TopbarProps) {
                         onClick={() => !notif.is_read && markAsRead(notif.id)}
                         className={`p-4 border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group relative ${!notif.is_read ? 'bg-purple-50/30 dark:bg-purple-900/10' : ''}`}
                       >
-                        {/* Indicador de não lido */}
                         {!notif.is_read && <div className="absolute left-2 top-6 w-1.5 h-1.5 bg-brand-purple rounded-full"></div>}
                         
                         <Link href={notif.link || '#'} className="block pl-2">
@@ -108,16 +106,19 @@ export default function Topbar({ onToggleSidebar, userProfile }: TopbarProps) {
           )}
         </div>
 
-        {/* Avatar e Menu do Usuário (Já deve existir no seu código) */}
         <div className="flex items-center gap-3 pl-6 border-l border-gray-100 dark:border-gray-800">
-           {/* ... Seu código de avatar existente ... */}
+           {/* Avatar placeholder simples ou imagem */}
            <div className="text-right hidden md:block">
-              <p className="text-sm font-bold text-gray-700 dark:text-gray-200">{userProfile.fullName}</p>
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-200">{displayName}</p>
               <p className="text-xs text-gray-400">Estudante</p>
            </div>
-           <div className="w-10 h-10 rounded-full bg-brand-purple text-white flex items-center justify-center font-bold shadow-lg shadow-brand-purple/20">
-              {userProfile.fullName[0]}
-           </div>
+           {userProfile?.avatarUrl ? (
+             <img src={userProfile.avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-lg" />
+           ) : (
+             <div className="w-10 h-10 rounded-full bg-brand-purple text-white flex items-center justify-center font-bold shadow-lg shadow-brand-purple/20">
+                {displayInitial}
+             </div>
+           )}
         </div>
         
       </div>
