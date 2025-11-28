@@ -1,6 +1,6 @@
 // src/app/dashboard/applications/library/notes/page.tsx
 import { createLibraryServerClient } from '@/lib/librarySupabase';
-import { createClient } from '@/utils/supabase/server';
+import createClient from '@/utils/supabase/server';
 
 export default async function NotesPage() {
   const authClient = await createClient();

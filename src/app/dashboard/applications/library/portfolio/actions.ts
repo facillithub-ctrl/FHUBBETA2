@@ -2,7 +2,7 @@
 'use server'
 
 import { createLibraryServerClient } from '@/lib/librarySupabase';
-import { createClient } from '@/utils/supabase/server'; // Auth
+import createClient from '@/utils/supabase/server';
 
 export async function getPortfolioItems() {
   const authClient = await createClient();
