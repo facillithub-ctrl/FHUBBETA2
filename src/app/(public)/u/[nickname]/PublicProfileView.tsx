@@ -7,7 +7,7 @@ import { VerificationBadge } from '@/components/VerificationBadge';
 import { 
   MapPin, Calendar, Share2, GraduationCap, 
   Trophy, Flame, BookOpen, Medal, Star, Shield, 
-  UserPlus, Check, Gamepad2, PlayCircle, FileText, 
+  UserPlus, Check, FileText, 
   PenTool, ArrowRight, Zap 
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -15,7 +15,8 @@ import { ptBR } from 'date-fns/locale';
 import { toggleFollow } from './actions';
 import { useToast } from '@/contexts/ToastContext';
 
-// ... (Sub-componentes MiniStat e BadgeItem mantêm-se iguais) ...
+// --- SUB-COMPONENTES ---
+
 const MiniStat = ({ icon: Icon, label, value, colorClass, bgClass }: any) => (
   <div className={`p-4 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center text-center transition-all hover:scale-105 hover:shadow-md ${bgClass || 'bg-white dark:bg-gray-800'}`}>
     <div className={`p-2 rounded-full mb-2 ${colorClass.replace('text-', 'bg-').replace('600', '100').replace('500', '100')} ${colorClass}`}>
@@ -35,6 +36,8 @@ const BadgeItem = ({ name }: { name: string }) => (
     </div>
 );
 
+// --- COMPONENTE PRINCIPAL ---
+
 export default function PublicProfileView({ 
   profile, isOwner, currentUser, initialIsFollowing, followersCount, followingCount 
 }: any) {
@@ -50,11 +53,13 @@ export default function PublicProfileView({
   };
 
   const statsFuture = {
-    simuladosFeitos: profile.stats_simulados || 12,
-    mediaGeral: profile.stats_media ? `${profile.stats_media}` : "780",
-    jogosJogados: profile.stats_games || 5,
-    aulasAssistidas: profile.stats_classes || 24
+    simuladosFeitos: profile.stats_simulados || 0,
+    mediaGeral: profile.stats_media ? `${profile.stats_media}` : "-",
+    jogosJogados: profile.stats_games || 0,
+    aulasAssistidas: profile.stats_classes || 0
   };
+
+  const recentEssays = profile.recent_essays || []; 
 
   const handleFollow = () => {
     if (!currentUser) {
@@ -75,65 +80,62 @@ export default function PublicProfileView({
     });
   };
 
+  const handleShare = () => {
+      navigator.clipboard.writeText(window.location.href);
+      addToast({
+          title: 'Link copiado!', 
+          message: 'Link copiado para a área de transferência.', 
+          type: 'success'
+      });
+  };
+
   const currentXp = profile.current_xp || 0;
   const nextLevelXp = profile.next_level_xp || 1000;
   const xpPercentage = Math.min(Math.round((currentXp / nextLevelXp) * 100), 100);
   const joinDate = profile.created_at ? format(new Date(profile.created_at), "MMM yyyy", { locale: ptBR }) : 'N/A';
+
+  // Fallback para Iniciais do Nome
+  const getInitials = () => {
+      const name = profile.full_name || profile.nickname || 'U';
+      return name[0].toUpperCase();
+  };
 
   return (
     <div className="pb-20 animate-in fade-in duration-700 bg-gray-50 dark:bg-gray-900">
       
       {/* --- 1. CAPA (HERO) --- */}
       <div className="relative h-64 md:h-80 w-full overflow-hidden flex items-center justify-center">
+        <div className="absolute inset-0 bg-brand-gradient z-0"></div>
         
-        {/* Fundo Gradiente da Marca */}
-        <div className="absolute inset-0 bg-gradient-to-br from-royal-blue via-[#4f46e5] to-brand-purple z-0"></div>
-        
-        {/* LOGO CENTRALIZADA COM FILTRO BRANCO NA CAPA */}
-        {/* Usamos opacity-20 para ficar sutil, como marca d'água */}
-        <div className="relative w-32 h-32 md:w-48 md:h-48 z-10 opacity-20 pointer-events-none select-none">
-             <Image 
-                src="/assets/images/accont.svg" 
-                alt="Logo Marca D'água" 
-                fill 
-                className="object-contain brightness-0 invert" 
-             />
+        {/* Marca d'água centralizada */}
+        <div className="relative w-32 h-32 md:w-48 md:h-48 z-10  pointer-events-none select-none">
+             <Image src="/assets/images/accont.svg" alt="Logo Marca D'água" fill className="object-contain brightness-0 invert" />
         </div>
 
-        {/* Overlay de Imagem de Usuário (se houver) */}
+        {/* CORREÇÃO: Usando snake_case (cover_image_url) */}
         {profile.cover_image_url && (
-           <Image 
-             src={profile.cover_image_url} 
-             alt="Capa do Usuário" 
-             fill 
-             className="object-cover opacity-60 mix-blend-overlay z-0" 
-             priority 
-           />
+           <Image src={profile.cover_image_url} alt="Capa do Usuário" fill className="object-cover opacity-60 mix-blend-overlay z-0" priority />
         )}
-
-        {/* Degradê inferior para fusão suave com o conteúdo */}
         <div className="absolute inset-0 bg-gradient-to-t from-gray-50 dark:from-gray-900 via-transparent to-black/10 z-10"></div>
       </div>
 
-      {/* --- CONTEÚDO PRINCIPAL (Mantido Igual) --- */}
+      {/* --- CONTEÚDO PRINCIPAL --- */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-20 -mt-24 md:-mt-32">
         <div className="flex flex-col lg:flex-row gap-8">
             
-            {/* COLUNA ESQUERDA: CARD DE IDENTIDADE */}
+            {/* COLUNA ESQUERDA */}
             <div className="w-full lg:w-80 flex-shrink-0 group">
                 <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl shadow-royal-blue/10 border border-white/50 dark:border-gray-700 overflow-hidden sticky top-24 backdrop-blur-sm">
-                    
-                    {/* Topo do Card com Efeito Glass */}
                     <div className="h-24 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 relative">
-                        {/* Avatar Flutuante */}
                         <div className="absolute -bottom-16 left-1/2 -translate-x-1/2">
                              <div className="relative w-32 h-32 md:w-36 md:h-36 rounded-full p-1 bg-white dark:bg-gray-800 shadow-xl">
                                 <div className="w-full h-full rounded-full overflow-hidden relative border-4 border-gray-50 dark:border-gray-700">
+                                    {/* CORREÇÃO: snake_case (avatar_url) */}
                                     {profile.avatar_url ? (
                                         <Image src={profile.avatar_url} alt={profile.nickname} fill className="object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-royal-blue bg-blue-50">
-                                            {profile.nickname?.[0].toUpperCase()}
+                                            {getInitials()}
                                         </div>
                                     )}
                                 </div>
@@ -146,8 +148,9 @@ export default function PublicProfileView({
 
                     <div className="pt-20 pb-8 px-6 text-center">
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center justify-center gap-2 flex-wrap mb-1">
+                            {/* CORREÇÃO: snake_case (full_name) */}
                             {privacy.show_full_name ? profile.full_name : profile.nickname}
-                            <VerificationBadge badge={profile.verification_badge} size="4px" />
+                            <VerificationBadge badge={profile.verification_badge} size="12px" />
                         </h1>
                         <p className="text-royal-blue font-medium mb-6 bg-blue-50 dark:bg-blue-900/20 py-1 px-3 rounded-full text-sm inline-block">
                             @{profile.nickname}
@@ -168,7 +171,7 @@ export default function PublicProfileView({
                                 </button>
                             )}
                             <button 
-                                onClick={() => { navigator.clipboard.writeText(window.location.href); addToast({title:'Link copiado!', type:'success'}); }}
+                                onClick={handleShare}
                                 className="p-2.5 bg-white dark:bg-gray-700 text-gray-600 dark:text-white rounded-xl border border-gray-200 dark:border-gray-600 hover:bg-gray-50 transition-colors shadow-sm"
                             >
                                 <Share2 size={20} />
@@ -187,6 +190,7 @@ export default function PublicProfileView({
                         </div>
 
                         <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300 text-left">
+                             {/* CORREÇÃO: snake_case (school_name, address_city, address_state) */}
                              {privacy.show_school && profile.school_name && (
                                 <div className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors">
                                     <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-royal-blue">
@@ -230,7 +234,7 @@ export default function PublicProfileView({
             {/* COLUNA DIREITA */}
             <div className="flex-1 space-y-8 lg:mt-24">
                 
-                {/* BIO & PROGRESSO */}
+                {/* BIO */}
                 <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
                     <div className="relative z-10 flex flex-col md:flex-row gap-8">
                         <div className="flex-1">
@@ -252,7 +256,6 @@ export default function PublicProfileView({
                                     <Trophy size={20} />
                                 </div>
                             </div>
-                            
                             <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-3 mb-2 overflow-hidden">
                                 <div 
                                     className="bg-gradient-to-r from-brand-orange to-red-500 h-full rounded-full transition-all duration-1000" 
@@ -267,7 +270,7 @@ export default function PublicProfileView({
                     </div>
                 </div>
 
-                {/* GRID DE STATS */}
+                {/* STATS */}
                 {privacy.show_stats && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                          <MiniStat icon={Flame} label="Ofensiva" value={`${profile.streak_days || 0} dias`} colorClass="text-brand-orange" />
@@ -277,7 +280,7 @@ export default function PublicProfileView({
                     </div>
                 )}
 
-                {/* GPS / SUGESTÃO DE AÇÃO */}
+                {/* GPS */}
                 <div className="bg-gradient-to-r from-gray-900 to-gray-800 dark:from-black dark:to-gray-900 rounded-3xl p-6 md:p-8 text-white relative overflow-hidden shadow-2xl">
                     <div className="absolute right-0 top-0 w-64 h-64 bg-royal-blue rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/3"></div>
                     <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -291,10 +294,7 @@ export default function PublicProfileView({
                                 Crie um plano de estudos personalizado baseado nas suas metas e compare seu desempenho.
                             </p>
                         </div>
-                        <Link 
-                            href="/dashboard"
-                            className="whitespace-nowrap px-6 py-3 bg-white text-gray-900 rounded-xl font-bold text-sm hover:bg-gray-100 transition-colors shadow-lg flex items-center gap-2"
-                        >
+                        <Link href="/dashboard" className="whitespace-nowrap px-6 py-3 bg-white text-gray-900 rounded-xl font-bold text-sm hover:bg-gray-100 transition-colors shadow-lg flex items-center gap-2">
                             Criar meu Plano <ArrowRight size={16} />
                         </Link>
                     </div>
@@ -307,45 +307,50 @@ export default function PublicProfileView({
                              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                 <FileText size={20} className="text-royal-blue" /> Redações Recentes
                              </h3>
-                             {!isOwner && <Shield size={16} className="text-gray-400" title="Conteúdo Privado" />}
+                             {/* CORREÇÃO DO SHIELD AQUI */}
+                             {!isOwner && (
+                                <span title="Conteúdo Privado" className="cursor-help">
+                                    <Shield size={16} className="text-gray-400" />
+                                </span>
+                             )}
                         </div>
                         
                         <div className="space-y-4">
-                             {[
-                                { title: "A democratização do acesso ao cinema no Brasil", date: "Há 3 dias" },
-                                { title: "Desafios para a formação educacional de surdos", date: "Há 1 semana" }
-                             ].map((essay, i) => (
-                                <div key={i} className="group relative flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/30 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors border border-transparent hover:border-blue-100 dark:hover:border-gray-600">
-                                    <div className="flex items-start gap-4 mb-3 md:mb-0">
-                                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-400 border border-gray-100 dark:border-gray-600 shadow-sm">
-                                            {i + 1}
+                             {recentEssays.length > 0 ? (
+                                 recentEssays.map((essay: any, i: number) => (
+                                    <div key={i} className="group relative flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/30 hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors border border-transparent hover:border-blue-100 dark:hover:border-gray-600">
+                                        <div className="flex items-start gap-4 mb-3 md:mb-0">
+                                            <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 flex items-center justify-center text-xs font-bold text-gray-400 border border-gray-100 dark:border-gray-600 shadow-sm">
+                                                {i + 1}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-sm text-gray-800 dark:text-white group-hover:text-royal-blue transition-colors line-clamp-1">
+                                                    {essay.title || "Redação sem título"}
+                                                </h4>
+                                                <p className="text-xs text-gray-500 flex items-center gap-2 mt-1">
+                                                    <span className="bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold">ENEM</span>
+                                                    <span>• {essay.created_at ? format(new Date(essay.created_at), "dd/MM/yyyy") : "Data desc."}</span>
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h4 className="font-bold text-sm text-gray-800 dark:text-white group-hover:text-royal-blue transition-colors line-clamp-1">
-                                                {essay.title}
-                                            </h4>
-                                            <p className="text-xs text-gray-500 flex items-center gap-2 mt-1">
-                                                <span className="bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded-[4px] text-[10px] font-bold">ENEM</span>
-                                                <span>• {essay.date}</span>
-                                            </p>
+                                        <div className="flex items-center gap-3 md:pl-4">
+                                            {isOwner ? (
+                                                <span className="font-bold text-green-600 bg-green-100 dark:bg-green-900/30 px-3 py-1 rounded-lg text-xs">
+                                                    {essay.final_grade || "Em correção"}
+                                                </span>
+                                            ) : (
+                                                <Link href="/dashboard/applications/write" className="hidden group-hover:flex items-center gap-1 text-xs font-bold text-royal-blue bg-white dark:bg-gray-800 px-3 py-2 rounded-lg shadow-sm border border-blue-100 dark:border-gray-600 hover:scale-105 transition-transform">
+                                                    <PenTool size={12} /> Praticar este tema
+                                                </Link>
+                                            )}
                                         </div>
                                     </div>
-
-                                    <div className="flex items-center gap-3 md:pl-4">
-                                        {isOwner ? (
-                                            <span className="font-bold text-green-600 bg-green-100 dark:bg-green-900/30 px-3 py-1 rounded-lg text-xs">920</span>
-                                        ) : (
-                                            <Link 
-                                                href="/dashboard/applications/write" 
-                                                className="hidden group-hover:flex items-center gap-1 text-xs font-bold text-royal-blue bg-white dark:bg-gray-800 px-3 py-2 rounded-lg shadow-sm border border-blue-100 dark:border-gray-600 hover:scale-105 transition-transform"
-                                            >
-                                                <PenTool size={12} />
-                                                Praticar esse tema
-                                            </Link>
-                                        )}
-                                    </div>
-                                </div>
-                             ))}
+                                 ))
+                             ) : (
+                                 <div className="text-center py-6 border-2 border-dashed border-gray-100 dark:border-gray-700 rounded-2xl text-gray-400 text-sm">
+                                     Nenhuma redação encontrada.
+                                 </div>
+                             )}
                         </div>
                          {!isOwner && (
                             <p className="text-xs text-gray-400 mt-4 text-center bg-gray-50 dark:bg-gray-900/50 py-2 rounded-lg">
@@ -376,7 +381,6 @@ export default function PublicProfileView({
                          )}
                     </div>
                 )}
-
             </div>
         </div>
       </div>

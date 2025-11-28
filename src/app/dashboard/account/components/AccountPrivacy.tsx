@@ -75,7 +75,7 @@ export default function AccountPrivacy({ fullProfileData }: { fullProfileData: a
   const [isPending, startTransition] = useTransition();
 
   // --- Estado 1: Configurações de Privacidade do Perfil ---
-  // Default values caso o objeto venha null do banco
+  // Inicialização segura
   const [privacyConfig, setPrivacyConfig] = useState<PrivacySettings>(
     fullProfileData.privacy_settings || {
       is_public: false,
@@ -104,8 +104,6 @@ export default function AccountPrivacy({ fullProfileData }: { fullProfileData: a
 
   const handleSavePrivacy = () => {
     startTransition(async () => {
-      // Importante: A action 'updateAccountProfile' deve ser capaz de receber 'privacy_settings'
-      // Se não, você deve atualizá-la ou usar o client supabase diretamente aqui.
       // @ts-ignore
       const result = await updateAccountProfile({
         privacy_settings: privacyConfig
@@ -141,7 +139,7 @@ export default function AccountPrivacy({ fullProfileData }: { fullProfileData: a
   };
 
   return (
-    <div className="p-6 md:p-10 space-y-12">
+    <div className="p-6 md:p-10 space-y-12 animate-in fade-in">
       <div>
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-1">Privacidade e Dados</h2>
         <p className="text-gray-500 mb-8">Gerencie quem pode ver suas conquistas, permissões de IA e a segurança da conta.</p>

@@ -3,6 +3,7 @@ import createClient from '@/utils/supabase/server';
 import PublicProfileView from './PublicProfileView';
 import ProfileHeader from './components/ProfileHeader';
 import ProfileFooter from './components/ProfileFooter';
+import { getPublicProfile } from './actions'; // Importando a nova função
 import { Metadata } from 'next';
 
 type Props = {
@@ -11,13 +12,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { nickname } = await params;
-  const supabase = await createClient();
-  
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, nickname, bio, avatar_url')
-    .eq('nickname', nickname)
-    .single();
+  const profile = await getPublicProfile(nickname); // Reusando a função para consistência
 
   if (!profile) return { title: 'Perfil não encontrado' };
 
@@ -34,7 +29,7 @@ export default async function PublicProfilePage({ params }: Props) {
   const { nickname } = await params;
   const supabase = await createClient();
 
-  // 1. Identificar quem está visitando (Current User)
+  // 1. Identificar Visitante
   const { data: { user: authUser } } = await supabase.auth.getUser();
   let currentUserProfile = null;
 
@@ -43,16 +38,12 @@ export default async function PublicProfilePage({ params }: Props) {
       currentUserProfile = data;
   }
 
-  // 2. Buscar Perfil do Alvo (Target User)
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('nickname', nickname)
-    .single();
+  // 2. Buscar Perfil Completo (Com Stats reais)
+  const profile = await getPublicProfile(nickname);
 
-  if (error || !profile) notFound();
+  if (!profile) notFound();
 
-  // 3. Buscar Estatísticas de Seguidores (Real Data)
+  // 3. Buscar Seguidores (Mantido separado pois é relacional e específico da view)
   const { count: followersCount } = await supabase
     .from('follows')
     .select('*', { count: 'exact', head: true })
@@ -63,7 +54,6 @@ export default async function PublicProfilePage({ params }: Props) {
     .select('*', { count: 'exact', head: true })
     .eq('follower_id', profile.id);
 
-  // 4. Verificar se o visitante já segue o alvo
   let isFollowing = false;
   if (currentUserProfile) {
     const { data: followCheck } = await supabase
@@ -78,7 +68,7 @@ export default async function PublicProfilePage({ params }: Props) {
   const isOwner = currentUserProfile?.id === profile.id;
   const privacy = profile.privacy_settings || {};
 
-  // Lógica de Bloqueio (Perfil Privado)
+  // Tela de Bloqueio (Privado)
   if (!privacy.is_public && !isOwner) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
@@ -105,7 +95,7 @@ export default async function PublicProfilePage({ params }: Props) {
         <PublicProfileView 
             profile={profile}
             isOwner={isOwner}
-            currentUser={currentUserProfile} // Passamos o perfil inteiro para usar avatar/nome se precisar
+            currentUser={currentUserProfile}
             initialIsFollowing={isFollowing}
             followersCount={followersCount || 0}
             followingCount={followingCount || 0}
