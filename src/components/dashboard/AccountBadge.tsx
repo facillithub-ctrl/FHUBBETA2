@@ -29,7 +29,7 @@ export default function AccountBadge({ userProfile }: { userProfile: UserProfile
            <span className="text-xs font-bold text-dark-text dark:text-white group-hover:text-royal-blue transition-colors max-w-[100px] truncate">
              {userProfile.fullName?.split(' ')[0]}
            </span>
-           <VerificationBadge badge={userProfile.verification_badge} size="10px" />
+           <VerificationBadge badge={userProfile.verification_badge} size="4px" />
         </div>
         <span className="text-[10px] text-text-muted uppercase tracking-wide">
             {userProfile.userCategory || 'Usuário'}
