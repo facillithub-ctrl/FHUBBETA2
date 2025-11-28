@@ -97,10 +97,10 @@ export default function Sidebar({ userProfile, isMobileOpen, setIsMobileOpen, is
         <div className={`h-20 flex items-center px-6 mb-2 ${isDesktopCollapsed ? 'justify-center px-0' : ''}`}>
             <div className="flex items-center gap-3">
                 <div className="relative w-9 h-9 flex items-center justify-center">
-                   <Image src="/assets/images/LOGO/png/isologo.png" alt="Logo" width={36} height={36} className="object-contain" />
+                   <Image src="/assets/images/LOGO/isologo/preto.png" alt="Logo" width={36} height={36} className="object-contain" />
                 </div>
                 <div className={`flex flex-col transition-opacity duration-200 ${isDesktopCollapsed ? 'hidden opacity-0' : 'block opacity-100'}`}>
-                    <span className="font-bold text-gray-900 text-lg leading-none tracking-tight">Facillit<span className="text-brand-purple">Hub</span></span>
+                    <span className="font-bold text-gray-900 text-lg leading-none tracking-tight">Facillit<span className="text-black">Hub</span></span>
                     <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider mt-0.5">Workspace</span>
                 </div>
             </div>

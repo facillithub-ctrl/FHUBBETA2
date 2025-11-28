@@ -111,7 +111,7 @@ export default function Header() {
             {/* LOGO */}
             <Link href="/" className="flex items-center gap-2 group z-50 relative">
                 <div className="relative w-8 h-8 transition-all duration-300">
-                    <Image src="/assets/images/LOGO/png/logoazul.svg" alt="Facillit Hub" fill className="object-contain" />
+                    <Image src="/assets/images/LOGO/isologo/preto.png" alt="Facillit Hub" fill className="object-contain" />
                 </div>
                 <span className={`font-bold text-xl tracking-tight transition-colors ${linkColor}`}>Facillit Hub</span>
             </Link>

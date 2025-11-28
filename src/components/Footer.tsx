@@ -10,10 +10,9 @@ export default function Footer() {
             <div className="flex flex-col md:flex-row justify-between items-start gap-8 mb-12 border-b border-white/10 pb-12">
                 <div className="max-w-sm">
                     <Link href="/" className="flex items-center gap-3 mb-4">
-                        <div className="relative w-10 h-10 brightness-0 invert">
-                            <Image src="/assets/images/LOGO/png/logoazul.svg" alt="Facillit Hub" fill className="object-contain" />
+                        <div className="relative w-32 h-32 brightness-0 invert">
+                            <Image src="/assets/images/LOGO/logotipo/brancoeverde.png" alt="Facillit Hub" fill className="object-contain" />
                         </div>
-                        <span className="text-2xl font-bold tracking-tight">Facillit Hub</span>
                     </Link>
                     <p className="text-gray-400 text-sm">
                         O ecossistema digital inteligente que conecta educação, produtividade e negócios numa única plataforma.
