@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
-    Essay, EssayPrompt, getUserActionPlans, getSavedFeedbacks, ActionPlan 
+    Essay, EssayPrompt, getUserActionPlans, ActionPlan 
 } from '../actions';
 import EssayEditor from './EssayEditor';
 import EssayCorrectionView from './EssayCorrectionView';
@@ -13,12 +13,14 @@ import ProgressionChart from './ProgressionChart';
 import PracticePlanWidget from './PracticePlanWidget';
 import PromptLibrary from './PromptLibrary';
 import CountdownWidget from '@/components/dashboard/CountdownWidget';
+// IMPORTAÇÃO DO LEARNING GPS (MENTOR AUTOMÁTICO)
+import LearningGPS from "@/components/learning-gps/LearningGPS"; 
 import { 
     PenTool, BookOpen, Plus, Home, History, MessageSquare, BarChart2, 
     Zap, ChevronRight, Newspaper, Trophy, TrendingUp
 } from 'lucide-react';
 
-// --- TIPOS CORRIGIDOS PARA EVITAR ERRO DE BUILD ---
+// --- TIPOS ---
 type Stats = {
     totalCorrections: number;
     averages: { 
@@ -111,13 +113,26 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
     }
   }, []);
 
+  // --- ROTEAMENTO INTELIGENTE (GPS) ---
   useEffect(() => {
+    const action = searchParams.get('action');
+    const promptId = searchParams.get('promptId');
     const essayIdFromUrl = searchParams.get('essayId');
-    if (essayIdFromUrl) {
-      const essayToOpen = initialEssays.find(e => e.id === essayIdFromUrl);
-      if (essayToOpen) handleSelectEssay(essayToOpen);
+
+    if (action === 'new') {
+        // Se vier com promptId (do GPS), pré-carrega o tema
+        if (promptId) {
+            const prompt = prompts.find(p => p.id === promptId);
+            if (prompt) {
+                setCurrentEssay({ prompt_id: prompt.id, title: prompt.title });
+            }
+        }
+        setView('edit');
+    } else if (essayIdFromUrl) {
+        const essayToOpen = initialEssays.find(e => e.id === essayIdFromUrl);
+        if (essayToOpen) handleSelectEssay(essayToOpen);
     }
-  }, [searchParams, initialEssays, handleSelectEssay]);
+  }, [searchParams, initialEssays, prompts, handleSelectEssay]);
 
   const handleCreateNew = () => { setCurrentEssay(null); setView('edit'); };
   const handleOpenLibrary = () => { setView('prompts_library'); };
@@ -183,72 +198,81 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
 
       {/* DASHBOARD CONTENT */}
       {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in slide-in-from-bottom-2 duration-300">
-              <div className="lg:col-span-8 space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="bg-white dark:bg-[#1a1b1e] p-5 rounded-xl border border-gray-100 dark:border-white/5 shadow-sm flex flex-col justify-between">
-                             <div className="flex justify-between items-start mb-2">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Sequência</span>
-                                <Zap size={16} className="text-yellow-500" />
-                             </div>
-                             <div>
-                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{streak} <span className="text-sm font-normal text-gray-500">dias</span></h3>
-                             </div>
-                        </div>
+          <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-300">
+              
+              {/* LEARNING GPS (Inserido aqui para destaque máximo) */}
+              <LearningGPS />
 
-                        <div className="bg-white dark:bg-[#1a1b1e] p-5 rounded-xl border border-gray-100 dark:border-white/5 shadow-sm flex flex-col justify-between">
-                             <div className="flex justify-between items-start mb-2">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Média</span>
-                                <TrendingUp size={16} className="text-[#07f49e]" />
-                             </div>
-                             <div>
-                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{statistics?.averages.avg_final_grade.toFixed(0) || '-'}</h3>
-                             </div>
-                        </div>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <div className="lg:col-span-8 space-y-6">
+                      {/* KPI CARDS */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="bg-white dark:bg-[#1a1b1e] p-5 rounded-xl border border-gray-100 dark:border-white/5 shadow-sm flex flex-col justify-between">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Sequência</span>
+                                    <Zap size={16} className="text-yellow-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{streak} <span className="text-sm font-normal text-gray-500">dias</span></h3>
+                                </div>
+                            </div>
 
-                        <div className="bg-gradient-to-br from-[#42047e] to-[#2E14ED] p-5 rounded-xl text-white shadow-md flex flex-col justify-between relative overflow-hidden">
-                             <div className="absolute right-0 top-0 w-16 h-16 bg-white/10 rounded-bl-full"></div>
-                             <div className="flex justify-between items-start mb-2 relative z-10">
-                                <span className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Ranking</span>
-                                <Trophy size={16} className="text-yellow-300" />
-                             </div>
-                             <div className="relative z-10">
-                                <h3 className="text-2xl font-bold">#{rankInfo?.rank || '-'}</h3>
-                                <span className="text-[10px] opacity-80">{rankInfo?.state || 'Geral'}</span>
-                             </div>
-                        </div>
-                  </div>
+                            <div className="bg-white dark:bg-[#1a1b1e] p-5 rounded-xl border border-gray-100 dark:border-white/5 shadow-sm flex flex-col justify-between">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Média</span>
+                                    <TrendingUp size={16} className="text-[#07f49e]" />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{statistics?.averages.avg_final_grade.toFixed(0) || '-'}</h3>
+                                </div>
+                            </div>
 
-                  <div className="bg-white dark:bg-[#1a1b1e] p-6 rounded-xl border border-gray-100 dark:border-white/5 shadow-sm">
-                      <h3 className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2 mb-6">
-                          <BarChart2 className="text-[#42047e]" size={16} /> Evolução de Notas
-                      </h3>
-                      <div className="h-[280px] w-full">
-                          <ProgressionChart data={statistics?.progression || []} />
+                            <div className="bg-gradient-to-br from-[#42047e] to-[#2E14ED] p-5 rounded-xl text-white shadow-md flex flex-col justify-between relative overflow-hidden">
+                                <div className="absolute right-0 top-0 w-16 h-16 bg-white/10 rounded-bl-full"></div>
+                                <div className="flex justify-between items-start mb-2 relative z-10">
+                                    <span className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Ranking</span>
+                                    <Trophy size={16} className="text-yellow-300" />
+                                </div>
+                                <div className="relative z-10">
+                                    <h3 className="text-2xl font-bold">#{rankInfo?.rank || '-'}</h3>
+                                    <span className="text-[10px] opacity-80">{rankInfo?.state || 'Geral'}</span>
+                                </div>
+                            </div>
+                      </div>
+
+                      {/* CHART */}
+                      <div className="bg-white dark:bg-[#1a1b1e] p-6 rounded-xl border border-gray-100 dark:border-white/5 shadow-sm">
+                          <h3 className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2 mb-6">
+                              <BarChart2 className="text-[#42047e]" size={16} /> Evolução de Notas
+                          </h3>
+                          <div className="h-[280px] w-full">
+                              <ProgressionChart data={statistics?.progression || []} />
+                          </div>
                       </div>
                   </div>
-              </div>
 
-              <div className="lg:col-span-4 space-y-6">
-                   <div className="bg-white dark:bg-[#1a1b1e] rounded-xl border border-gray-100 dark:border-white/5 shadow-sm p-1">
-                       <CountdownWidget targetExam={targetExam} examDate={examDate} />
-                   </div>
+                  {/* SIDEBAR (Countdown & News) */}
+                  <div className="lg:col-span-4 space-y-6">
+                       <div className="bg-white dark:bg-[#1a1b1e] rounded-xl border border-gray-100 dark:border-white/5 shadow-sm p-1">
+                           <CountdownWidget targetExam={targetExam} examDate={examDate} />
+                       </div>
 
-                   <div className="bg-gray-50 dark:bg-[#151518] rounded-xl p-5 border border-gray-200 dark:border-white/5 h-[420px] flex flex-col">
-                        <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                            <Newspaper className="text-[#07f49e]" size={16} /> Atualidades & Dicas
-                        </h3>
-                        <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-                            {currentEvents.length > 0 ? (
-                                currentEvents.map(evt => <NewsCard key={evt.id} event={evt} />)
-                            ) : (
-                                <div className="text-center py-8 text-xs text-gray-400">Nenhuma notícia.</div>
-                            )}
-                        </div>
-                        <Link href="/recursos/blog?cat=Redação" className="block text-center mt-3 text-xs font-bold text-[#42047e] hover:underline">
-                            Ver Blog Completo
-                        </Link>
-                   </div>
+                       <div className="bg-gray-50 dark:bg-[#151518] rounded-xl p-5 border border-gray-200 dark:border-white/5 h-[420px] flex flex-col">
+                            <h3 className="font-bold text-sm text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                                <Newspaper className="text-[#07f49e]" size={16} /> Atualidades & Dicas
+                            </h3>
+                            <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+                                {currentEvents.length > 0 ? (
+                                    currentEvents.map(evt => <NewsCard key={evt.id} event={evt} />)
+                                ) : (
+                                    <div className="text-center py-8 text-xs text-gray-400">Nenhuma notícia.</div>
+                                )}
+                            </div>
+                            <Link href="/recursos/blog?cat=Redação" className="block text-center mt-3 text-xs font-bold text-[#42047e] hover:underline">
+                                Ver Blog Completo
+                            </Link>
+                       </div>
+                  </div>
               </div>
           </div>
       )}
@@ -288,7 +312,6 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
 
       {activeTab === 'analytics' && (
           <div className="animate-in fade-in">
-              {/* O erro de build foi corrigido aqui ao tipar o objeto statistics corretamente no início do arquivo */}
               <StatisticsWidget stats={statistics} frequentErrors={frequentErrors} />
           </div>
       )}

@@ -1,19 +1,21 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from 'next/navigation';
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell, Legend
 } from "recharts";
-import AvailableTestCard, { TestCardInfo } from "./AvailableTestCard";
+import AvailableTestCard from "./AvailableTestCard";
 import SurveyCard from "./SurveyCard";
 import ResultsView from "./ResultsView";
 import AttemptView from "./AttemptView";
 import TestDetailView from "./TestDetailView";
-import { getTestWithQuestions, submitCampaignConsent, generateTurboTest } from "../actions";
+import { getTestWithQuestions, generateTurboTest } from "../actions";
 import { useToast } from "@/contexts/ToastContext";
-import { StudentDashboardData, StudentCampaign, DifficultyLevel } from "../types";
+import { StudentDashboardData, StudentCampaign } from "../types";
+import LearningGPS from "@/components/learning-gps/LearningGPS";
 
 // --- CORES DO TEMA ---
 const COLORS = {
@@ -24,19 +26,13 @@ const COLORS = {
   chart: ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d']
 };
 
-// --- COMPONENTES VISUAIS (HEADER & INSIGHTS) ---
-
+// --- HEADER DE GAMIFICAÇÃO ---
 const GamificationHeader = ({ data }: { data: any }) => {
   const safeData = data || { level: 1, current_xp: 0, next_level_xp: 100, streak_days: 0, badges: [] };
-  
-  // Cálculo de progresso corrigido para a nova lógica linear
-  // Se o nível é 2, o XP varia de 100 a 199. Se current_xp é 150, o progresso no nível deve ser 50%
-  // Progress = (XP_Atual % 100)
-  // Exemplo: 250 XP total. Nível 3. Progresso = 50.
   const progress = safeData.current_xp % 100;
   
   return (
-    <div className="bg-brand-gradient rounded-2xl p-6 text-white mb-8 shadow-xl relative overflow-hidden animate-in fade-in duration-700">
+    <div className="bg-gradient-to-r from-royal-blue to-indigo-900 rounded-2xl p-6 text-white mb-8 shadow-xl relative overflow-hidden animate-in fade-in duration-700">
       <div className="absolute top-0 right-0 p-4 opacity-10 text-9xl transform translate-x-10 -translate-y-10 pointer-events-none">
         <i className="fas fa-trophy"></i>
       </div>
@@ -117,12 +113,17 @@ type Props = {
   consentedCampaignIds: string[];
 };
 
-export default function StudentTestDashboard({ dashboardData, globalTests, classTests, campaigns, consentedCampaignIds }: Props) {
+export default function StudentTestDashboard({ dashboardData, globalTests, classTests }: Props) {
   const [activeTab, setActiveTab] = useState("overview");
   const [view, setView] = useState<"dashboard" | "attempt" | "detail" | "results">("dashboard");
   const [selectedTest, setSelectedTest] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Filtro de navegação via URL (GPS)
+  const [filterSubject, setFilterSubject] = useState('Todas as Matérias');
+  
   const { addToast } = useToast();
+  const searchParams = useSearchParams();
 
   const safeStats = dashboardData?.stats || { simuladosFeitos: 0, mediaGeral: 0, taxaAcerto: 0, tempoMedio: 0, questionsAnsweredTotal: 0 };
   const allTests = [...(globalTests || []), ...(classTests || [])];
@@ -152,10 +153,8 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
   const handleStartTurbo = async () => {
       setIsLoading(true);
       addToast({ title: "IA Trabalhando", message: "Analisando seus erros e gerando treino...", type: "info" });
-      
       try {
           const result = await generateTurboTest();
-          
           if (result.error) {
               addToast({ title: "Erro", message: result.error, type: "error" });
           } else if (result.testId) {
@@ -185,13 +184,35 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
       window.location.reload();
   };
 
-  // --- SUB-RENDERIZADORES (ABAS) ---
+  // --- EFEITO: ROTEAMENTO INTELIGENTE (GPS) ---
+  useEffect(() => {
+      const viewParam = searchParams.get('view');
+      const testId = searchParams.get('testId');
+      const subject = searchParams.get('subject');
+
+      // Se vier com ?view=detail&testId=... (Link Direto)
+      if (viewParam === 'detail' && testId) {
+          handleViewDetails(testId);
+      }
+      
+      // Se vier com ?subject=Matemática (Link de Filtro)
+      if (subject) {
+          setActiveTab('browse');
+          setFilterSubject(subject);
+          addToast({ title: "Filtro Aplicado", message: `Exibindo apenas testes de ${subject}`, type: "info" });
+      }
+  }, [searchParams]);
+
+  // --- SUB-RENDERIZADORES ---
 
   const renderOverview = () => (
       <div className="animate-in slide-in-from-left duration-300 space-y-8">
           <GamificationHeader data={dashboardData?.gamification} />
           
-          {/* KPIs Principais */}
+          {/* LEARNING GPS INTEGRADO */}
+          <LearningGPS />
+          
+          {/* KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { label: 'Simulados Feitos', value: safeStats.simuladosFeitos, color: 'text-royal-blue', icon: 'fa-clipboard-check' },
@@ -212,7 +233,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Gráfico de Evolução Recente */}
               <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                   <h3 className="font-bold text-lg mb-6 flex items-center gap-2 dark:text-white">
                       <i className="fas fa-chart-area text-royal-blue"></i> Evolução de Desempenho
@@ -232,7 +252,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
                   </div>
               </div>
 
-              {/* Sugestões Rápidas (Mini IA) */}
               <div className="bg-gradient-to-b from-indigo-50 to-white dark:from-gray-800 dark:to-gray-900 p-6 rounded-2xl shadow-sm border border-indigo-100 dark:border-gray-700">
                   <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-indigo-900 dark:text-white">
                       <i className="fas fa-bolt text-yellow-500"></i> Recomendados Agora
@@ -263,62 +282,38 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
 
     return (
       <div className="space-y-8 animate-in fade-in">
-          {/* Bloom e Erros */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Radar Chart Bloom */}
               <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                  <h3 className="font-bold text-lg mb-2 dark:text-white">Taxonomia de Bloom (Habilidades)</h3>
-                  <p className="text-sm text-gray-500 mb-6">Entenda seu nível de profundidade cognitiva.</p>
+                  <h3 className="font-bold text-lg mb-2 dark:text-white">Taxonomia de Bloom</h3>
                   <div className="h-[300px]">
-                      {bloomData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={bloomData}>
-                                <PolarGrid gridType="polygon" />
-                                <PolarAngleAxis dataKey="skill" tick={{ fill: '#6B7280', fontSize: 12 }} />
-                                <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                                <Radar name="Você" dataKey="score" stroke={COLORS.primary} fill={COLORS.primary} fillOpacity={0.4} />
-                                <Tooltip />
-                            </RadarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                          <div className="flex items-center justify-center h-full text-gray-400 text-sm">Dados insuficientes para análise.</div>
-                      )}
+                      <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart cx="50%" cy="50%" outerRadius="80%" data={bloomData}>
+                              <PolarGrid gridType="polygon" />
+                              <PolarAngleAxis dataKey="skill" tick={{ fill: '#6B7280', fontSize: 12 }} />
+                              <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                              <Radar name="Você" dataKey="score" stroke={COLORS.primary} fill={COLORS.primary} fillOpacity={0.4} />
+                              <Tooltip />
+                          </RadarChart>
+                      </ResponsiveContainer>
                   </div>
               </div>
 
-              {/* Pie Chart Erros */}
               <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                  <h3 className="font-bold text-lg mb-2 dark:text-white">Análise de Causa Raiz de Erros</h3>
-                  <p className="text-sm text-gray-500 mb-6">Por que você está perdendo pontos?</p>
+                  <h3 className="font-bold text-lg mb-2 dark:text-white">Análise de Erros</h3>
                   <div className="h-[300px] flex items-center justify-center">
-                      {errorData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={errorData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="count"
-                                >
-                                    {errorData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS.chart[index % COLORS.chart.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                                <Legend verticalAlign="bottom" height={36}/>
-                            </PieChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-gray-400 text-sm">Sem erros registrados ainda. Parabéns?</div>
-                      )}
+                      <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                              <Pie data={errorData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="count">
+                                  {errorData.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS.chart[index % COLORS.chart.length]} />))}
+                              </Pie>
+                              <Tooltip />
+                              <Legend verticalAlign="bottom" height={36}/>
+                          </PieChart>
+                      </ResponsiveContainer>
                   </div>
               </div>
           </div>
 
-          {/* Heatmap de Matéria vs Dificuldade */}
           <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
               <h3 className="font-bold text-lg mb-6 dark:text-white">Mapa de Calor: Matéria vs. Dificuldade</h3>
               <div className="overflow-x-auto">
@@ -338,7 +333,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
                                 {['facil', 'medio', 'dificil'].map((diff) => {
                                     const item = heatmapData.find(d => d.subject === subject && d.difficulty === diff);
                                     const score = item ? item.score : 0;
-                                    // Função de cor baseada na nota
                                     let bgClass = "bg-gray-100 dark:bg-gray-700";
                                     let textClass = "text-gray-400";
                                     if (item) {
@@ -346,12 +340,9 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
                                         else if (score >= 50) { bgClass = "bg-yellow-100 dark:bg-yellow-900/30"; textClass = "text-yellow-600 dark:text-yellow-400"; }
                                         else { bgClass = "bg-red-100 dark:bg-red-900/30"; textClass = "text-red-600 dark:text-red-400"; }
                                     }
-
                                     return (
                                         <td key={diff} className="p-2 text-center">
-                                            <div className={`py-2 px-4 rounded-lg font-bold ${bgClass} ${textClass}`}>
-                                                {item ? `${score}%` : '-'}
-                                            </div>
+                                            <div className={`py-2 px-4 rounded-lg font-bold ${bgClass} ${textClass}`}>{item ? `${score}%` : '-'}</div>
                                         </td>
                                     );
                                 })}
@@ -370,86 +361,44 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
   const renderAIStudy = () => {
     const studyRoute = dashboardData?.studyRoute || [];
     const insights = dashboardData?.insights || [];
-    
     return (
         <div className="space-y-8 animate-in fade-in">
-            {/* Banner Modo Turbo */}
-            <div className="bg-brand-gradient rounded-2xl p-8 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 group">
+            <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 group">
                 <div className="relative z-10">
                     <h2 className="text-3xl font-black italic uppercase tracking-wider mb-2 flex items-center gap-3">
                         <i className="fas fa-bolt text-yellow-300 animate-pulse"></i> Modo Turbo 5&apos;
                     </h2>
-                    <p className="text-violet-100 text-lg max-w-lg">
-                        Nossa IA identificou seus pontos fracos. Gere um treino flash de 5 minutos focado APENAS no que você precisa.
-                    </p>
+                    <p className="text-violet-100 text-lg max-w-lg">Nossa IA identificou seus pontos fracos. Gere um treino flash agora.</p>
                 </div>
-                <button 
-                    onClick={handleStartTurbo}
-                    disabled={isLoading}
-                    className="relative z-10 bg-white text-violet-600 px-8 py-4 rounded-xl font-black text-lg shadow-xl hover:scale-105 active:scale-95 transition-all uppercase tracking-widest disabled:opacity-70 disabled:cursor-not-allowed"
-                >
+                <button onClick={handleStartTurbo} disabled={isLoading} className="relative z-10 bg-white text-violet-600 px-8 py-4 rounded-xl font-black text-lg shadow-xl hover:scale-105 transition-transform">
                     {isLoading ? <i className="fas fa-circle-notch fa-spin"></i> : "INICIAR AGORA"}
                 </button>
-                <div className="absolute inset-0 bg-[url('/assets/images/noise.png')] opacity-10"></div>
-                <div className="absolute -right-10 -bottom-20 text-[180px] opacity-10 rotate-12 group-hover:rotate-6 transition-transform duration-700">
-                    <i className="fas fa-stopwatch"></i>
-                </div>
             </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Rota de Estudos */}
                 <div className="lg:col-span-2">
-                    <h3 className="font-bold text-xl mb-4 dark:text-white flex items-center gap-2">
-                        <i className="fas fa-route text-royal-blue"></i> Rota de Estudos Dinâmica
-                    </h3>
+                    <h3 className="font-bold text-xl mb-4 dark:text-white">Rota de Estudos</h3>
                     <div className="space-y-4">
-                        {studyRoute.length > 0 ? studyRoute.map((item, idx) => (
-                            <div key={item.id} className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 flex items-start gap-4 hover:shadow-md transition-shadow relative overflow-hidden">
-                                <div className={`absolute left-0 top-0 bottom-0 w-1 ${item.priority === 'high' ? 'bg-red-500' : item.priority === 'medium' ? 'bg-yellow-500' : 'bg-blue-400'}`}></div>
-                                <div className="mt-1 bg-gray-100 dark:bg-gray-700 w-10 h-10 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300">
-                                    <i className={`fas ${item.type === 'video' ? 'fa-play' : item.type === 'practice' ? 'fa-dumbbell' : 'fa-book'}`}></i>
+                        {studyRoute.map((item) => (
+                            <div key={item.id} className="bg-white dark:bg-gray-800 p-4 rounded-xl border flex gap-4">
+                                <div className="bg-gray-100 dark:bg-gray-700 w-10 h-10 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300">
+                                    <i className={`fas ${item.type === 'video' ? 'fa-play' : 'fa-book'}`}></i>
                                 </div>
-                                <div className="flex-1">
-                                    <div className="flex justify-between items-start">
-                                        <h4 className="font-bold text-lg dark:text-gray-200">{item.title}</h4>
-                                        <span className="text-xs font-bold bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-gray-500">
-                                            <i className="fas fa-clock mr-1"></i>{item.estimated_time}
-                                        </span>
-                                    </div>
-                                    <p className="text-sm text-royal-blue font-medium mt-1"><i className="fas fa-magic mr-1"></i> {item.reason}</p>
+                                <div>
+                                    <h4 className="font-bold dark:text-white">{item.title}</h4>
+                                    <p className="text-sm text-gray-500">{item.reason}</p>
                                 </div>
-                                <button className="self-center bg-gray-50 hover:bg-royal-blue hover:text-white text-gray-400 p-3 rounded-lg transition-colors">
-                                    <i className="fas fa-arrow-right"></i>
-                                </button>
                             </div>
-                        )) : (
-                            <div className="p-8 text-center text-gray-400 bg-gray-50 dark:bg-gray-800 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                                <i className="fas fa-check-circle text-4xl mb-2 text-green-400"></i>
-                                <p>Tudo em dia! Sem pontos fracos críticos detectados no momento.</p>
-                            </div>
-                        )}
+                        ))}
                     </div>
                 </div>
-
-                {/* Insights AI */}
                 <div>
-                    <h3 className="font-bold text-xl mb-4 dark:text-white flex items-center gap-2">
-                        <i className="fas fa-brain text-purple-500"></i> Insights
-                    </h3>
+                    <h3 className="font-bold text-xl mb-4 dark:text-white">Insights</h3>
                     <div className="space-y-4">
-                        {insights.length > 0 ? insights.map((insight) => (
+                        {insights.map((insight) => (
                             <div key={insight.id} className="bg-purple-50 dark:bg-purple-900/20 p-5 rounded-xl border border-purple-100 dark:border-purple-800">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <i className={`fas ${insight.type === 'pattern' ? 'fa-fingerprint' : 'fa-exclamation-triangle'} text-purple-600 dark:text-purple-400`}></i>
-                                    <span className="text-xs font-bold uppercase text-purple-600 dark:text-purple-400">{insight.type === 'pattern' ? 'Padrão Identificado' : 'Ponto de Atenção'}</span>
-                                </div>
-                                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
-                                    &quot;{insight.message}&quot;
-                                </p>
+                                <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">&quot;{insight.message}&quot;</p>
                             </div>
-                        )) : (
-                            <div className="text-sm text-gray-400 text-center p-4">A IA está aprendendo com seus resultados...</div>
-                        )}
+                        ))}
                     </div>
                 </div>
             </div>
@@ -461,42 +410,33 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
       <div className="space-y-6 animate-in fade-in">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
               <h2 className="text-xl font-bold dark:text-white"><i className="fas fa-search mr-2 text-royal-blue"></i> Explorar Simulados</h2>
-              <div className="flex gap-2 w-full md:w-auto">
-                  <select className="flex-1 p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 text-sm focus:ring-2 focus:ring-royal-blue outline-none">
+              <div className="flex gap-2">
+                  <select 
+                    className="p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 text-sm focus:ring-2 focus:ring-royal-blue outline-none"
+                    value={filterSubject}
+                    onChange={(e) => setFilterSubject(e.target.value)}
+                  >
                       <option>Todas as Matérias</option>
                       <option>Matemática</option>
                       <option>Português</option>
                       <option>Ciências da Natureza</option>
                   </select>
-                  <select className="flex-1 p-2 border rounded-lg bg-gray-50 dark:bg-gray-700 dark:border-gray-600 text-sm focus:ring-2 focus:ring-royal-blue outline-none">
-                      <option>Dificuldade</option>
-                      <option>Fácil</option>
-                      <option>Médio</option>
-                      <option>Difícil</option>
-                  </select>
               </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {allTests.length > 0 ? allTests.map((test: any) => (
+              {allTests
+                .filter(t => filterSubject === 'Todas as Matérias' || t.subject === filterSubject)
+                .map((test: any) => (
                   test.test_type === 'pesquisa' ? (
-                      <SurveyCard 
-                          key={test.id} 
-                          survey={test} 
-                          onStart={handleInitiateTest} 
-                      />
+                      <SurveyCard key={test.id} survey={test} onStart={handleInitiateTest} />
                   ) : (
-                      <AvailableTestCard 
-                          key={test.id} 
-                          test={test} 
-                          onStart={handleInitiateTest} 
-                          onViewDetails={handleViewDetails} 
-                      />
+                      <AvailableTestCard key={test.id} test={test} onStart={handleInitiateTest} onViewDetails={handleViewDetails} />
                   )
-              )) : (
+              ))}
+              {allTests.length === 0 && (
                   <div className="col-span-3 text-center py-20 bg-gray-50 dark:bg-gray-800 rounded-xl border-dashed border-2 dark:border-gray-700">
-                      <i className="fas fa-ghost text-4xl text-gray-300 mb-4"></i>
-                      <p className="text-gray-500 font-medium">Nenhum simulado encontrado com estes filtros.</p>
+                      <p className="text-gray-500 font-medium">Nenhum simulado encontrado.</p>
                   </div>
               )}
           </div>

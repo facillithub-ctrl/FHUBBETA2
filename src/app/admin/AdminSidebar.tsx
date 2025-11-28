@@ -32,7 +32,13 @@ const adminSections = [
             { name: 'Atualizações (Changelog)', href: '/admin/updates', icon: 'fa-bullhorn' },
             { name: 'Configurações', href: '/admin/settings', icon: 'fa-cogs', disabled: true }
         ]
-    }
+    },
+    {
+        title: "GPS",
+        items: [
+            { name: 'GPS', href: '/admin/gps', icon: 'fa-bullhorn' },
+        ]
+    },
 ];
 
 type SidebarProps = {
