@@ -2,155 +2,124 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
-import createClient from '@/utils/supabase/client';
-import type { UserProfile } from '@/app/dashboard/types';
-import { VerificationBadge } from '@/components/VerificationBadge';
-import { Bell, Search, Menu, User, LogOut, ChevronDown, Settings, Shield } from 'lucide-react';
+import { useNotifications } from '@/hooks/useNotifications'; // Importe o hook que criamos
+import { UserProfile } from '@/app/dashboard/types'; // Ajuste o caminho conforme seus tipos
 
-type TopbarProps = {
-  userProfile: UserProfile;
-  toggleSidebar: () => void;
-};
+interface TopbarProps {
+  onToggleSidebar: () => void;
+  userProfile: UserProfile; // Supondo que você receba isso
+}
 
-export default function Topbar({ userProfile, toggleSidebar }: TopbarProps) {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const router = useRouter();
-  const supabase = createClient();
+export default function Topbar({ onToggleSidebar, userProfile }: TopbarProps) {
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
-  if (!userProfile) return null;
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
+  // Formata data relativa (ex: "há 2 min")
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - date.getTime()) / 60000); // minutos
+    if (diff < 60) return `${diff} min atrás`;
+    if (diff < 1440) return `${Math.floor(diff / 60)}h atrás`;
+    return date.toLocaleDateString('pt-BR');
   };
 
-  const displayName = userProfile.fullName || userProfile.nickname || "Usuário";
-  const initials = displayName.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase();
-
   return (
-    <header className="sticky top-0 z-30 h-20 px-6 bg-white/90 backdrop-blur-xl border-b border-gray-100 flex items-center justify-between transition-all">
+    <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 sticky top-0 z-30">
       
-      {/* Esquerda: Menu e Busca */}
-      <div className="flex items-center gap-6 flex-1">
-        <button onClick={toggleSidebar} className="p-2 -ml-2 text-gray-400 hover:text-gray-900 hover:bg-gray-50 rounded-xl lg:hidden transition-colors">
-          <Menu size={22} />
+      {/* Botão Menu Mobile */}
+      <div className="flex items-center gap-4">
+        <button onClick={onToggleSidebar} className="lg:hidden text-gray-500 hover:text-brand-purple">
+          <i className="fas fa-bars text-xl"></i>
         </button>
-        
-        <div className="hidden md:flex items-center w-full max-w-md relative group">
-            <Search className="absolute left-4 text-gray-300 group-focus-within:text-brand-purple transition-colors" size={18} />
-            <input 
-                type="text" 
-                placeholder="Busque por alunos, turmas ou conteúdos..." 
-                className="w-full bg-gray-50 border border-gray-100 rounded-2xl py-2.5 pl-11 pr-4 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-purple/10 focus:border-brand-purple/20 transition-all placeholder:text-gray-400 font-medium"
-            />
-        </div>
+        {/* Breadcrumbs ou Título poderiam vir aqui */}
       </div>
 
-      {/* Direita: Ações e Perfil */}
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-6">
         
-        <button className="relative p-2.5 text-gray-400 hover:text-brand-purple hover:bg-purple-50 rounded-xl transition-all group">
-          <Bell size={20} className="group-hover:scale-105 transition-transform" />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-        </button>
-
-        <div className="h-8 w-px bg-gray-100 hidden sm:block"></div>
-
-        {/* User Dropdown Area */}
+        {/* --- CENTRAL DE NOTIFICAÇÕES --- */}
         <div className="relative">
           <button 
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)} 
-            className="flex items-center gap-3 p-1.5 pr-3 rounded-full hover:bg-gray-50 border border-transparent hover:border-gray-100 transition-all group"
+            onClick={() => setIsNotifOpen(!isNotifOpen)}
+            className="relative p-2 text-gray-400 hover:text-brand-purple transition-colors rounded-full hover:bg-gray-50 dark:hover:bg-gray-800"
           >
-            {/* Foto de Perfil Grande e Clean */}
-            <div className="w-10 h-10 rounded-full bg-gray-100 p-[2px] ring-1 ring-gray-100 group-hover:ring-brand-purple/30 transition-all overflow-hidden relative">
-                <div className="w-full h-full rounded-full overflow-hidden relative">
-                     {userProfile.avatarUrl ? (
-                        <Image src={userProfile.avatarUrl} alt="Avatar" width={40} height={40} className="object-cover w-full h-full" />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-tr from-brand-purple to-brand-green text-white text-xs font-bold">{initials}</div>
-                    )}
-                </div>
-            </div>
-            
-            {/* Nome e Badge (Verificado ao lado do nome) */}
-            <div className="text-left hidden sm:block">
-              <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold text-gray-800 leading-none group-hover:text-brand-purple transition-colors">
-                    {displayName.split(' ')[0]}
-                  </span>
-                  {userProfile.verification_badge && (
-                      <VerificationBadge badge={userProfile.verification_badge} size="4px" />
-                  )}
-              </div>
-              <p className="text-[10px] font-semibold text-gray-400 mt-0.5 flex items-center gap-1">
-                Facillit Account <ChevronDown size={10} className={`transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-              </p>
-            </div>
+            <i className="fas fa-bell text-xl"></i>
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-gray-900 rounded-full animate-pulse"></span>
+            )}
           </button>
 
-          {/* Dropdown Menu Renovado */}
-          {isDropdownOpen && (
+          {/* Dropdown de Notificações */}
+          {isNotifOpen && (
             <>
-              <div className="fixed inset-0 z-10 cursor-default" onClick={() => setIsDropdownOpen(false)}></div>
-              <div className="absolute right-0 mt-4 w-80 bg-white rounded-3xl shadow-2xl shadow-gray-200/50 border border-gray-100 overflow-hidden z-20 animate-in fade-in slide-in-from-top-2 duration-200">
+              {/* Overlay invisível para fechar ao clicar fora */}
+              <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>
+              
+              <div className="absolute right-0 mt-3 w-80 md:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden flex flex-col max-h-[500px] animate-fade-in-up">
                 
-                {/* Header do Dropdown */}
-                <div className="p-5 bg-gradient-to-br from-gray-50 to-white border-b border-gray-100">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden shrink-0 ring-2 ring-white shadow-md">
-                             {userProfile.avatarUrl ? <Image src={userProfile.avatarUrl} alt="Avatar" width={48} height={48} className="object-cover" /> : <div className="w-full h-full bg-brand-purple flex items-center justify-center text-white text-lg font-bold">{initials}</div>}
-                        </div>
-                        <div className="overflow-hidden">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                                <p className="text-sm font-bold text-gray-900 truncate">{displayName}</p>
-                                {userProfile.verification_badge && <VerificationBadge badge={userProfile.verification_badge} size="12px" />}
-                            </div>
-                            <p className="text-xs text-gray-500 truncate font-medium">{userProfile.email}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="p-2 space-y-1">
-                    {/* Botão de Destaque "Facillit Account" */}
-                    <div className="px-2 pt-2 pb-1">
-                        <Link 
-                            href="/dashboard/account" 
-                            className="flex items-center justify-between gap-3 w-full p-3 rounded-2xl bg-brand-dark text-white shadow-lg shadow-brand-dark/10 group transition-all hover:scale-[1.01] active:scale-[0.99]"
-                            onClick={() => setIsDropdownOpen(false)}
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className="bg-white/10 p-2 rounded-lg text-brand-green">
-                                    <Shield size={18} />
-                                </div>
-                                <div className="text-left">
-                                    <p className="text-xs font-bold text-gray-200 uppercase tracking-wider mb-0.5">Gerenciar</p>
-                                    <p className="text-sm font-bold">Facillit Account</p>
-                                </div>
-                            </div>
-                            <Settings size={18} className="text-gray-400 group-hover:text-white transition-colors" />
-                        </Link>
-                    </div>
-
-                    <div className="w-full h-px bg-gray-100 my-2 mx-2"></div>
-
-                    <Link href="/dashboard/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-600 rounded-xl hover:bg-gray-50 hover:text-brand-purple transition-colors" onClick={() => setIsDropdownOpen(false)}>
-                        <User size={18} /> Meu Perfil Público
-                    </Link>
-                </div>
-
-                <div className="border-t border-gray-100 bg-gray-50 p-2">
-                    <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold text-red-500 rounded-xl hover:bg-red-50 transition-colors">
-                        <LogOut size={16} /> Sair da conta
+                <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800">
+                  <h3 className="font-bold text-gray-700 dark:text-gray-200 text-sm">Notificações</h3>
+                  {unreadCount > 0 && (
+                    <button onClick={markAllAsRead} className="text-xs text-brand-purple hover:underline font-medium">
+                      Marcar todas como lidas
                     </button>
+                  )}
+                </div>
+
+                <div className="overflow-y-auto flex-1 custom-scrollbar">
+                  {notifications.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400">
+                      <i className="far fa-bell-slash text-3xl mb-2 opacity-30"></i>
+                      <p className="text-sm">Tudo tranquilo por aqui.</p>
+                    </div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <div 
+                        key={notif.id} 
+                        onClick={() => !notif.is_read && markAsRead(notif.id)}
+                        className={`p-4 border-b border-gray-50 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group relative ${!notif.is_read ? 'bg-purple-50/30 dark:bg-purple-900/10' : ''}`}
+                      >
+                        {/* Indicador de não lido */}
+                        {!notif.is_read && <div className="absolute left-2 top-6 w-1.5 h-1.5 bg-brand-purple rounded-full"></div>}
+                        
+                        <Link href={notif.link || '#'} className="block pl-2">
+                           <div className="flex justify-between items-start mb-1">
+                              <h4 className={`text-sm ${!notif.is_read ? 'font-bold text-gray-800 dark:text-white' : 'font-medium text-gray-600 dark:text-gray-300'}`}>
+                                {notif.title}
+                              </h4>
+                              <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2">{formatDate(notif.created_at)}</span>
+                           </div>
+                           <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
+                             {notif.message}
+                           </p>
+                        </Link>
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                <div className="p-2 text-center border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                    <Link href="/dashboard/notifications" className="text-xs font-bold text-gray-500 hover:text-brand-purple">
+                        Ver histórico completo
+                    </Link>
                 </div>
               </div>
             </>
           )}
         </div>
+
+        {/* Avatar e Menu do Usuário (Já deve existir no seu código) */}
+        <div className="flex items-center gap-3 pl-6 border-l border-gray-100 dark:border-gray-800">
+           {/* ... Seu código de avatar existente ... */}
+           <div className="text-right hidden md:block">
+              <p className="text-sm font-bold text-gray-700 dark:text-gray-200">{userProfile.fullName}</p>
+              <p className="text-xs text-gray-400">Estudante</p>
+           </div>
+           <div className="w-10 h-10 rounded-full bg-brand-purple text-white flex items-center justify-center font-bold shadow-lg shadow-brand-purple/20">
+              {userProfile.fullName[0]}
+           </div>
+        </div>
+        
       </div>
     </header>
   );

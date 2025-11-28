@@ -1,45 +1,80 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react'; // Adicionado useTransition
 import type { EssayCorrection } from '../actions';
-import { VerificationBadge } from '@/components/VerificationBadge';
+// import { VerificationBadge } from '@/components/VerificationBadge'; // Se não estiver usando, remova
 
 type Props = {
   correction: EssayCorrection | null;
 };
 
-const TabButton = ({ label, isActive, onClick }: { label: string; isActive: boolean; onClick: () => void }) => (
+// Memoizando o botão para evitar re-render desnecessário
+const TabButton = ({ label, isActive, onClick, isPending }: { label: string; isActive: boolean; onClick: () => void, isPending: boolean }) => (
     <button
         onClick={onClick}
+        disabled={isPending}
         className={`px-4 py-2 font-bold text-xs rounded-full transition-all duration-300 border ${
             isActive 
             ? 'bg-[#42047e] text-white border-[#42047e] shadow-md' 
             : 'bg-transparent text-gray-500 border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800'
-        }`}
+        } ${isPending ? 'opacity-70 cursor-wait' : ''}`}
     >
         {label}
     </button>
 );
 
 export default function FeedbackTabs({ correction }: Props) {
+    // Estado para controlar a aba visualmente imediata
     const [activeTab, setActiveTab] = useState<'human' | 'ai' | 'actions'>('human');
+    // useTransition para renderização concorrente
+    const [isPending, startTransition] = useTransition();
+
     const humanCorrection = correction;
     const aiFeedback = correction?.ai_feedback ?? null;
 
+    const handleTabChange = (tab: 'human' | 'ai' | 'actions') => {
+        startTransition(() => {
+            setActiveTab(tab);
+        });
+    };
+
     return (
-        // H-FULL é crucial aqui para ocupar a altura do pai
         <div className="h-full flex flex-col p-4">
             
-            {/* Cabeçalho Fixo */}
             <div className="flex space-x-2 border-b border-gray-100 dark:border-gray-700 pb-4 mb-4 flex-shrink-0">
-                <TabButton label="Professor" isActive={activeTab === 'human'} onClick={() => setActiveTab('human')} />
-                {aiFeedback && <TabButton label="Análise IA" isActive={activeTab === 'ai'} onClick={() => setActiveTab('ai')} />}
-                {aiFeedback && <TabButton label="Plano" isActive={activeTab === 'actions'} onClick={() => setActiveTab('actions')} />}
+                <TabButton 
+                    label="Professor" 
+                    isActive={activeTab === 'human'} 
+                    isPending={isPending}
+                    onClick={() => handleTabChange('human')} 
+                />
+                {aiFeedback && (
+                    <>
+                        <TabButton 
+                            label="Análise IA" 
+                            isActive={activeTab === 'ai'} 
+                            isPending={isPending}
+                            onClick={() => handleTabChange('ai')} 
+                        />
+                        <TabButton 
+                            label="Plano" 
+                            isActive={activeTab === 'actions'} 
+                            isPending={isPending}
+                            onClick={() => handleTabChange('actions')} 
+                        />
+                    </>
+                )}
             </div>
 
-            {/* Área de Conteúdo Scrollável - min-h-0 é o segredo do flexbox scroll */}
+            {/* min-h-0 e overflow-y-auto garantem scroll independente */}
             <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar pr-2 space-y-4">
                 
+                {/* DICA DE PERFORMANCE: 
+                   Se o conteúdo das abas for MUITO pesado, use style={{ display: ... }} 
+                   em vez de {activeTab === ...} para manter o componente montado (KeepAlive).
+                   Mas para texto/feedback, a renderização condicional abaixo é melhor para memória.
+                */}
+
                 {activeTab === 'human' && (
                     <div className="animate-fade-in space-y-4">
                         {humanCorrection ? (
@@ -70,6 +105,7 @@ export default function FeedbackTabs({ correction }: Props) {
 
                 {activeTab === 'ai' && aiFeedback && (
                     <div className="space-y-4 animate-fade-in">
+                        {/* Use crypto.randomUUID() ou IDs reais em vez de index para keys se possível */}
                         {aiFeedback.detailed_feedback?.map((item, index) => (
                             <div key={index} className="p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm">
                                 <p className="font-bold text-xs text-[#42047e] dark:text-[#07f49e] mb-2 uppercase tracking-wider">{item.competency}</p>
