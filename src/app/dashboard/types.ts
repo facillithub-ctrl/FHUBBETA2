@@ -4,21 +4,25 @@ export type UserRole = 'student' | 'teacher' | 'professor' | 'admin' | 'administ
 export type UserProfile = {
   id: string;
   email?: string; 
-
-  // --- Campos Legados (camelCase) ---
   fullName: string | null;
   nickname: string | null;
   avatarUrl: string | null;
-  userCategory: string | null; // Mantendo compatibilidade com string, mas idealmente seria UserRole
+  userCategory: string | null; 
   pronoun: string | null;
   birthDate: string | null;
   schoolName: string | null;
+  bio?: string | null;
+  social_links?: SocialLinks | null;
+  privacy_settings?: PrivacySettings | null;
+  cover_image_url?: string | null;
+  
   
   // --- Campos Novos (snake_case) ---
   full_name?: string | null;
   avatar_url?: string | null;
   is_verified?: boolean;
   user_category?: string | null;
+  
   
   // --- Gamificação (Novo Test 2.0) ---
   level?: number;
@@ -190,4 +194,22 @@ export type Update = {
   version: string | null;
   module_slug: string | null;
   category: 'Nova Funcionalidade' | 'Melhoria' | 'Correção' | null;
+};
+
+export type SocialLinks = {
+  instagram?: string;
+  linkedin?: string;
+  github?: string;
+  twitter?: string; // ou X
+  website?: string;
+};
+
+export type PrivacySettings = {
+  is_public: boolean;       // O perfil existe publicamente?
+  show_full_name: boolean;  // Mostrar nome real (true) ou nickname (false)
+  show_school: boolean;     // Mostrar instituição
+  show_stats: boolean;      // Mostrar estatísticas gerais (dias de ofensiva, total escrito)
+  show_grades: boolean;     // ⚠️ (Novo) Mostrar médias/notas
+  show_essays: boolean;     // ⚠️ (Novo) Mostrar lista das últimas redações
+  show_badges: boolean;     // Mostrar gamificação
 };
