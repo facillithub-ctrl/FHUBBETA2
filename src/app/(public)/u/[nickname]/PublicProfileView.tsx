@@ -147,7 +147,7 @@ export default function PublicProfileView({
                     <div className="pt-20 pb-8 px-6 text-center">
                         <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center justify-center gap-2 flex-wrap mb-1">
                             {privacy.show_full_name ? profile.full_name : profile.nickname}
-                            <VerificationBadge badge={profile.verification_badge} size="22px" />
+                            <VerificationBadge badge={profile.verification_badge} size="4px" />
                         </h1>
                         <p className="text-royal-blue font-medium mb-6 bg-blue-50 dark:bg-blue-900/20 py-1 px-3 rounded-full text-sm inline-block">
                             @{profile.nickname}
