@@ -1,4 +1,4 @@
-// src/app/dashboard/applications/library/page.tsx
+// CAMINHO: src/app/dashboard/applications/library/page.tsx
 import createClient from '@/utils/supabase/server';
 import { getDiscoverContent } from './discover/actions';
 import StudentLibraryDashboard from './components/StudentLibraryDashboard';
@@ -11,12 +11,12 @@ export default async function LibraryPage() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) redirect('/login');
 
-  // --- LÓGICA DE ROLE ROBUSTA ---
+  // --- LÓGICA BLINDADA DE VERIFICAÇÃO DE ROLE ---
   
-  // 1. Busca em vários lugares possíveis (Metadata ou App Metadata)
-  let rawRole = user.user_metadata?.role || user.user_metadata?.cargo || user.app_metadata?.role || null;
+  // 1. Prioridade: Metadados do Auth (Carrega instantâneo, sem query extra)
+  let rawRole = user.user_metadata?.role || user.user_metadata?.cargo || user.app_metadata?.role;
 
-  // 2. Se não achou, tenta no perfil (Fallback)
+  // 2. Fallback: Se não tiver no Auth, busca na tabela profiles
   if (!rawRole) {
     try {
       const { data: profile } = await supabase
@@ -30,24 +30,21 @@ export default async function LibraryPage() {
     }
   }
 
-  // 3. Normaliza para evitar erros de Case Sensitive (Ex: "Teacher" vira "teacher")
-  const userRole = rawRole ? String(rawRole).toLowerCase().trim() : 'student';
+  // 3. Normalização (Remove espaços e converte para minúsculo)
+  const userRole = rawRole ? String(rawRole).trim().toLowerCase() : 'student';
 
-  // 4. Verifica se é educador (aceita vários termos)
-  const isTeacher = ['teacher', 'professor', 'admin', 'educator', 'coordenador'].includes(userRole);
+  // 4. Lista de permissões de professor
+  const teacherRoles = ['teacher', 'professor', 'admin', 'educator', 'coordenador', 'master'];
+  const isTeacher = teacherRoles.includes(userRole);
 
-  // Debug no Terminal do VS Code
-  console.log(`[Library Auth] User: ${user.email} | Raw Role: ${rawRole} | Normalized: ${userRole} | IsTeacher: ${isTeacher}`);
+  // Debug no servidor (Aparecerá no seu terminal onde roda o npm run dev)
+  console.log(`[Library Auth] Email: ${user.email} | Role detectada: "${userRole}" | É Professor? ${isTeacher ? 'SIM' : 'NÃO'}`);
 
-  // Busca dados iniciais apenas se for aluno (para performance)
+  // Busca dados iniciais (apenas se for aluno, para economizar recursos)
   const initialDiscoverData = !isTeacher ? await getDiscoverContent() : null;
 
   return (
     <div className="h-full bg-[#F8F9FA]">
-      {/* DEBUG VISUAL TEMPORÁRIO: Se estiver com dúvidas, descomente a linha abaixo para ver o que o sistema leu na tela 
-         <div className="bg-red-100 text-red-800 p-2 text-xs text-center">DEBUG: Role lida = <strong>{userRole}</strong> (É professor? {isTeacher ? 'SIM' : 'NÃO'})</div>
-      */}
-
       {isTeacher ? (
         <TeacherLibraryDashboard user={user} />
       ) : (
