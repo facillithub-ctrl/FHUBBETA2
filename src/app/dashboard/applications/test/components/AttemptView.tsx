@@ -91,7 +91,7 @@ export default function AttemptView({ test, onFinish }: Props) {
   
   const { addToast } = useToast();
 
-  // --- HOOKS (Sempre no topo, antes de qualquer return) ---
+  // --- HOOKS (Sempre no topo) ---
 
   // Timer
   useEffect(() => {
@@ -121,8 +121,10 @@ export default function AttemptView({ test, onFinish }: Props) {
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [status, addToast]);
 
-  // --- FAILSAFE: Validação de Dados (Após Hooks) ---
-  if (!test || !test.questions || test.questions.length === 0) {
+  // --- FAILSAFE: Validação de Dados ---
+  const hasQuestions = test && test.questions && test.questions.length > 0;
+
+  if (!hasQuestions) {
       return (
           <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-in fade-in">
               <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center text-3xl text-gray-400 mb-4">
@@ -137,11 +139,8 @@ export default function AttemptView({ test, onFinish }: Props) {
       );
   }
 
-  // --- VARIÁVEIS DERIVADAS ---
+  // --- LÓGICA SEGURA (Só executa se passar no failsafe) ---
   const question = test.questions[currentQuestionIndex];
-  // Segurança extra caso o índice esteja fora (ex: deleção em tempo real)
-  if (!question) return null; 
-
   const progress = Math.round(((Object.keys(answers).length) / test.questions.length) * 100);
 
   // --- HANDLERS ---

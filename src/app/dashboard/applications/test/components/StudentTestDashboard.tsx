@@ -27,11 +27,16 @@ const COLORS = {
 // --- COMPONENTES VISUAIS (HEADER & INSIGHTS) ---
 
 const GamificationHeader = ({ data }: { data: any }) => {
-  const safeData = data || { level: 1, current_xp: 0, next_level_xp: 1000, streak_days: 0, badges: [] };
-  const progress = Math.min((safeData.current_xp / safeData.next_level_xp) * 100, 100);
+  const safeData = data || { level: 1, current_xp: 0, next_level_xp: 100, streak_days: 0, badges: [] };
+  
+  // Cálculo de progresso corrigido para a nova lógica linear
+  // Se o nível é 2, o XP varia de 100 a 199. Se current_xp é 150, o progresso no nível deve ser 50%
+  // Progress = (XP_Atual % 100)
+  // Exemplo: 250 XP total. Nível 3. Progresso = 50.
+  const progress = safeData.current_xp % 100;
   
   return (
-    <div className="bg-gradient-to-r from-royal-blue to-indigo-900 rounded-2xl p-6 text-white mb-8 shadow-xl relative overflow-hidden animate-in fade-in duration-700">
+    <div className="bg-brand-gradient rounded-2xl p-6 text-white mb-8 shadow-xl relative overflow-hidden animate-in fade-in duration-700">
       <div className="absolute top-0 right-0 p-4 opacity-10 text-9xl transform translate-x-10 -translate-y-10 pointer-events-none">
         <i className="fas fa-trophy"></i>
       </div>
@@ -49,8 +54,8 @@ const GamificationHeader = ({ data }: { data: any }) => {
           <div className="flex-1">
             <h2 className="text-3xl font-bold tracking-tight">Mestre do Conhecimento</h2>
             <div className="flex items-center justify-between mt-2 text-blue-100 text-xs font-bold uppercase tracking-wide">
-              <span>{safeData.current_xp} XP Atual</span>
-              <span>{safeData.next_level_xp} XP Meta</span>
+              <span>{safeData.current_xp} XP Total</span>
+              <span>Próximo Nível: {safeData.next_level_xp} XP</span>
             </div>
             <div className="w-full md:w-72 h-4 bg-black/30 rounded-full mt-2 overflow-hidden backdrop-blur-sm border border-white/10">
               <div 
@@ -369,7 +374,7 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
     return (
         <div className="space-y-8 animate-in fade-in">
             {/* Banner Modo Turbo */}
-            <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 group">
+            <div className="bg-brand-gradient rounded-2xl p-8 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 group">
                 <div className="relative z-10">
                     <h2 className="text-3xl font-black italic uppercase tracking-wider mb-2 flex items-center gap-3">
                         <i className="fas fa-bolt text-yellow-300 animate-pulse"></i> Modo Turbo 5&apos;

@@ -90,7 +90,6 @@ export async function createFullTest(testData: any, questions: Question[]) {
   if (!user) return { error: "Usuário não autenticado." };
 
   try {
-      // Upsert do Teste
       const { data: test, error: testError } = await supabase
         .from('tests')
         .upsert({
@@ -117,7 +116,6 @@ export async function createFullTest(testData: any, questions: Question[]) {
 
       if (testError) throw new Error(testError.message);
 
-      // Gerenciar Questões (Delete old -> Insert new)
       if (testData.id || test.id) {
           await supabase.from('questions').delete().eq('test_id', test.id);
       }
@@ -231,14 +229,12 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  // 1. Dados Básicos e Gamification
   const { data: profile } = await supabase
     .from('profiles')
     .select('level, current_xp, next_level_xp, streak_days, badges')
     .eq('id', user.id)
     .single();
 
-  // 2. Tentativas Recentes
   const { data: attempts } = await supabase
     .from('test_attempts')
     .select(`
@@ -248,7 +244,6 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
     .eq('student_id', user.id)
     .order('completed_at', { ascending: false });
 
-  // 3. Respostas Detalhadas
   const { data: detailedAnswers } = await supabase
     .from('student_answers')
     .select(`
@@ -263,7 +258,7 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
     `)
     .eq('student_id', user.id);
 
-  // --- PROCESSAMENTO DE DADOS (Real-time Analytics) ---
+  // --- PROCESSAMENTO DE DADOS ---
 
   const subjectMap = new Map();
   attempts?.forEach((att: any) => {
@@ -374,6 +369,12 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
     }
   ];
 
+  // --- NOVA LÓGICA DE VISUALIZAÇÃO DE XP (FORÇADA NO READ) ---
+  const currentXp = profile?.current_xp || 0;
+  // Força o cálculo do nível baseado no XP atual, ignorando valores antigos do banco se estiverem dessincronizados
+  const calculatedLevel = Math.floor(currentXp / 100) + 1;
+  const calculatedNextLevelXp = calculatedLevel * 100;
+
   return {
     stats: { 
         simuladosFeitos: totalTests, 
@@ -383,9 +384,9 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
         questionsAnsweredTotal: totalQuestionsAnswered
     },
     gamification: { 
-        level: profile?.level || 1, 
-        current_xp: profile?.current_xp || 0, 
-        next_level_xp: profile?.next_level_xp || 1000, 
+        level: calculatedLevel, // Usa o nível calculado
+        current_xp: currentXp, 
+        next_level_xp: calculatedNextLevelXp, // Usa a meta calculada
         streak_days: profile?.streak_days || 0, 
         badges: profile?.badges || [] 
     },
@@ -403,7 +404,7 @@ export async function getStudentTestDashboardData(): Promise<StudentDashboardDat
 export const getStudentDashboardData = getStudentTestDashboardData;
 
 // =================================================================
-// 4. MODO TURBO (GERAÇÃO DE TESTE ADAPTATIVO)
+// 4. MODO TURBO
 // =================================================================
 
 export async function generateTurboTest() {
@@ -490,7 +491,7 @@ export async function generateTurboTest() {
 }
 
 // =================================================================
-// 5. EXECUÇÃO DE PROVA E OUTRAS AÇÕES
+// 5. SUBMISSÃO E XP (WRITE LOGIC)
 // =================================================================
 
 export async function submitTestAttempt(testId: string, answers: StudentAnswerPayload[], timeSpent: number) {
@@ -503,6 +504,7 @@ export async function submitTestAttempt(testId: string, answers: StudentAnswerPa
 
     let score = 0;
     let maxScore = 0;
+    let correctCount = 0;
     const answersMap = new Map(answers.map(a => [a.question_id, a.answer]));
 
     const processed = test.questions.map((q: any) => {
@@ -512,6 +514,7 @@ export async function submitTestAttempt(testId: string, answers: StudentAnswerPa
             if (String(studentAns) === String(q.content.correct_option)) {
                 correct = true;
                 score += (q.points || 1);
+                correctCount++;
             }
         }
         maxScore += (q.points || 1);
@@ -545,26 +548,19 @@ export async function submitTestAttempt(testId: string, answers: StudentAnswerPa
 
     await supabase.from('student_answers').insert(answersToInsert);
 
-    // --- LÓGICA DE GAMIFICAÇÃO & XP ---
-    const { data: profile } = await supabase.from('profiles').select('current_xp, level, next_level_xp').eq('id', user.id).single();
+    // --- CÁLCULO DE XP (Linear 20XP por acerto) ---
+    const { data: profile } = await supabase.from('profiles').select('current_xp').eq('id', user.id).single();
     
     if (profile) {
-        // Cálculo de XP: 50 XP base + (Nota * 10). Ex: Nota 80 = 800 + 50 = 850 XP
-        const xpEarned = Math.round(finalScore * 10) + 50; 
+        const xpEarned = correctCount * 20;
+        const newTotalXp = (profile.current_xp || 0) + xpEarned;
         
-        let newXp = (profile.current_xp || 0) + xpEarned;
-        let newLevel = profile.level || 1;
-        let nextLevelXp = profile.next_level_xp || 1000;
-
-        // Loop de Level Up (caso ganhe XP suficiente para múltiplos níveis)
-        while (newXp >= nextLevelXp) {
-            newXp -= nextLevelXp;
-            newLevel += 1;
-            nextLevelXp = Math.round(nextLevelXp * 1.2); // Aumenta dificuldade em 20%
-        }
+        // Regra de Negócio: Nível 1 = 0-99 XP, Nível 2 = 100-199 XP...
+        const newLevel = Math.floor(newTotalXp / 100) + 1;
+        const nextLevelXp = newLevel * 100;
 
         await supabase.from('profiles').update({ 
-            current_xp: newXp,
+            current_xp: newTotalXp,
             level: newLevel,
             next_level_xp: nextLevelXp
         }).eq('id', user.id);
