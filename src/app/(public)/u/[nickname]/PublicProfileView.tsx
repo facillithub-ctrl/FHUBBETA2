@@ -1,12 +1,40 @@
 "use client";
 
 import Image from 'next/image';
-import { UserProfile } from '@/app/dashboard/types';
-import { VerificationBadge } from '@/components/VerificationBadge'; //
+import { VerificationBadge } from '@/components/VerificationBadge';
 
-export default function PublicProfileView({ profile }: { profile: UserProfile }) {
+// Definição de interface para garantir tipagem correta vinda do DB
+interface ProfileData {
+  full_name?: string;
+  nickname?: string;
+  avatar_url?: string;
+  cover_image_url?: string;
+  school_name?: string;
+  bio?: string;
+  level?: number;
+  streak_days?: number;
+  target_exam?: string;
+  badges?: string[];
+  social_links?: {
+    instagram?: string;
+    linkedin?: string;
+    github?: string;
+  };
+  privacy_settings?: {
+    is_public?: boolean;
+    show_full_name?: boolean;
+    show_school?: boolean;
+    show_stats?: boolean;
+    show_grades?: boolean;
+    show_essays?: boolean;
+    show_badges?: boolean;
+  };
+  verification_badge?: string;
+}
+
+export default function PublicProfileView({ profile }: { profile: ProfileData }) {
   const privacy = profile.privacy_settings || {
-    is_public: false, // Fallback safe
+    is_public: false,
     show_full_name: false,
     show_school: true,
     show_stats: true,
@@ -41,18 +69,23 @@ export default function PublicProfileView({ profile }: { profile: UserProfile })
             {/* Topo: Avatar e Ações */}
             <div className="flex flex-col md:flex-row items-start md:items-end gap-6">
                 <div className="relative">
-                    <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white dark:border-dark-card overflow-hidden bg-gray-200">
-                        {profile.avatarUrl ? (
-                            <Image src={profile.avatarUrl} alt={profile.nickname || ''} width={160} height={160} className="object-cover w-full h-full" />
+                    <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white dark:border-dark-card overflow-hidden bg-gray-200 relative">
+                        {profile.avatar_url ? (
+                            <Image 
+                              src={profile.avatar_url} 
+                              alt={profile.nickname || ''} 
+                              fill
+                              className="object-cover" 
+                            />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-4xl text-gray-400 font-bold">
                                 {(profile.nickname?.[0] || 'U').toUpperCase()}
                             </div>
                         )}
                     </div>
-                    {/* Badge de Nível (Exemplo) */}
+                    {/* Badge de Nível */}
                     {privacy.show_badges && (
-                        <div className="absolute bottom-0 right-0 bg-brand-orange text-white text-xs font-bold px-2 py-1 rounded-full border-2 border-white">
+                        <div className="absolute bottom-0 right-0 bg-brand-orange text-white text-xs font-bold px-2 py-1 rounded-full border-2 border-white z-10">
                             Lvl {profile.level || 1}
                         </div>
                     )}
@@ -62,15 +95,17 @@ export default function PublicProfileView({ profile }: { profile: UserProfile })
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                {privacy.show_full_name ? profile.fullName : profile.nickname}
+                                {/* CORREÇÃO: full_name (snake_case) */}
+                                {privacy.show_full_name ? profile.full_name : profile.nickname}
                                 <VerificationBadge badge={profile.verification_badge} size="12px" />
                             </h1>
                             <p className="text-royal-blue font-mono">@{profile.nickname}</p>
                             
-                            {privacy.show_school && profile.schoolName && (
+                            {/* CORREÇÃO: school_name (snake_case) */}
+                            {privacy.show_school && profile.school_name && (
                                 <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
                                     <i className="fas fa-university"></i>
-                                    {profile.schoolName}
+                                    {profile.school_name}
                                 </p>
                             )}
                         </div>
@@ -79,7 +114,7 @@ export default function PublicProfileView({ profile }: { profile: UserProfile })
                         <button 
                             onClick={() => {
                                 navigator.clipboard.writeText(window.location.href);
-                                alert('Link copiado!'); // Idealmente usar um Toast aqui
+                                alert('Link copiado!'); 
                             }}
                             className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-white rounded-lg transition-colors text-sm font-bold"
                         >
@@ -133,12 +168,10 @@ export default function PublicProfileView({ profile }: { profile: UserProfile })
                             <span className="text-gray-500 text-sm">Foco Atual</span>
                             <span className="font-bold text-royal-blue">{profile.target_exam || 'Geral'}</span>
                         </div>
-                        {/* Se show_grades for true, mostramos a média */}
                         {privacy.show_grades && (
                              <div className="flex justify-between items-center p-3 bg-royal-blue/5 border border-royal-blue/20 rounded-lg">
                                 <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">Média Geral</span>
                                 <span className="font-bold text-xl text-royal-blue">N/A</span> 
-                                {/* Aqui você integraria a média real via props */}
                             </div>
                         )}
                     </div>
@@ -171,21 +204,16 @@ export default function PublicProfileView({ profile }: { profile: UserProfile })
                     </div>
                 )}
 
-                {/* Últimas Redações (Apenas Temas) */}
+                {/* Últimas Redações */}
                 {privacy.show_essays && (
                      <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow-md">
                         <h3 className="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
                             <i className="fas fa-pen-nib text-brand-purple"></i> Escritas Recentemente
                         </h3>
                         <div className="space-y-3">
-                            {/* Placeholder: Aqui viria um .map das redações reais */}
                             <div className="p-4 border-l-4 border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-r-lg">
-                                <h4 className="font-bold text-sm text-gray-700 dark:text-gray-300">Os desafios da educação digital no Brasil</h4>
-                                <p className="text-xs text-gray-500 mt-1">Enviado em 24/11/2024 • ENEM</p>
-                            </div>
-                             <div className="p-4 border-l-4 border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 rounded-r-lg">
-                                <h4 className="font-bold text-sm text-gray-700 dark:text-gray-300">Impactos da IA no mercado de trabalho</h4>
-                                <p className="text-xs text-gray-500 mt-1">Enviado em 10/11/2024 • FUVEST</p>
+                                <h4 className="font-bold text-sm text-gray-700 dark:text-gray-300">Exemplo de Redação</h4>
+                                <p className="text-xs text-gray-500 mt-1">Enviado recentemente</p>
                             </div>
                         </div>
                         <p className="text-xs text-gray-400 mt-4 text-center">
