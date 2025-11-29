@@ -5,11 +5,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- FONTES DO FACILLIT CREATE (Caminhos Corrigidos) --- */
-
+/* --- 1. FONTES PERSONALIZADAS --- */
 @font-face {
   font-family: 'Multiara';
-  /* Caminho real baseado na estrutura da pasta public */
   src: url('/fonts/muthiara/Muthiara demo version.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
@@ -18,7 +16,6 @@
 
 @font-face {
   font-family: 'Dk Lemons';
-  /* Caminho real */
   src: url('/fonts/dk_lemon_yellow_sun/DK Lemon Yellow Sun.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
@@ -27,7 +24,6 @@
 
 @font-face {
   font-family: 'Letters For Learners';
-  /* Caminho real */
   src: url('/fonts/letters_for_learners/Letters for Learners.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
@@ -39,16 +35,16 @@ body {
   @apply bg-brand-light text-dark-text font-inter;
 }
 
-/* --- ESTILOS DO ESTÚDIO DE CRIAÇÃO --- */
+/* --- 2. EDITOR FACILLIT CREATE --- */
 
-/* Padrão de pontos (Dot Grid) feito em CSS puro */
+/* Fundo do Editor */
 .bg-studio-dots {
   background-color: #f3f4f6;
   background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
-/* Sombra realista para a folha A4 */
+/* Folha de Papel */
 .paper-shadow {
   box-shadow: 
     0 1px 1px rgba(0,0,0,0.05), 
@@ -58,18 +54,82 @@ body {
     0 16px 16px rgba(0,0,0,0.05);
 }
 
-/* Visualização de Páginas e Quebras */
+/* Reset do Tiptap */
+.ProseMirror {
+  outline: none;
+  min-height: 100%;
+}
+
+/* --- 3. COLUNAS (GRID LAYOUT) --- */
+/* Estilo para edição: mostra bordas tracejadas para guiar */
+.ProseMirror div[data-type="columns"] {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.ProseMirror div[data-type="column"] {
+  flex: 1;
+  min-width: 0;
+  border: 1px dashed #e2e8f0; /* Guia visual apenas na edição */
+  padding: 8px;
+  border-radius: 4px;
+  transition: border-color 0.2s;
+}
+
+.ProseMirror div[data-type="column"]:hover {
+  border-color: #8B5CF6; /* Roxo ao passar o mouse */
+}
+
+/* --- 4. FORMAS E OBJETOS (MOVIMENTAÇÃO) --- */
+.node-shape {
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+  line-height: 0;
+  cursor: move; /* Indica que pode mover */
+  transition: all 0.2s;
+}
+
+/* Seleção de objetos */
+.ProseMirror-selectednode .node-shape > div,
+.ProseMirror-selectednode img {
+  outline: 2px solid #8B5CF6;
+  outline-offset: 2px;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+}
+
+/* Alças de Redimensionamento */
+.resize-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background-color: white;
+  border: 2px solid #8B5CF6;
+  border-radius: 50%;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.node-shape:hover .resize-handle,
+.node-shape.ProseMirror-selectednode .resize-handle,
+.resize-handle:hover {
+  opacity: 1;
+  display: block !important;
+}
+
+.resize-handle.br { 
+  bottom: -6px; 
+  right: -6px; 
+  cursor: nwse-resize; 
+}
+
+/* --- 5. QUEBRA DE PÁGINA --- */
 .page-break {
-  page-break-after: always;
-  break-after: page;
   height: 24px;
-  background: repeating-linear-gradient(
-    45deg,
-    #f3f4f6,
-    #f3f4f6 10px,
-    #e5e7eb 10px,
-    #e5e7eb 20px
-  );
+  background: repeating-linear-gradient(45deg, #f3f4f6, #f3f4f6 10px, #e5e7eb 10px, #e5e7eb 20px);
   border-top: 1px dashed #cbd5e1;
   border-bottom: 1px dashed #cbd5e1;
   margin: 2rem 0;
@@ -82,6 +142,8 @@ body {
   letter-spacing: 1px;
   font-weight: 600;
   user-select: none;
+  page-break-after: always;
+  break-after: page;
 }
 
 .page-break::after {
@@ -91,268 +153,77 @@ body {
   border-radius: 4px;
 }
 
-/* --- FORMAS E REDIMENSIONAMENTO (Crucial para ShapeExtension) --- */
+/* --- 6. UTILITÁRIOS --- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply bg-gray-300 rounded-full hover:bg-brand-purple/40 transition-colors; }
 
-.node-shape {
-  display: inline-block;
-  vertical-align: middle;
-  position: relative;
-  line-height: 0;
-  transition: all 0.2s;
-  cursor: pointer;
-}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Borda de seleção do Tiptap */
-.ProseMirror-selectednode .node-shape > div {
-  outline: 2px solid #8B5CF6; /* Roxo da marca */
-  outline-offset: 2px;
-}
+body.noscroll { overflow: hidden; }
 
-/* Alças de Redimensionamento (Handles) */
-.resize-handle {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  background-color: white;
-  border: 2px solid #8B5CF6;
-  border-radius: 50%;
-  z-index: 50;
-  opacity: 0; /* Invisível por padrão */
-  transition: opacity 0.2s;
-}
-
-/* Mostra as alças ao passar o mouse ou selecionar */
-.node-shape:hover .resize-handle,
-.node-shape.ProseMirror-selectednode .resize-handle,
-.resize-handle:hover {
-  opacity: 1;
-  display: block !important;
-}
-
-/* Cursor específico para o canto inferior direito */
-.resize-handle.br { 
-  bottom: -6px; 
-  right: -6px; 
-  cursor: nwse-resize; 
-}
-
-/* --- SCROLLBARS MODERNAS --- */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  @apply bg-transparent;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded-full hover:bg-brand-purple/40 transition-colors;
-}
-
-/* Utilitário para esconder scrollbar */
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
-.scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-}
-
-/* --- UTILITÁRIOS DE ANIMAÇÃO E UI --- */
-
-body.noscroll {
-    overflow: hidden;
-}
-
-/* Animações de Entrada */
-@keyframes fadeInRight {
-  from { opacity: 0; transform: translateX(100%); }
-  to { opacity: 1; transform: translateX(0); }
-}
-.animate-fade-in-right {
-  animation: fadeInRight 0.5s ease-out forwards;
-}
-
-/* Glass Card Genérico */
 .glass-card {
   @apply bg-white/60 dark:bg-brand-dark/60 backdrop-blur-lg border border-white/20 dark:border-white/5 rounded-2xl shadow-lg transition-all duration-300;
 }
 
-/* Forçar alinhamento LTR */
-.force-ltr, .force-ltr * {
-  direction: ltr !important;
-  text-align: left !important;
-}
-
-/* --- MODO DE IMPRESSÃO / EXPORTAÇÃO PDF --- */
+/* --- 7. MODO DE IMPRESSÃO / PDF (CRÍTICO) --- */
 @media print {
   @page {
     margin: 0;
     size: auto;
   }
-  
+
   body, html {
     background: white !important;
-    height: auto !important;
-    overflow: visible !important;
-    color: black !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Oculta toda a interface do sistema */
-  .no-print, 
-  header, 
-  nav, 
-  aside, 
-  .toolbar-container,
-  .bg-studio-dots,
-  button,
-  input {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    width: 0 !important;
-    overflow: hidden !important;
-  }
-
-  /* Garante que o editor ocupe a folha corretamente */
-  main {
-    display: block !important;
     width: 100% !important;
     height: auto !important;
-    overflow: visible !important;
-    position: static !important;
-  }
-
-  .editor-print-container {
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 20mm !important; /* Margem de impressão */
-    box-shadow: none !important;
-    border: none !important;
-    background: white !important;
-    transform: none !important;
-    overflow: visible !important;
-  }
-
-  .ProseMirror {
-    outline: none !important;
-    border: none !important;
-  }
-
-  /* Esconde a visualização da quebra de página, mas mantém o efeito */
-  .page-break {
-    height: 0;
-    margin: 0;
-    border: none;
-    background: none;
-    page-break-after: always;
-    break-after: page;
-    visibility: hidden;
-  }
-  .page-break::after {
-    content: "";
-  }
-}
-/* Ajustes do Editor */
-.ProseMirror {
-  outline: none;
-  min-height: 100%;
-}
-
-/* Colunas (Tabelas Invisíveis) */
-.ProseMirror table {
-  border-collapse: collapse;
-  table-layout: fixed;
-  width: 100%;
-  margin: 0;
-  overflow: hidden;
-}
-
-.ProseMirror td,
-.ProseMirror th {
-  min-width: 1em;
-  border: 1px dashed #e5e7eb; /* Borda tracejada para visualização na edição */
-  padding: 8px;
-  vertical-align: top;
-  box-sizing: border-box;
-  position: relative;
-}
-
-/* Quebra de Página Visual */
-.page-break {
-  height: 10px;
-  background: #f3f4f6;
-  border-top: 1px dashed #ccc;
-  border-bottom: 1px dashed #ccc;
-  margin: 20px 0;
-  page-break-after: always;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #9ca3af;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-.page-break::after {
-  content: "Quebra de Página";
-}
-
-/* --- CONFIGURAÇÃO DE IMPRESSÃO (PDF) --- */
-@media print {
-  @page {
-    margin: 0;
-    size: auto;
-  }
-
-  body * {
-    visibility: hidden;
-  }
-
-  /* Exibe apenas o conteúdo do documento */
-  .editor-print-container,
-  .editor-print-container * {
-    visibility: visible;
-  }
-
-  .editor-print-container {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100% !important;
-    min-height: 100vh !important;
     margin: 0 !important;
     padding: 0 !important;
-    box-shadow: none !important;
-    background: white !important;
     overflow: visible !important;
   }
 
-  /* Esconde bordas de tabela (colunas limpas) */
-  .ProseMirror td,
-  .ProseMirror th {
-    border: none !important;
+  /* 1. Ocultar tudo que não é o editor */
+  body > *:not(.editor-print-wrapper) {
+    display: none !important;
+  }
+  
+  /* Ocultar UI específica */
+  .no-print, aside, header, nav, .tippy-box, .resize-handle {
+    display: none !important;
   }
 
-  /* Remove quebra visual e força quebra real */
+  /* 2. Mostrar e posicionar o papel */
+  .editor-print-container, 
+  .editor-print-container * {
+    visibility: visible !important;
+    display: block !important;
+  }
+
+  .editor-print-container {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important; /* A margem é controlada pelo @page ou interna */
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+  }
+
+  /* 3. Limpar visualização de edição */
+  .ProseMirror div[data-type="column"] {
+    border: none !important; /* Remove bordas tracejadas */
+    padding: 0 !important;
+  }
+
   .page-break {
-    background: transparent;
+    background: none;
     border: none;
     height: 0;
+    margin: 0;
     color: transparent;
   }
-  .page-break::after {
-    content: "";
-  }
-
-  /* Esconde UI */
-  .no-print, 
-  aside, 
-  header,
-  .resize-handle,
-  .tippy-box { 
-    display: none !important; 
-  }
+  .page-break::after { display: none; }
 }

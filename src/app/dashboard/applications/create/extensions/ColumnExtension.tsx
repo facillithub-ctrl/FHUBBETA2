@@ -1,35 +1,59 @@
+'use client';
+
 import { Node, mergeAttributes } from '@tiptap/core';
 
-export const ColumnExtension = Node.create({
+export const Column = Node.create({
+  name: 'column',
+  content: 'block+',
+  isolating: true,
+  addAttributes() {
+    return {
+      width: {
+        default: '50%',
+        renderHTML: attributes => ({
+          style: `flex: 1; min-width: 0; padding: 8px; border: 1px dashed transparent;`,
+        }),
+      },
+    };
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'column' }), 0];
+  },
+  parseHTML() {
+    return [{ tag: 'div[data-type="column"]' }];
+  },
+});
+
+export const Columns = Node.create({
   name: 'columns',
+  content: 'column+',
   group: 'block',
-  content: 'column+', // Aceita apenas colunas dentro
-  
+  defining: true,
+  isolating: true,
   addAttributes() {
     return {
       cols: { default: 2 },
     };
   },
-
+  renderHTML({ HTMLAttributes }) {
+    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'columns', class: 'flex gap-4 w-full my-4' }), 0];
+  },
   parseHTML() {
     return [{ tag: 'div[data-type="columns"]' }];
   },
-
-  renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'columns', class: `grid gap-4 grid-cols-${HTMLAttributes.cols}` }), 0];
-  },
-});
-
-export const ColumnChild = Node.create({
-  name: 'column',
-  content: 'block+', // Aceita blocos (texto, imagem, etc)
-  group: 'block',
-  
-  parseHTML() {
-    return [{ tag: 'div[data-type="column"]' }];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'column', class: 'border border-dashed border-gray-200 p-2 min-h-[50px]' }), 0];
+  addCommands() {
+    return {
+      setColumns: (cols: number) => ({ commands }) => {
+        const columns = Array.from({ length: cols }).map(() => ({
+          type: 'column',
+          content: [{ type: 'paragraph' }]
+        }));
+        return commands.insertContent({
+          type: 'columns',
+          attrs: { cols },
+          content: columns
+        });
+      },
+    };
   },
 });
