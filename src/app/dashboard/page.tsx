@@ -89,7 +89,8 @@ const MotivationalWidget = () => {
            <i className="fas fa-quote-left text-2xl text-white"></i>
         </div>
         <div>
-          <p className="font-medium text-lg leading-relaxed italic opacity-95">"{quote.text}"</p>
+          {/* CORREÇÃO AQUI: Aspas escapadas com &quot; */}
+          <p className="font-medium text-lg leading-relaxed italic opacity-95">&quot;{quote.text}&quot;</p>
           <p className="text-sm font-bold mt-2 opacity-80 uppercase tracking-wider">— {quote.author}</p>
         </div>
       </div>
