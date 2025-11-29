@@ -255,3 +255,104 @@ body.noscroll {
     content: "";
   }
 }
+/* Ajustes do Editor */
+.ProseMirror {
+  outline: none;
+  min-height: 100%;
+}
+
+/* Colunas (Tabelas Invisíveis) */
+.ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+.ProseMirror td,
+.ProseMirror th {
+  min-width: 1em;
+  border: 1px dashed #e5e7eb; /* Borda tracejada para visualização na edição */
+  padding: 8px;
+  vertical-align: top;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* Quebra de Página Visual */
+.page-break {
+  height: 10px;
+  background: #f3f4f6;
+  border-top: 1px dashed #ccc;
+  border-bottom: 1px dashed #ccc;
+  margin: 20px 0;
+  page-break-after: always;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.page-break::after {
+  content: "Quebra de Página";
+}
+
+/* --- CONFIGURAÇÃO DE IMPRESSÃO (PDF) --- */
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  /* Exibe apenas o conteúdo do documento */
+  .editor-print-container,
+  .editor-print-container * {
+    visibility: visible;
+  }
+
+  .editor-print-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+    overflow: visible !important;
+  }
+
+  /* Esconde bordas de tabela (colunas limpas) */
+  .ProseMirror td,
+  .ProseMirror th {
+    border: none !important;
+  }
+
+  /* Remove quebra visual e força quebra real */
+  .page-break {
+    background: transparent;
+    border: none;
+    height: 0;
+    color: transparent;
+  }
+  .page-break::after {
+    content: "";
+  }
+
+  /* Esconde UI */
+  .no-print, 
+  aside, 
+  header,
+  .resize-handle,
+  .tippy-box { 
+    display: none !important; 
+  }
+}

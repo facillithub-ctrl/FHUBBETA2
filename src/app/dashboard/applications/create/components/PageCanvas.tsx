@@ -3,7 +3,7 @@
 import { useEditor, EditorContent, Extension } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 
-// --- IMPORTAÇÃO COMPLETA DAS EXTENSÕES ---
+// --- EXTENSÕES ---
 import { Image } from '@tiptap/extension-image';
 import { Youtube } from '@tiptap/extension-youtube';
 import { Table } from '@tiptap/extension-table';
@@ -28,11 +28,11 @@ import { ShapeExtension } from '../extensions/ShapeExtension';
 import { useState, useEffect } from 'react';
 import CreateToolbar from './CreateToolbar';
 import Ruler from './Ruler';
+import EditorBubbleMenu from './EditorBubbleMenu'; // Importação nova
 import { saveDocument } from '../actions';
 import Link from 'next/link';
-import { ArrowLeft, Cloud, CheckCircle2, Menu, AlertCircle, X } from 'lucide-react';
+import { ArrowLeft, Menu, X, CheckCircle2, AlertCircle } from 'lucide-react';
 
-// --- EXTENSÃO CUSTOMIZADA PARA TAMANHO DA FONTE ---
 const FontSize = Extension.create({
   name: 'fontSize',
   addOptions() { return { types: ['textStyle'] }; },
@@ -71,15 +71,13 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [pageSettings, setPageSettings] = useState({ size: 'a4', margin: 'normal' });
 
-  // Configuração das dimensões da página
   const getPageStyle = () => {
-    let width = '210mm'; // A4
+    let width = '210mm'; 
     let minHeight = '297mm';
     let padding = '25mm';
 
     if (pageSettings.size === 'letter') { width = '216mm'; minHeight = '279mm'; }
     if (pageSettings.size === 'legal') { width = '216mm'; minHeight = '356mm'; }
-
     if (pageSettings.margin === 'narrow') padding = '12.7mm';
     if (pageSettings.margin === 'wide') padding = '50mm';
 
@@ -95,22 +93,21 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
         dropcursor: { color: '#8B5CF6', width: 2 },
         codeBlock: false,
       }),
-      // --- TODAS AS EXTENSÕES ---
       Image.configure({ inline: true, allowBase64: true }),
       Youtube.configure({ width: 480, height: 320 }),
-      Table.configure({ resizable: true, HTMLAttributes: { class: 'border-collapse table-fixed w-full my-4' } }),
+      Table.configure({ resizable: true }),
       TableRow, TableHeader, TableCell,
       TextStyle, FontSize, FontFamily, Underline, Subscript, Superscript, Color,
       Highlight.configure({ multicolor: true }),
       TiptapLink.configure({ openOnClick: false, autolink: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       CharacterCount, TaskList, TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: 'Digite aqui...' }),
+      Placeholder.configure({ placeholder: 'Comece a criar...' }),
       ShapeExtension, 
     ],
     editorProps: {
       attributes: {
-        class: 'prose prose-lg max-w-none focus:outline-none bg-white font-letters text-gray-800 selection:bg-brand-purple/20 h-full',
+        class: 'prose prose-lg max-w-none focus:outline-none bg-white font-letters text-gray-800 selection:bg-brand-purple/20 h-full min-h-[500px]',
         style: 'font-family: "Letters For Learners", sans-serif;',
       },
     },
@@ -119,7 +116,6 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
     onUpdate: () => setSaveStatus('unsaved'),
   });
 
-  // Autosave
   useEffect(() => {
     const interval = setInterval(() => { if (saveStatus === 'unsaved') handleSave(); }, 5000);
     return () => clearInterval(interval);
@@ -136,99 +132,62 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
     }
   };
 
-  const handleExportPDF = () => {
-    window.print();
-  };
-
+  const handleExportPDF = () => window.print();
   const pageStyle = getPageStyle();
 
   return (
     <div className="flex h-screen bg-[#f0f2f5] overflow-hidden font-sans">
-      
-      {/* SIDEBAR DE FERRAMENTAS (Responsiva) */}
-      <aside 
-        className={`
-          flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 z-50
-          ${isSidebarOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full overflow-hidden'}
-          fixed inset-y-0 left-0 md:relative no-print shadow-xl md:shadow-none
-        `}
-      >
-        {/* Botão fechar mobile */}
-        <button 
-          onClick={() => setIsSidebarOpen(false)}
-          className="md:hidden absolute top-2 right-2 p-2 text-gray-500 hover:text-red-500 z-50"
-        >
-          <X size={20}/>
-        </button>
-
+      <aside className={`flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 z-50 ${isSidebarOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full overflow-hidden'} fixed inset-y-0 left-0 md:relative no-print shadow-xl md:shadow-none`}>
+        <button onClick={() => setIsSidebarOpen(false)} className="md:hidden absolute top-2 right-2 p-2 text-gray-500 hover:text-red-500 z-50"><X size={20}/></button>
         <CreateToolbar 
-          editor={editor} 
-          onSave={handleSave} 
-          isSaving={saveStatus === 'saving'}
-          onExport={handleExportPDF}
-          pageSettings={pageSettings}
-          setPageSettings={setPageSettings}
+            editor={editor} 
+            onSave={handleSave} 
+            isSaving={saveStatus === 'saving'} 
+            onExport={handleExportPDF} 
+            pageSettings={pageSettings} 
+            setPageSettings={setPageSettings} 
         />
       </aside>
 
-      {/* ÁREA PRINCIPAL */}
       <main className="flex-1 flex flex-col h-full relative w-full">
-        
-        {/* HEADER */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0 z-40 no-print">
           <div className="flex items-center gap-4 w-full">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded text-gray-600">
-              <Menu size={20} />
-            </button>
-            
-            <Link href="/dashboard/applications/create" className="p-2 hover:bg-gray-100 rounded text-gray-500">
-              <ArrowLeft size={20} />
-            </Link>
-
-            <div className="flex-1 max-w-2xl">
+            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded text-gray-600"><Menu size={20} /></button>
+            <Link href="/dashboard/applications/create" className="p-2 hover:bg-gray-100 rounded text-gray-500"><ArrowLeft size={20} /></Link>
+            <div className="flex-1 max-w-2xl flex flex-col justify-center">
                <input 
-                 value={title}
-                 onChange={(e) => { setTitle(e.target.value); setSaveStatus('unsaved'); }}
-                 className="text-lg font-bold font-dk-lemons w-full border-none focus:ring-0 p-0 text-gray-800"
-                 placeholder="Título do Documento"
+                  value={title} 
+                  onChange={(e) => { setTitle(e.target.value); setSaveStatus('unsaved'); }} 
+                  className="text-lg font-bold font-dk-lemons w-full border-none focus:ring-0 p-0 text-gray-800 placeholder-gray-300 bg-transparent" 
+                  placeholder="Título do Documento" 
                />
-               <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider flex items-center gap-1">
-                 {saveStatus === 'saving' && <><Cloud size={10} className="animate-bounce"/> Salvando...</>}
-                 {saveStatus === 'saved' && <><CheckCircle2 size={10} className="text-green-500"/> Salvo</>}
-                 {saveStatus === 'unsaved' && <span className="text-orange-400">Não salvo</span>}
-               </span>
+               <div className="flex items-center gap-1.5 h-4">
+                 {saveStatus === 'saving' && <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider flex items-center gap-1"><span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></span> Salvando...</span>}
+                 {saveStatus === 'saved' && <span className="text-[10px] text-green-500 uppercase font-bold tracking-wider flex items-center gap-1"><CheckCircle2 size={10} /> Salvo</span>}
+                 {saveStatus === 'error' && <span className="text-[10px] text-red-500 uppercase font-bold tracking-wider flex items-center gap-1"><AlertCircle size={10} /> Erro ao salvar</span>}
+               </div>
             </div>
           </div>
         </header>
 
-        {/* EDITOR SCROLLABLE */}
         <div className="flex-1 overflow-y-auto bg-studio-dots p-4 md:p-8 flex justify-center cursor-text" onClick={() => editor?.commands.focus()}>
            <div 
-             className="bg-white paper-shadow transition-all duration-300 relative editor-print-container"
-             style={{ 
-               width: pageStyle.width, 
-               minHeight: pageStyle.minHeight,
-               padding: pageStyle.padding 
-             }}
+              className="bg-white paper-shadow transition-all duration-300 relative editor-print-container flex flex-col" 
+              style={{ width: pageStyle.width, minHeight: pageStyle.minHeight }}
            >
-              {/* Régua (Opcional, só visual) */}
-              <div className="absolute top-0 left-0 w-full h-6 border-b border-gray-100 no-print opacity-50 pointer-events-none">
-                 <Ruler />
+              <div className="w-full h-6 border-b border-gray-100 no-print relative">
+                  <Ruler width={pageStyle.width} />
               </div>
               
-              <EditorContent editor={editor} className="mt-4 outline-none editor-pages" />
+              <div style={{ padding: pageStyle.padding, flex: 1 }}>
+                <EditorBubbleMenu editor={editor} />
+                <EditorContent editor={editor} className="outline-none editor-pages h-full" />
+              </div>
            </div>
         </div>
-
       </main>
       
-      {/* Overlay Mobile */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/20 z-40 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        ></div>
-      )}
+      {isSidebarOpen && <div className="fixed inset-0 bg-black/20 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
     </div>
   );
 }

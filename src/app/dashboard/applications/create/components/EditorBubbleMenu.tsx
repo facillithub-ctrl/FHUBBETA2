@@ -2,87 +2,108 @@
 
 import { BubbleMenu, Editor } from '@tiptap/react';
 import { 
-  Bold, Italic, Underline, Link as LinkIcon, 
-  Highlighter, Sparkles, X, Check
+  PaintBucket, Square, Trash2, 
+  AlignLeft, AlignCenter, AlignRight, 
+  Maximize2, Columns
 } from 'lucide-react';
-import { useState } from 'react';
 
 interface Props {
-  editor: Editor;
+  editor: Editor | null;
 }
 
 export default function EditorBubbleMenu({ editor }: Props) {
-  const [isLinkOpen, setIsLinkOpen] = useState(false);
-  const [linkUrl, setLinkUrl] = useState('');
+  if (!editor) return null;
 
-  const setLink = () => {
-    if (linkUrl) {
-      editor.chain().focus().extendMarkRange('link').setLink({ href: linkUrl }).run();
-      setIsLinkOpen(false);
-      setLinkUrl('');
-    } else {
-      editor.chain().focus().unsetLink().run();
-      setIsLinkOpen(false);
-    }
-  };
+  const isShape = editor.isActive('shape');
+  const isImage = editor.isActive('image');
+  const isTable = editor.isActive('table');
 
-  const openLink = () => {
-    const previousUrl = editor.getAttributes('link').href;
-    setLinkUrl(previousUrl || '');
-    setIsLinkOpen(true);
-  };
-
-  // Botão Auxiliar
-  const BubbleBtn = ({ onClick, isActive, icon: Icon, className = '' }: any) => (
-    <button
-      onClick={onClick}
-      className={`p-1.5 rounded-md hover:bg-gray-100 transition-colors ${
-        isActive ? 'text-brand-purple bg-purple-50' : 'text-gray-600'
-      } ${className}`}
-    >
-      <Icon size={16} strokeWidth={2.5} />
-    </button>
-  );
+  if (!isShape && !isImage && !isTable) return null;
 
   return (
     <BubbleMenu 
       editor={editor} 
-      tippyOptions={{ duration: 200, maxWidth: 400 }} 
-      className="bg-white rounded-xl shadow-xl border border-gray-200/80 flex p-1.5 gap-1 items-center animate-in fade-in zoom-in-95"
+      tippyOptions={{ duration: 100, maxWidth: 600, zIndex: 99 }}
+      className="bg-white border border-gray-200 shadow-xl rounded-lg flex items-center gap-1 p-1 overflow-hidden"
     >
-      {!isLinkOpen ? (
-        <>
-          <BubbleBtn onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} icon={Bold} />
-          <BubbleBtn onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} icon={Italic} />
-          <BubbleBtn onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')} icon={Underline} />
-          <BubbleBtn onClick={() => editor.chain().focus().toggleHighlight().run()} isActive={editor.isActive('highlight')} icon={Highlighter} />
-          
-          <div className="w-px h-4 bg-gray-200 mx-1"></div>
-          
-          <BubbleBtn onClick={openLink} isActive={editor.isActive('link')} icon={LinkIcon} />
-          
-          <div className="w-px h-4 bg-gray-200 mx-1"></div>
+      {/* --- MENU PARA FORMAS (SHAPES) --- */}
+      {isShape && (
+        <div className="flex items-center gap-1 p-1">
+           <div className="flex items-center gap-1 p-1 border-r border-gray-200">
+              <label className="cursor-pointer hover:bg-gray-100 p-1.5 rounded flex flex-col items-center" title="Cor de Fundo">
+                 <PaintBucket size={16} className="text-gray-600"/>
+                 <input 
+                    type="color" 
+                    className="w-0 h-0 opacity-0 absolute"
+                    onChange={(e) => editor.chain().focus().updateAttributes('shape', { color: e.target.value }).run()}
+                 />
+                 <div className="w-4 h-1 mt-0.5 rounded-full" style={{ background: editor.getAttributes('shape').color }}></div>
+              </label>
 
-          {/* Botão Mágico IA (Placeholder para futuro) */}
-          <button className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gradient-to-r from-purple-100 to-blue-50 hover:from-purple-200 hover:to-blue-100 text-brand-purple text-xs font-bold transition-all">
-             <Sparkles size={14} />
-             <span>Melhorar</span>
-          </button>
-        </>
-      ) : (
-        <div className="flex items-center gap-1 p-0.5">
-          <LinkIcon size={14} className="text-gray-400 ml-1" />
-          <input 
-            className="bg-transparent border-none outline-none text-sm text-gray-700 w-48 placeholder-gray-400 focus:ring-0"
-            placeholder="Cole o link aqui..." 
-            value={linkUrl} 
-            onChange={(e) => setLinkUrl(e.target.value)}
-            autoFocus
-            onKeyDown={(e) => e.key === 'Enter' && setLink()}
-          />
-          <button onClick={setLink} className="p-1 hover:bg-green-100 text-green-600 rounded"><Check size={14}/></button>
-          <button onClick={() => setIsLinkOpen(false)} className="p-1 hover:bg-red-100 text-red-500 rounded"><X size={14}/></button>
+              <label className="cursor-pointer hover:bg-gray-100 p-1.5 rounded flex flex-col items-center" title="Cor da Borda">
+                 <Square size={16} className="text-gray-600"/>
+                 <input 
+                    type="color" 
+                    className="w-0 h-0 opacity-0 absolute"
+                    onChange={(e) => editor.chain().focus().updateAttributes('shape', { borderColor: e.target.value }).run()}
+                 />
+                 <div className="w-4 h-1 mt-0.5 rounded-full border border-gray-300" style={{ background: editor.getAttributes('shape').borderColor }}></div>
+              </label>
+
+              <select 
+                 className="text-xs border rounded p-1 ml-1"
+                 onChange={(e) => editor.chain().focus().updateAttributes('shape', { strokeWidth: parseInt(e.target.value) }).run()}
+                 defaultValue={editor.getAttributes('shape').strokeWidth || 0}
+              >
+                 <option value="0">Sem Borda</option>
+                 <option value="2">2px</option>
+                 <option value="4">4px</option>
+                 <option value="8">8px</option>
+              </select>
+           </div>
         </div>
+      )}
+
+      {/* --- MENU PARA IMAGENS --- */}
+      {isImage && (
+         <div className="flex items-center gap-1 p-1 border-r border-gray-200">
+            <button onClick={() => editor.chain().focus().setTextAlign('left').run()} className="p-1.5 hover:bg-gray-100 rounded"><AlignLeft size={16}/></button>
+            <button onClick={() => editor.chain().focus().setTextAlign('center').run()} className="p-1.5 hover:bg-gray-100 rounded"><AlignCenter size={16}/></button>
+            <button onClick={() => editor.chain().focus().setTextAlign('right').run()} className="p-1.5 hover:bg-gray-100 rounded"><AlignRight size={16}/></button>
+            
+            <div className="w-px h-6 bg-gray-200 mx-1"></div>
+            
+            <button 
+                onClick={() => {
+                    const width = prompt('Largura da imagem (ex: 300px ou 100%):', '100%');
+                    if(width) editor.chain().focus().updateAttributes('image', { width }).run();
+                }} 
+                className="p-1.5 hover:bg-gray-100 rounded flex items-center gap-1 text-xs font-bold"
+            >
+                <Maximize2 size={16}/> Tam.
+            </button>
+         </div>
+      )}
+
+      {/* --- MENU PARA TABELAS (COLUNAS) --- */}
+      {isTable && (
+         <div className="flex items-center gap-1 p-1 border-r border-gray-200">
+             <button onClick={() => editor.chain().focus().addColumnBefore().run()} className="p-1.5 hover:bg-gray-100 rounded text-xs whitespace-nowrap">+ Coluna</button>
+             <button onClick={() => editor.chain().focus().deleteColumn().run()} className="p-1.5 hover:bg-gray-100 rounded text-red-500 text-xs whitespace-nowrap">- Coluna</button>
+             <div className="w-px h-6 bg-gray-200 mx-1"></div>
+             <button onClick={() => editor.chain().focus().deleteTable().run()} className="p-1.5 hover:bg-red-50 text-red-600 rounded" title="Remover Grid"><Trash2 size={16}/></button>
+         </div>
+      )}
+
+      {/* Botão Comum de Excluir */}
+      {!isTable && (
+          <button 
+            onClick={() => editor.chain().focus().deleteSelection().run()} 
+            className="p-1.5 hover:bg-red-50 text-red-600 rounded ml-1" 
+            title="Excluir Seleção"
+          >
+            <Trash2 size={16} />
+          </button>
       )}
     </BubbleMenu>
   );

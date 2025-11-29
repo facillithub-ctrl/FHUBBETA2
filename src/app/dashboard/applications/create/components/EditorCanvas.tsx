@@ -30,9 +30,9 @@ import CreateToolbar from './CreateToolbar';
 import Ruler from './Ruler';
 import { saveDocument } from '../actions';
 import Link from 'next/link';
-import { ArrowLeft, Cloud, CheckCircle2, Menu, AlertCircle, X } from 'lucide-react';
+import { ArrowLeft, Menu, X, CheckCircle2, AlertCircle } from 'lucide-react';
 
-// Extensão de Fonte
+// Extensão de Fonte (Mantida)
 const FontSize = Extension.create({
   name: 'fontSize',
   addOptions() { return { types: ['textStyle'] }; },
@@ -69,6 +69,8 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
   const [title, setTitle] = useState(initialTitle);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
+  // Definições iniciais de página (importante para a régua)
   const [pageSettings, setPageSettings] = useState({ size: 'a4', margin: 'normal' });
 
   const getPageStyle = () => {
@@ -93,7 +95,7 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
         dropcursor: { color: '#8B5CF6', width: 2 },
         codeBlock: false,
       }),
-      Image.configure({ inline: true, allowBase64: true }),
+      Image.configure({ inline: true, allowBase64: true }), // Permite preview rápido, mas toolbar usa upload real
       Youtube.configure({ width: 480, height: 320 }),
       Table.configure({ resizable: true }),
       TableRow, TableHeader, TableCell,
@@ -102,12 +104,12 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
       TiptapLink.configure({ openOnClick: false, autolink: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       CharacterCount, TaskList, TaskItem.configure({ nested: true }),
-      Placeholder.configure({ placeholder: 'Digite aqui...' }),
+      Placeholder.configure({ placeholder: 'Digite aqui... Pressione "/" para comandos.' }),
       ShapeExtension, 
     ],
     editorProps: {
       attributes: {
-        class: 'prose prose-lg max-w-none focus:outline-none bg-white font-letters text-gray-800 selection:bg-brand-purple/20 h-full',
+        class: 'prose prose-lg max-w-none focus:outline-none bg-white font-letters text-gray-800 selection:bg-brand-purple/20 h-full min-h-[500px]',
         style: 'font-family: "Letters For Learners", sans-serif;',
       },
     },
@@ -116,6 +118,7 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
     onUpdate: () => setSaveStatus('unsaved'),
   });
 
+  // Auto-save: Intervalo de 5s se houver alterações
   useEffect(() => {
     const interval = setInterval(() => { if (saveStatus === 'unsaved') handleSave(); }, 5000);
     return () => clearInterval(interval);
@@ -141,7 +144,14 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
       {/* SIDEBAR */}
       <aside className={`flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 z-50 ${isSidebarOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full overflow-hidden'} fixed inset-y-0 left-0 md:relative no-print shadow-xl md:shadow-none`}>
         <button onClick={() => setIsSidebarOpen(false)} className="md:hidden absolute top-2 right-2 p-2 text-gray-500 hover:text-red-500 z-50"><X size={20}/></button>
-        <CreateToolbar editor={editor} onSave={handleSave} isSaving={saveStatus === 'saving'} onExport={handleExportPDF} pageSettings={pageSettings} setPageSettings={setPageSettings} />
+        <CreateToolbar 
+            editor={editor} 
+            onSave={handleSave} 
+            isSaving={saveStatus === 'saving'} 
+            onExport={handleExportPDF} 
+            pageSettings={pageSettings} 
+            setPageSettings={setPageSettings} 
+        />
       </aside>
 
       {/* MAIN AREA */}
@@ -150,17 +160,37 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
           <div className="flex items-center gap-4 w-full">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded text-gray-600"><Menu size={20} /></button>
             <Link href="/dashboard/applications/create" className="p-2 hover:bg-gray-100 rounded text-gray-500"><ArrowLeft size={20} /></Link>
-            <div className="flex-1 max-w-2xl">
-               <input value={title} onChange={(e) => { setTitle(e.target.value); setSaveStatus('unsaved'); }} className="text-lg font-bold font-dk-lemons w-full border-none focus:ring-0 p-0 text-gray-800" placeholder="Título do Documento" />
-               <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{saveStatus === 'saving' ? 'Salvando...' : saveStatus === 'saved' ? 'Salvo' : 'Não salvo'}</span>
+            <div className="flex-1 max-w-2xl flex flex-col justify-center">
+               <input 
+                  value={title} 
+                  onChange={(e) => { setTitle(e.target.value); setSaveStatus('unsaved'); }} 
+                  className="text-lg font-bold font-dk-lemons w-full border-none focus:ring-0 p-0 text-gray-800 placeholder-gray-300 bg-transparent" 
+                  placeholder="Título do Documento" 
+               />
+               <div className="flex items-center gap-1.5 h-4">
+                 {saveStatus === 'saving' && <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider flex items-center gap-1"><span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse"></span> Salvando...</span>}
+                 {saveStatus === 'saved' && <span className="text-[10px] text-green-500 uppercase font-bold tracking-wider flex items-center gap-1"><CheckCircle2 size={10} /> Salvo</span>}
+                 {saveStatus === 'error' && <span className="text-[10px] text-red-500 uppercase font-bold tracking-wider flex items-center gap-1"><AlertCircle size={10} /> Erro ao salvar</span>}
+                 {saveStatus === 'unsaved' && <span className="text-[10px] text-gray-300 uppercase font-bold tracking-wider">Alterações pendentes...</span>}
+               </div>
             </div>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto bg-studio-dots p-4 md:p-8 flex justify-center cursor-text" onClick={() => editor?.commands.focus()}>
-           <div className="bg-white paper-shadow transition-all duration-300 relative editor-print-container" style={{ width: pageStyle.width, minHeight: pageStyle.minHeight, padding: pageStyle.padding }}>
-              <div className="absolute top-0 left-0 w-full h-6 border-b border-gray-100 no-print opacity-50 pointer-events-none"><Ruler /></div>
-              <EditorContent editor={editor} className="mt-4 outline-none editor-pages" />
+           <div 
+              className="bg-white paper-shadow transition-all duration-300 relative editor-print-container flex flex-col" 
+              style={{ width: pageStyle.width, minHeight: pageStyle.minHeight }}
+           >
+              {/* Régua dinâmica */}
+              <div className="w-full h-6 border-b border-gray-100 no-print relative">
+                  <Ruler width={pageStyle.width} />
+              </div>
+              
+              {/* Área de conteúdo com padding dinâmico */}
+              <div style={{ padding: pageStyle.padding, flex: 1 }}>
+                <EditorContent editor={editor} className="outline-none editor-pages h-full" />
+              </div>
            </div>
         </div>
       </main>
