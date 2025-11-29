@@ -1,90 +1,97 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import React from 'react';
 import { 
-  Layout, FileText, Star, Clock, 
-  Settings, Palette, FolderOpen 
+  Plus, Search, FileText, Folder, Star, Clock, 
+  Settings, ChevronRight, MoreHorizontal, LayoutTemplate
 } from 'lucide-react';
 
-export default function CreateSidebar() {
-  const pathname = usePathname();
-  const isEditor = pathname.includes('/create/') && pathname.split('/').length > 5; // Detecção simples se está dentro de um doc
-
+export const CreateSidebar = () => {
   return (
-    <div className="h-full flex flex-col p-4">
-      {/* Cabeçalho da Sidebar */}
-      <div className="mb-8 mt-2 flex items-center gap-2 px-2">
-        <div className="bg-brand-purple/10 p-2 rounded-lg text-brand-purple">
-          <Palette size={24} />
-        </div>
-        <span className="font-multiara text-2xl text-gray-800">Estúdio</span>
+    <aside className="w-72 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col hidden md:flex shrink-0">
+      
+      {/* Header da Sidebar */}
+      <div className="p-4 border-b border-zinc-100 dark:border-zinc-800/50">
+        <button className="w-full flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-blue-600 dark:hover:bg-blue-700 py-2.5 rounded-lg transition-all shadow-sm text-sm font-medium">
+          <Plus size={16} />
+          Novo Documento
+        </button>
       </div>
 
-      {/* Navegação Principal */}
-      <nav className="flex-1 space-y-1">
-        <SidebarItem 
-          icon={<Layout size={18} />} 
-          label="Meus Resumos" 
-          href="/dashboard/applications/create" 
-          active={pathname === '/dashboard/applications/create'}
-        />
-        <SidebarItem 
-          icon={<Clock size={18} />} 
-          label="Recentes" 
-          href="/dashboard/applications/create?filter=recent" 
-        />
-        <SidebarItem 
-          icon={<Star size={18} />} 
-          label="Favoritos" 
-          href="/dashboard/applications/create?filter=favorites" 
-        />
-        
-        <div className="my-4 border-t border-gray-100" />
-        
-        <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-          Templates
-        </p>
-        
-        <SidebarItem icon={<FileText size={18} />} label="Método Cornell" href="#" />
-        <SidebarItem icon={<FileText size={18} />} label="Mapa Mental" href="#" />
-        <SidebarItem icon={<FileText size={18} />} label="Flashcards" href="#" />
-      </nav>
-
-      {/* Configurações (Só aparece se estiver no editor, opcional) */}
-      {isEditor && (
-        <div className="mt-auto bg-purple-50 rounded-xl p-4 mb-4">
-          <h4 className="font-dk-lemons text-sm text-purple-900 mb-2">Papelaria</h4>
-          <div className="flex gap-2">
-             <button className="w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm" title="Branco"></button>
-             <button className="w-6 h-6 rounded-full bg-[#fdfbf7] border border-gray-200 shadow-sm" title="Creme"></button>
-             <button className="w-6 h-6 rounded-full bg-slate-900 border border-gray-200 shadow-sm" title="Dark Mode"></button>
-          </div>
+      {/* Busca Rápida */}
+      <div className="px-4 py-3">
+        <div className="relative group">
+          <Search className="absolute left-2.5 top-2.5 text-zinc-400 group-focus-within:text-blue-500 transition-colors" size={15} />
+          <input 
+            type="text" 
+            placeholder="Buscar documentos..." 
+            className="w-full pl-9 pr-3 py-2 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+          />
         </div>
-      )}
+      </div>
+
+      {/* Menu Principal */}
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-6 scrollbar-thin scrollbar-thumb-zinc-200 dark:scrollbar-thumb-zinc-800">
+        
+        {/* Workspace */}
+        <div>
+          <h3 className="px-3 text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">
+            Workspace
+          </h3>
+          <nav className="space-y-0.5">
+            <SidebarItem icon={Clock} label="Recentes" />
+            <SidebarItem icon={Star} label="Favoritos" />
+            <SidebarItem icon={FileText} label="Meus Rascunhos" active />
+            <SidebarItem icon={LayoutTemplate} label="Templates" />
+          </nav>
+        </div>
+
+        {/* Pastas */}
+        <div>
+          <div className="flex items-center justify-between px-3 mb-2 group cursor-pointer">
+            <h3 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+              Pastas
+            </h3>
+            <Plus size={14} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+          <nav className="space-y-0.5">
+            <FolderItem label="Planejamento 2024" />
+            <FolderItem label="Artigos do Blog" />
+            <FolderItem label="Reuniões Semanais" />
+            <FolderItem label="Ideias de Produto" />
+          </nav>
+        </div>
+      </div>
 
       {/* Footer */}
-      <div className="border-t pt-4">
-        <SidebarItem icon={<Settings size={18} />} label="Configurações" href="/dashboard/settings" />
+      <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900">
+        <button className="flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white text-sm w-full transition-colors">
+          <Settings size={16} />
+          Configurações do Editor
+        </button>
       </div>
-    </div>
+    </aside>
   );
-}
+};
 
-// Componente Auxiliar de Item de Menu
-function SidebarItem({ icon, label, href, active }: { icon: any, label: string, href: string, active?: boolean }) {
-  return (
-    <Link 
-      href={href}
-      className={`
-        flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-        ${active 
-          ? 'bg-purple-50 text-brand-purple' 
-          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
-      `}
-    >
-      {icon}
-      <span className="font-letters text-base pt-1">{label}</span>
-    </Link>
-  );
-}
+const SidebarItem = ({ icon: Icon, label, active }: any) => (
+  <button className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
+    active 
+      ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400 font-medium shadow-sm ring-1 ring-blue-100 dark:ring-blue-900/30' 
+      : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+  }`}>
+    <Icon size={16} className={active ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400'} />
+    {label}
+  </button>
+);
+
+const FolderItem = ({ label }: any) => (
+  <button className="w-full flex items-center justify-between group px-3 py-1.5 rounded-lg text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+    <div className="flex items-center gap-2">
+      <ChevronRight size={14} className="text-zinc-400" />
+      <Folder size={14} className="text-zinc-400 group-hover:text-yellow-500 transition-colors" />
+      <span className="truncate max-w-[140px]">{label}</span>
+    </div>
+    <MoreHorizontal size={14} className="opacity-0 group-hover:opacity-100 text-zinc-400" />
+  </button>
+);

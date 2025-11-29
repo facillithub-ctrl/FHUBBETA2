@@ -1,72 +1,83 @@
-'use client';
-
+import React from 'react';
 import { FloatingMenu, Editor } from '@tiptap/react';
 import { 
-  Heading1, Heading2, List, CheckSquare, Image as ImageIcon, 
-  Quote, Table as TableIcon, Minus 
+  Heading1, Heading2, List, ListOrdered, 
+  CheckSquare, Quote, Image as ImageIcon, Minus 
 } from 'lucide-react';
 
 interface Props {
   editor: Editor;
 }
 
-export default function EditorFloatingMenu({ editor }: Props) {
-  // Lista de ações rápidas
+export const EditorFloatingMenu = ({ editor }: Props) => {
+  if (!editor) return null;
+
   const items = [
-    { 
-      icon: Heading1, 
-      label: 'Título 1', 
-      action: () => editor.chain().focus().toggleHeading({ level: 1 }).run() 
-    },
-    { 
-      icon: Heading2, 
-      label: 'Título 2', 
-      action: () => editor.chain().focus().toggleHeading({ level: 2 }).run() 
-    },
-    { 
-      icon: List, 
-      label: 'Lista', 
-      action: () => editor.chain().focus().toggleBulletList().run() 
-    },
-    { 
-      icon: CheckSquare, 
-      label: 'Tarefa', 
-      action: () => editor.chain().focus().toggleTaskList().run() 
-    },
-    { 
-      icon: Quote, 
-      label: 'Citação', 
-      action: () => editor.chain().focus().toggleBlockquote().run() 
+    {
+      icon: Heading1,
+      label: 'Título 1',
+      action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+      isActive: editor.isActive('heading', { level: 1 }),
     },
     {
-      icon: ImageIcon,
-      label: 'Imagem',
-      action: () => {
-          const url = window.prompt('URL da Imagem:');
-          if (url) editor.chain().focus().setImage({ src: url }).run();
-      }
-    }
+      icon: Heading2,
+      label: 'Título 2',
+      action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+      isActive: editor.isActive('heading', { level: 2 }),
+    },
+    {
+      icon: List,
+      label: 'Lista',
+      action: () => editor.chain().focus().toggleBulletList().run(),
+      isActive: editor.isActive('bulletList'),
+    },
+    {
+      icon: ListOrdered,
+      label: 'Numerada',
+      action: () => editor.chain().focus().toggleOrderedList().run(),
+      isActive: editor.isActive('orderedList'),
+    },
+    {
+      icon: CheckSquare,
+      label: 'Tarefa',
+      action: () => editor.chain().focus().toggleTaskList().run(),
+      isActive: editor.isActive('taskList'),
+    },
+    {
+      icon: Quote,
+      label: 'Citação',
+      action: () => editor.chain().focus().toggleBlockquote().run(),
+      isActive: editor.isActive('blockquote'),
+    },
+     {
+      icon: Minus,
+      label: 'Divisor',
+      action: () => editor.chain().focus().setHorizontalRule().run(),
+      isActive: false,
+    },
   ];
 
   return (
     <FloatingMenu 
-        editor={editor} 
-        tippyOptions={{ duration: 100 }} 
-        className="flex items-center gap-1 bg-white border border-gray-200 shadow-lg rounded-lg p-1.5 animate-in fade-in slide-in-from-left-2"
+      editor={editor} 
+      tippyOptions={{ duration: 100 }}
+      className="flex flex-col bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl overflow-hidden py-1 min-w-[180px]"
     >
+      <div className="px-3 py-2 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+        Blocos Básicos
+      </div>
       {items.map((item, index) => (
         <button
           key={index}
           onClick={item.action}
-          className="p-2 hover:bg-gray-100 rounded-md text-gray-500 hover:text-brand-purple transition-colors relative group"
+          className={`flex items-center gap-3 px-3 py-2 text-sm w-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left
+            ${item.isActive ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-zinc-700 dark:text-zinc-300'}
+          `}
         >
-          <item.icon size={18} strokeWidth={2} />
-          {/* Tooltip simples */}
-          <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-800 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-            {item.label}
-          </span>
+          <item.icon size={16} />
+          {item.label}
         </button>
       ))}
     </FloatingMenu>
   );
-}
+};

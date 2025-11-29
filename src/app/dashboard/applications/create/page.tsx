@@ -1,149 +1,155 @@
-import createClient from '@/utils/supabase/server';
-import { createNewDocument, deleteDocument } from './actions';
+'use client';
+
+import React from 'react';
 import Link from 'next/link';
 import { 
-  FileText, Plus, Clock, MoreHorizontal, 
-  Presentation, Network, Trash2, Search 
+  Plus, FileText, LayoutTemplate, 
+  Clock, MoreVertical, Search, Filter, 
+  PenTool, Presentation, Sparkles 
 } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
-
-export default async function CreateDashboard() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { data: docs } = await supabase
-    .from('facillit_create_documents')
-    .select('id, title, updated_at, plain_text') // plain_text pode ser usado para preview curto
-    .eq('user_id', user?.id)
-    .order('updated_at', { ascending: false });
-
+export default function CreateDashboard() {
   return (
-    <div className="space-y-10">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6 md:p-8">
       
-      {/* Seção de Boas-vindas e Ações Rápidas */}
-      <section className="bg-brand-gradient rounded-3xl p-8 md:p-12 text-white shadow-xl shadow-purple-900/10 relative overflow-hidden">
-        {/* Elementos decorativos de fundo */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+      {/* Header do Dashboard */}
+      <header className="mb-8">
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">
+          Facillit Create
+        </h1>
+        <p className="text-zinc-500 dark:text-zinc-400">
+          Crie mapas mentais, resumos visuais e slides para consolidar seu aprendizado.
+        </p>
+      </header>
 
-        <div className="relative z-10">
-           <h2 className="font-dk-lemons text-3xl md:text-4xl mb-2">O que vamos criar hoje?</h2>
-           <p className="font-letters text-purple-100 text-lg max-w-xl">
-             Selecione uma ferramenta para materializar seu conhecimento. Construa resumos, slides ou mapas mentais.
-           </p>
-
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-              {/* Card Criar Resumo (Funcional) */}
-              <form action={createNewDocument} className="w-full">
-                <button type="submit" className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 p-4 rounded-2xl flex items-center gap-4 text-left transition-all hover:scale-[1.02] group">
-                   <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-brand-purple shadow-lg group-hover:rotate-6 transition-transform">
-                      <FileText size={24} />
-                   </div>
-                   <div>
-                      <span className="block font-bold">Novo Resumo</span>
-                      <span className="text-xs text-purple-200">Editor de texto rico</span>
-                   </div>
-                </button>
-              </form>
-
-              {/* Card Criar Slide (Placeholder Visual) */}
-              <button className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 p-4 rounded-2xl flex items-center gap-4 text-left transition-all hover:scale-[1.02] group cursor-not-allowed opacity-70">
-                 <div className="w-12 h-12 bg-blue-400 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:rotate-6 transition-transform">
-                    <Presentation size={24} />
-                 </div>
-                 <div>
-                    <span className="block font-bold">Apresentação</span>
-                    <span className="text-xs text-purple-200">Em breve</span>
-                 </div>
-              </button>
-
-              {/* Card Criar Mapa Mental (Placeholder Visual) */}
-              <button className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 p-4 rounded-2xl flex items-center gap-4 text-left transition-all hover:scale-[1.02] group cursor-not-allowed opacity-70">
-                 <div className="w-12 h-12 bg-emerald-400 rounded-xl flex items-center justify-center text-white shadow-lg group-hover:rotate-6 transition-transform">
-                    <Network size={24} />
-                 </div>
-                 <div>
-                    <span className="block font-bold">Mapa Mental</span>
-                    <span className="text-xs text-purple-200">Em breve</span>
-                 </div>
-              </button>
-           </div>
-        </div>
+      {/* Ações Rápidas (Cards de Criação) */}
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
+        <CreateActionCard 
+          icon={FileText} 
+          title="Novo Documento" 
+          subtitle="Página em branco" 
+          color="bg-blue-500"
+          href="/dashboard/applications/create/new" 
+        />
+        <CreateActionCard 
+          icon={LayoutTemplate} 
+          title="Mapa Mental" 
+          subtitle="A partir de modelo" 
+          color="bg-purple-500"
+          href="/dashboard/applications/create/new?template=mindmap" 
+        />
+        <CreateActionCard 
+          icon={Presentation} 
+          title="Slides" 
+          subtitle="Para apresentação" 
+          color="bg-orange-500"
+          href="/dashboard/applications/create/new?template=slides" 
+        />
+        <CreateActionCard 
+          icon={Sparkles} 
+          title="Criar com IA" 
+          subtitle="Geração automática" 
+          color="bg-emerald-500"
+          href="/dashboard/applications/create/ai" 
+        />
       </section>
 
-      {/* Seção de Projetos Recentes */}
-      <section>
-        <div className="flex items-center justify-between mb-6">
-           <h3 className="font-dk-lemons text-2xl text-gray-800">Seus Projetos</h3>
-           <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+      {/* Área de Projetos Recentes */}
+      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+        
+        {/* Toolbar da Tabela */}
+        <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-zinc-800">
+          <div className="flex items-center gap-2">
+            <Clock size={18} className="text-zinc-400" />
+            <h2 className="font-semibold text-zinc-800 dark:text-zinc-200">Projetos Recentes</h2>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-2.5 text-zinc-400" />
               <input 
-                 type="text" 
-                 placeholder="Buscar..." 
-                 className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple w-64"
+                type="text" 
+                placeholder="Buscar projetos..." 
+                className="pl-8 pr-3 py-1.5 text-sm bg-zinc-100 dark:bg-zinc-800 border-none rounded-md focus:ring-2 focus:ring-blue-500/20"
               />
-           </div>
+            </div>
+            <button className="p-1.5 text-zinc-500 hover:bg-zinc-100 rounded-md">
+              <Filter size={18} />
+            </button>
+          </div>
         </div>
 
-        {(!docs || docs.length === 0) ? (
-           <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100">
-              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
-                 <FileText size={40} />
-              </div>
-              <p className="font-dk-lemons text-gray-400 text-lg">Nenhum projeto ainda</p>
-              <p className="font-letters text-gray-400">Comece criando um resumo incrível acima.</p>
-           </div>
-        ) : (
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {docs.map((doc) => (
-                <div key={doc.id} className="group relative bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-72 overflow-hidden">
-                   
-                   {/* Área de Preview do Documento */}
-                   <Link href={`/dashboard/applications/create/${doc.id}`} className="flex-1 bg-gray-50/50 p-6 relative overflow-hidden cursor-pointer">
-                      <div className="w-full h-full bg-white shadow-sm border border-gray-100 rounded-lg p-4 transform group-hover:scale-105 transition-transform duration-500">
-                         {/* Miniatura do Texto (Simulada) */}
-                         <div className="space-y-2 opacity-40">
-                            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                            <div className="h-3 bg-gray-100 rounded w-full"></div>
-                            <div className="h-3 bg-gray-100 rounded w-full"></div>
-                            <div className="h-3 bg-gray-100 rounded w-5/6"></div>
-                            <div className="h-3 bg-gray-100 rounded w-full"></div>
-                         </div>
-                      </div>
-                      
-                      {/* Badge do Tipo */}
-                      <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-2 py-1 rounded-md text-[10px] font-bold text-brand-purple border border-purple-100 shadow-sm">
-                         DOC
-                      </div>
-                   </Link>
-
-                   {/* Rodapé do Card */}
-                   <div className="p-4 bg-white border-t border-gray-50 flex items-center justify-between relative z-10">
-                      <div className="overflow-hidden">
-                         <h4 className="font-bold text-gray-800 truncate text-sm" title={doc.title}>
-                            {doc.title || 'Sem Título'}
-                         </h4>
-                         <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-0.5">
-                            <Clock size={10} />
-                            <span>Editado em {new Date(doc.updated_at).toLocaleDateString()}</span>
-                         </div>
-                      </div>
-
-                      {/* Botão de Opções / Excluir */}
-                      <div className="flex items-center gap-1">
-                          <form action={async () => { 'use server'; await deleteDocument(doc.id) }}>
-                             <button className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Excluir">
-                                <Trash2 size={16} />
-                             </button>
-                          </form>
-                      </div>
-                   </div>
-                </div>
-              ))}
-           </div>
-        )}
-      </section>
+        {/* Lista de Arquivos */}
+        <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <ProjectRow 
+            title="Resumo de Biologia - Células" 
+            type="Documento" 
+            date="Editado há 2h" 
+            tags={['Biologia', 'Resumo']} 
+          />
+          <ProjectRow 
+            title="Mapa Mental: Revolução Francesa" 
+            type="Mapa Mental" 
+            date="Ontem" 
+            tags={['História', 'Visual']} 
+          />
+          <ProjectRow 
+            title="Apresentação Seminário Física" 
+            type="Slides" 
+            date="24 Out, 2024" 
+            tags={['Física', 'Grupo']} 
+          />
+           <ProjectRow 
+            title="Anotações de Aula - Matemática" 
+            type="Documento" 
+            date="20 Out, 2024" 
+            tags={['Matemática']} 
+          />
+        </div>
+      </div>
     </div>
   );
 }
+
+// Componentes Auxiliares do Dashboard
+
+const CreateActionCard = ({ icon: Icon, title, subtitle, color, href }: any) => (
+  <Link href={href} className="group relative overflow-hidden bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all hover:border-blue-500/30">
+    <div className={`absolute top-0 left-0 w-1 h-full ${color}`} />
+    <div className="mb-3 w-10 h-10 rounded-lg bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center group-hover:scale-110 transition-transform">
+      <Icon size={20} className="text-zinc-700 dark:text-zinc-300" />
+    </div>
+    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>
+    <p className="text-xs text-zinc-500 mt-1">{subtitle}</p>
+  </Link>
+);
+
+const ProjectRow = ({ title, type, date, tags }: any) => (
+  <div className="flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group cursor-pointer">
+    <div className="flex items-center gap-4">
+      <div className="w-10 h-10 rounded bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
+        <FileText size={20} />
+      </div>
+      <div>
+        <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{title}</h4>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[10px] uppercase font-bold text-zinc-400">{type}</span>
+          <span className="text-[10px] text-zinc-400">• {date}</span>
+        </div>
+      </div>
+    </div>
+    
+    <div className="flex items-center gap-6">
+      <div className="hidden md:flex gap-2">
+        {tags.map((tag: string, i: number) => (
+          <span key={i} className="px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[10px] text-zinc-600 dark:text-zinc-400 font-medium">
+            {tag}
+          </span>
+        ))}
+      </div>
+      <button className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
+        <MoreVertical size={18} />
+      </button>
+    </div>
+  </div>
+);

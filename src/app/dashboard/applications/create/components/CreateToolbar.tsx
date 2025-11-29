@@ -1,302 +1,158 @@
 'use client';
 
+import React from 'react';
 import { Editor } from '@tiptap/react';
 import { 
-  Type, Palette, Layout, FilePlus, Image as ImageIcon, 
-  Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  List, ListOrdered, CheckSquare, Quote, Link as LinkIcon, 
-  Undo, Redo, Download, Printer, Layers, 
-  Subscript, Superscript, ChevronDown, ChevronRight, Square, Circle, Minus,
-  Save, Columns, MousePointer2
+  Bold, Italic, Underline, Strikethrough, 
+  AlignLeft, AlignCenter, AlignRight, AlignJustify,
+  Type, Palette, Highlighter, Layout, 
+  Square, Circle, Image as ImageIcon, 
+  Undo, Redo, Heading1, Heading2, 
+  List, ListOrdered, Minus
 } from 'lucide-react';
-import { useState, useRef } from 'react';
-import createClient from '@/utils/supabase/client';
 
-interface ToolbarProps {
+interface Props {
   editor: Editor | null;
-  onSave: () => void;
-  isSaving: boolean;
-  onExport: (type: 'pdf' | 'html') => void;
-  pageSettings: any;
-  setPageSettings: (settings: any) => void;
 }
 
-export default function CreateToolbar({ editor, onSave, isSaving, onExport, pageSettings, setPageSettings }: ToolbarProps) {
+export const Toolbar = ({ editor }: Props) => {
   if (!editor) return null;
 
-  // Estados locais para controle de menus
-  const [activeGroup, setActiveGroup] = useState<string | null>('texto'); // 'texto' aberto por padrão
-  const [showColorPicker, setShowColorPicker] = useState<'text' | 'highlight' | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
-
-  // Alternar grupos do menu (Accordion)
-  const toggleGroup = (group: string) => {
-    setActiveGroup(activeGroup === group ? null : group);
-  };
-
-  // --- FUNÇÃO 1: UPLOAD DE IMAGEM ---
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-        alert('A imagem deve ter no máximo 5MB.');
-        return;
-    }
-
-    setIsUploading(true);
-    try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Usuário não autenticado");
-
-        // Nome único para evitar conflito
-        const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
-        const filePath = `create-assets/${user.id}/${fileName}`;
-        
-        // Tenta bucket privado 'create-assets', fallback para 'public'
-        let { error: uploadError } = await supabase.storage.from('create-assets').upload(filePath, file);
-        let publicUrl = '';
-
-        if (uploadError) {
-             const fallbackPath = `public/${user.id}/${fileName}`;
-             await supabase.storage.from('public').upload(fallbackPath, file);
-             publicUrl = supabase.storage.from('public').getPublicUrl(fallbackPath).data.publicUrl;
-        } else {
-             publicUrl = supabase.storage.from('create-assets').getPublicUrl(filePath).data.publicUrl;
-        }
-        
-        if (publicUrl) {
-            editor.chain().focus().setImage({ src: publicUrl }).run();
-        }
-    } catch (error) {
-        console.error('Erro no upload:', error);
-        alert('Erro ao enviar imagem. Verifique sua conexão.');
-    } finally {
-        setIsUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  // --- FUNÇÃO 2: INSERIR FORMAS ---
-  const insertShape = (shape: 'rectangle' | 'circle' | 'line') => {
-    if (shape === 'line') {
-      editor.chain().focus().setHorizontalRule().run();
-    } else {
-      editor.chain().focus().insertContent({
-        type: 'shape',
-        attrs: { type: shape, width: '100px', height: '100px', color: '#e5e7eb' }
-      }).run();
-    }
-  };
-
-  // --- FUNÇÃO 3: INSERIR COLUNAS (GRID) ---
-  const insertColumns = (cols: number) => {
-    // @ts-ignore - Comando customizado da extensão ColumnExtension
-    if (editor.can().setColumns(cols)) {
-        // @ts-ignore
-        editor.chain().focus().setColumns(cols).run();
-    } else {
-        alert("Não é possível inserir colunas aqui (tente em uma nova linha).");
-    }
-  };
-
-  // --- FUNÇÃO 4: PRESETS DE FONTE ---
-  const applyPreset = (type: 'title' | 'subtitle' | 'body') => {
-    if (type === 'title') {
-      editor.chain().focus().toggleHeading({ level: 1 }).setFontFamily('Multiara').run();
-    } else if (type === 'subtitle') {
-      editor.chain().focus().toggleHeading({ level: 2 }).setFontFamily('Dk Lemons').run();
-    } else {
-      editor.chain().focus().setParagraph().setFontFamily('Letters For Learners').run();
-    }
-  };
-
-  // Componente de Botão Reutilizável
-  const ToolBtn = ({ onClick, isActive, icon: Icon, title, label, disabled, className = '' }: any) => (
-    <button
-      onClick={onClick}
-      title={title}
-      disabled={disabled}
-      className={`
-        flex flex-col items-center justify-center p-2 rounded-lg transition-all
-        ${isActive ? 'bg-purple-100 text-brand-purple shadow-sm' : 'text-gray-500 hover:bg-white hover:shadow-sm'}
-        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-        ${className}
-      `}
-    >
-      <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-      {label && <span className="text-[9px] mt-1 font-medium">{label}</span>}
-    </button>
-  );
-
-  // Componente Grupo Accordion
-  const ToolGroup = ({ id, label, icon: Icon, children }: any) => (
-    <div className="border-b border-gray-200 last:border-0">
-      <button 
-        onClick={() => toggleGroup(id)}
-        className={`w-full flex items-center justify-between p-3 text-sm font-medium transition-colors ${activeGroup === id ? 'text-brand-purple bg-purple-50' : 'text-gray-700 hover:bg-gray-50'}`}
-      >
-        <div className="flex items-center gap-2">
-          <Icon size={16} />
-          <span>{label}</span>
-        </div>
-        {activeGroup === id ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
-      </button>
-      
-      {activeGroup === id && (
-        <div className="p-2 bg-gray-50/50 grid grid-cols-4 gap-1 animate-in slide-in-from-top-2 duration-200">
-          {children}
-        </div>
-      )}
-    </div>
-  );
+  // Funções Auxiliares
+  const setFont = (font: string) => editor.chain().focus().setFontFamily(font).run();
+  const setSize = (size: string) => editor.chain().focus().setMark('textStyle', { fontSize: size }).run();
 
   return (
-    <div className="w-full h-full bg-white border-r border-gray-200 flex flex-col shadow-xl z-50 overflow-y-auto no-print custom-scrollbar">
-      <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
-
-      {/* --- CABEÇALHO FIXO --- */}
-      <div className="p-4 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
-        <h2 className="font-dk-lemons text-lg text-gray-800">Ferramentas</h2>
-        <div className="flex gap-2 mt-2">
-           <button onClick={() => editor.chain().focus().undo().run()} className="p-1.5 bg-white border rounded hover:bg-gray-100 text-gray-600" title="Desfazer"><Undo size={14}/></button>
-           <button onClick={() => editor.chain().focus().redo().run()} className="p-1.5 bg-white border rounded hover:bg-gray-100 text-gray-600" title="Refazer"><Redo size={14}/></button>
-           <button onClick={onSave} disabled={isSaving} className="flex-1 bg-brand-purple text-white text-xs font-bold rounded flex items-center justify-center gap-1 hover:bg-purple-800 transition-colors shadow-sm">
-              {isSaving ? '...' : <><Save size={12} /> Salvar</>}
-           </button>
+    <div className="sticky top-0 z-50 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shadow-sm px-4 py-2 flex flex-col gap-2">
+      
+      {/* Linha 1: Controles Principais */}
+      <div className="flex items-center gap-2 flex-wrap">
+        
+        {/* Histórico */}
+        <div className="flex items-center gap-1 border-r border-zinc-200 dark:border-zinc-700 pr-2">
+          <ToolBtn icon={Undo} onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} />
+          <ToolBtn icon={Redo} onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} />
         </div>
+
+        {/* Fonte e Tamanho */}
+        <div className="flex items-center gap-2 border-r border-zinc-200 dark:border-zinc-700 pr-2">
+          <select 
+            className="h-8 text-xs bg-zinc-100 dark:bg-zinc-800 border-none rounded px-2 w-32 focus:ring-0"
+            onChange={(e) => setFont(e.target.value)}
+          >
+            <option value="Inter">Inter (Padrão)</option>
+            <option value="Serif">Serif</option>
+            <option value="Monospace">Monospace</option>
+            <option value="Comic Sans MS">Comic Sans</option>
+          </select>
+          
+          <select 
+             className="h-8 text-xs bg-zinc-100 dark:bg-zinc-800 border-none rounded px-2 w-16 focus:ring-0"
+             onChange={(e) => console.log('Implementar Size Extension')} // Requer extensão adicional de fontSize
+          >
+            <option value="12px">12</option>
+            <option value="14px">14</option>
+            <option value="16px">16</option>
+            <option value="24px">24</option>
+            <option value="32px">32</option>
+          </select>
+        </div>
+
+        {/* Estilos Básicos */}
+        <div className="flex items-center gap-1 border-r border-zinc-200 dark:border-zinc-700 pr-2">
+          <ToolBtn icon={Bold} onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} />
+          <ToolBtn icon={Italic} onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} />
+          <ToolBtn icon={Underline} onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} />
+          <ToolBtn icon={Strikethrough} onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} />
+        </div>
+
+        {/* Cores */}
+        <div className="flex items-center gap-2 border-r border-zinc-200 dark:border-zinc-700 pr-2">
+          <div className="relative group flex items-center gap-1 cursor-pointer p-1 hover:bg-zinc-100 rounded">
+            <Palette size={16} />
+            <input 
+              type="color" 
+              className="w-4 h-4 p-0 border-none bg-transparent cursor-pointer"
+              onInput={(e: any) => editor.chain().focus().setColor(e.target.value).run()}
+            />
+          </div>
+          <ToolBtn 
+            icon={Highlighter} 
+            onClick={() => editor.chain().focus().toggleHighlight().run()} 
+            active={editor.isActive('highlight')} 
+            className="text-yellow-500"
+          />
+        </div>
+
+        {/* Títulos */}
+         <div className="flex items-center gap-1 border-r border-zinc-200 dark:border-zinc-700 pr-2">
+          <ToolBtn icon={Heading1} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })} />
+          <ToolBtn icon={Heading2} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} />
+        </div>
+
+        {/* Alinhamento */}
+        <div className="flex items-center gap-1 border-r border-zinc-200 dark:border-zinc-700 pr-2">
+          <ToolBtn icon={AlignLeft} onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} />
+          <ToolBtn icon={AlignCenter} onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} />
+          <ToolBtn icon={AlignRight} onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} />
+          <ToolBtn icon={AlignJustify} onClick={() => editor.chain().focus().setTextAlign('justify').run()} active={editor.isActive({ textAlign: 'justify' })} />
+        </div>
+
       </div>
 
-      {/* --- GRUPO 1: TEXTO (FONTES, TAMANHO, ESTILO) --- */}
-      <ToolGroup id="texto" label="Texto" icon={Type}>
-         {/* Presets de Fonte */}
-         <div className="col-span-4 flex gap-1 mb-2 overflow-x-auto pb-1 scrollbar-hide">
-            <button onClick={() => applyPreset('title')} className="px-2 py-1 bg-white border rounded text-xs font-multiara hover:border-brand-purple whitespace-nowrap">Título</button>
-            <button onClick={() => applyPreset('subtitle')} className="px-2 py-1 bg-white border rounded text-xs font-dk-lemons hover:border-brand-purple whitespace-nowrap">Subtítulo</button>
-            <button onClick={() => applyPreset('body')} className="px-2 py-1 bg-white border rounded text-xs font-letters font-bold hover:border-brand-purple whitespace-nowrap">Corpo</button>
-         </div>
+      {/* Linha 2: Ferramentas de Criação (Shapes, Layout) */}
+      <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800/50 p-1 rounded-md overflow-x-auto">
+        <span className="text-[10px] uppercase font-bold text-zinc-400 px-2 select-none">Inserir:</span>
+        
+        {/* Formas */}
+        <button 
+          onClick={() => editor.commands.insertShape({ type: 'square', color: '#ef4444' })}
+          className="flex items-center gap-1 px-2 py-1 text-xs hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition"
+        >
+          <Square size={14} className="fill-red-500 stroke-red-600" />
+          Quadrado
+        </button>
+        
+        <button 
+          onClick={() => editor.commands.insertShape({ type: 'circle', color: '#3b82f6' })}
+          className="flex items-center gap-1 px-2 py-1 text-xs hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition"
+        >
+          <Circle size={14} className="fill-blue-500 stroke-blue-600" />
+          Círculo
+        </button>
 
-         {/* Tamanho da Fonte */}
-         <div className="col-span-4 mb-2 px-1">
-            <label className="text-[10px] text-gray-400 uppercase font-bold">Tamanho</label>
-            <select 
-              onChange={(e) => editor.chain().focus().setFontSize(e.target.value).run()}
-              className="w-full text-xs border rounded p-1.5 mt-1 bg-white cursor-pointer"
-              // @ts-ignore
-              value={editor.getAttributes('textStyle').fontSize || '16px'}
-            >
-               {Array.from({length: 20}, (_, i) => i * 2 + 10).map(size => (
-                 <option key={size} value={`${size}px`}>{size}px</option>
-               ))}
-               <option value="48px">48px</option>
-               <option value="72px">72px</option>
-            </select>
-         </div>
+        <div className="w-[1px] h-4 bg-zinc-300 dark:bg-zinc-600 mx-1" />
 
-         <ToolBtn onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} icon={Bold} />
-         <ToolBtn onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} icon={Italic} />
-         <ToolBtn onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')} icon={Underline} />
-         <ToolBtn onClick={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive('strike')} icon={Strikethrough} />
-         
-         {/* Seletor de Cores */}
-         <div className="col-span-2 relative mt-2 group">
-            <button onClick={() => setShowColorPicker(showColorPicker === 'text' ? null : 'text')} className="w-full p-1.5 bg-white border rounded text-xs flex items-center justify-center gap-1 hover:bg-gray-50">
-               <Palette size={12}/> Cor Texto
-            </button>
-            {showColorPicker === 'text' && (
-               <div className="absolute top-full left-0 z-50 bg-white border shadow-lg p-2 grid grid-cols-5 gap-1 w-48 rounded animate-in fade-in zoom-in-95">
-                  {['#000', '#42047e', '#ef4444', '#f59e0b', '#10b981', '#3b82f6'].map(c => (
-                     <button key={c} onClick={() => {editor.chain().focus().setColor(c).run(); setShowColorPicker(null)}} className="w-6 h-6 rounded-full border shadow-sm hover:scale-110" style={{background: c}}/>
-                  ))}
-                  <button onClick={() => editor.chain().focus().unsetColor().run()} className="col-span-5 text-[10px] text-red-500 mt-1 hover:underline">Remover Cor</button>
-               </div>
-            )}
-         </div>
-      </ToolGroup>
+        {/* Layout */}
+        <button className="flex items-center gap-1 px-2 py-1 text-xs hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition">
+          <Layout size={14} />
+          Colunas
+        </button>
 
-      {/* --- GRUPO 2: INSERIR (OBJETOS, IMAGENS) --- */}
-      <ToolGroup id="inserir" label="Inserir Objetos" icon={FilePlus}>
-         <ToolBtn 
-            onClick={() => fileInputRef.current?.click()} 
-            disabled={isUploading}
-            icon={isUploading ? Layers : ImageIcon} 
-            label={isUploading ? "..." : "Imagem"} 
-            className={isUploading ? "animate-pulse" : ""}
-         />
-         
-         <ToolBtn onClick={() => editor.chain().focus().setLink({ href: prompt('Link:') || '' }).run()} isActive={editor.isActive('link')} icon={LinkIcon} label="Link" />
-         
-         <ToolBtn onClick={() => insertShape('line')} icon={Minus} label="Linha" />
-         <ToolBtn onClick={() => insertShape('rectangle')} icon={Square} label="Retâng." />
-         <ToolBtn onClick={() => insertShape('circle')} icon={Circle} label="Círculo" />
-      </ToolGroup>
-
-      {/* --- GRUPO 3: PARÁGRAFO & LISTAS --- */}
-      <ToolGroup id="paragrafo" label="Parágrafo" icon={AlignLeft}>
-         <ToolBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} icon={AlignLeft} />
-         <ToolBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} icon={AlignCenter} />
-         <ToolBtn onClick={() => editor.chain().focus().setTextAlign('right').run()} isActive={editor.isActive({ textAlign: 'right' })} icon={AlignRight} />
-         <ToolBtn onClick={() => editor.chain().focus().setTextAlign('justify').run()} isActive={editor.isActive({ textAlign: 'justify' })} icon={AlignJustify} />
-         
-         <div className="col-span-4 h-px bg-gray-200 my-1"></div>
-         
-         <ToolBtn onClick={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive('bulletList')} icon={List} />
-         <ToolBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive('orderedList')} icon={ListOrdered} />
-         <ToolBtn onClick={() => editor.chain().focus().toggleTaskList().run()} isActive={editor.isActive('taskList')} icon={CheckSquare} />
-         <ToolBtn onClick={() => editor.chain().focus().toggleBlockquote().run()} isActive={editor.isActive('blockquote')} icon={Quote} />
-      </ToolGroup>
-
-      {/* --- GRUPO 4: LAYOUT & COLUNAS --- */}
-      <ToolGroup id="layout" label="Layout" icon={Layout}>
-         <div className="col-span-4 grid grid-cols-2 gap-2 mb-3">
-             <button 
-                onClick={() => insertColumns(2)}
-                className="flex items-center justify-center gap-2 p-2 bg-white border hover:border-brand-purple rounded text-xs font-bold transition-all text-gray-600"
-             >
-                <Columns size={14} /> 2 Col.
-             </button>
-             <button 
-                onClick={() => insertColumns(3)}
-                className="flex items-center justify-center gap-2 p-2 bg-white border hover:border-brand-purple rounded text-xs font-bold transition-all text-gray-600"
-             >
-                <Columns size={14} /> 3 Col.
-             </button>
-         </div>
-
-         {/* Tamanho da Página */}
-         <div className="col-span-4 mb-2 px-1">
-            <label className="text-[10px] text-gray-400 uppercase font-bold">Página</label>
-            <select 
-               className="w-full text-xs p-1.5 border rounded mt-1 bg-white"
-               value={pageSettings.size}
-               onChange={(e) => setPageSettings({...pageSettings, size: e.target.value})}
-            >
-               <option value="a4">A4 (Padrão)</option>
-               <option value="letter">Carta</option>
-               <option value="legal">Ofício</option>
-            </select>
-         </div>
+         <button className="flex items-center gap-1 px-2 py-1 text-xs hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition">
+          <ImageIcon size={14} />
+          Mídia
+        </button>
 
          <button 
-            onClick={() => editor.chain().focus().insertContent('<div class="page-break"></div>').run()}
-            className="col-span-4 w-full py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold text-gray-700 flex items-center justify-center gap-2"
-         >
-            <Layers size={14}/> Quebra de Página
-         </button>
-      </ToolGroup>
+            onClick={() => editor.chain().focus().setHorizontalRule().run()}
+            className="flex items-center gap-1 px-2 py-1 text-xs hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition"
+        >
+          <Minus size={14} />
+          Divisor
+        </button>
 
-      {/* --- GRUPO 5: EXPORTAR --- */}
-      <ToolGroup id="exportar" label="Exportar" icon={Download}>
-         <button 
-            onClick={() => onExport('pdf')} 
-            className="col-span-4 flex items-center gap-2 p-2.5 hover:bg-gray-50 text-sm font-bold text-gray-700 rounded transition-colors"
-         >
-            <Printer size={16} /> Salvar como PDF
-         </button>
-      </ToolGroup>
+      </div>
     </div>
   );
-}
+};
+
+const ToolBtn = ({ icon: Icon, onClick, active, disabled, className }: any) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`p-1.5 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors ${active ? 'bg-zinc-200 dark:bg-zinc-700 text-blue-600' : 'text-zinc-600 dark:text-zinc-400'} ${disabled ? 'opacity-30' : ''} ${className}`}
+  >
+    <Icon size={18} />
+  </button>
+);
