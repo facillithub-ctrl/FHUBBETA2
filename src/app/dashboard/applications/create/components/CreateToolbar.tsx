@@ -4,7 +4,7 @@ import { Editor } from '@tiptap/react';
 import { 
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   Image as ImageIcon, Table as TableIcon, Heading1, Heading2, 
-  List, ListOrdered, Undo, Redo, Save
+  List, ListOrdered, Undo, Redo, Save, Check, Type
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -16,15 +16,17 @@ interface ToolbarProps {
 export default function CreateToolbar({ editor, onSave, isSaving }: ToolbarProps) {
   if (!editor) return null;
 
-  const Button = ({ onClick, isActive, icon: Icon, title }: any) => (
+  const Button = ({ onClick, isActive, icon: Icon, title, className = '' }: any) => (
     <button
       onClick={onClick}
       title={title}
-      className={`p-2 rounded hover:bg-gray-100 transition-colors ${
-        isActive ? 'bg-purple-100 text-purple-700' : 'text-gray-600'
-      }`}
+      className={`p-2 rounded-lg transition-all duration-200 ${
+        isActive 
+          ? 'bg-purple-100 text-brand-purple shadow-sm' 
+          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+      } ${className}`}
     >
-      <Icon size={18} />
+      <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
     </button>
   );
 
@@ -38,60 +40,78 @@ export default function CreateToolbar({ editor, onSave, isSaving }: ToolbarProps
   };
 
   return (
-    <div className="w-full bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between sticky top-0 z-40 shadow-sm gap-4 flex-wrap">
+    <div className="w-full max-w-[210mm] mx-auto bg-white/90 backdrop-blur-md border border-gray-200/60 rounded-2xl px-2 py-1.5 flex items-center justify-between shadow-lg shadow-gray-200/50 gap-2 mb-6 sticky top-4 z-40 transition-all">
       
-      {/* Grupo: Histórico */}
-      <div className="flex gap-1 border-r pr-2 border-gray-200">
-        <Button onClick={() => editor.chain().focus().undo().run()} icon={Undo} title="Desfazer" />
-        <Button onClick={() => editor.chain().focus().redo().run()} icon={Redo} title="Refazer" />
+      <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide pr-4">
+        {/* Histórico */}
+        <div className="flex gap-0.5 border-r border-gray-100 pr-1 mr-1">
+          <Button onClick={() => editor.chain().focus().undo().run()} icon={Undo} title="Desfazer" />
+          <Button onClick={() => editor.chain().focus().redo().run()} icon={Redo} title="Refazer" />
+        </div>
+
+        {/* Tipografia Especial (Fontes da Marca) */}
+        <div className="flex gap-1 border-r border-gray-100 pr-2 mr-1">
+           <button
+             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).setFontFamily('Multiara').run()}
+             className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${editor.isActive('heading', { level: 1 }) ? 'bg-purple-100 text-brand-purple' : 'hover:bg-gray-50 text-gray-600'}`}
+           >
+             <span className="font-multiara text-lg">Título</span>
+           </button>
+           <button
+             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).setFontFamily('Dk Lemons').run()}
+             className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${editor.isActive('heading', { level: 2 }) ? 'bg-purple-100 text-brand-purple' : 'hover:bg-gray-50 text-gray-600'}`}
+           >
+             <span className="font-dk-lemons">Subtítulo</span>
+           </button>
+           <button
+             onClick={() => editor.chain().focus().setParagraph().setFontFamily('Letters For Learners').run()}
+             className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${editor.isActive('paragraph') ? 'bg-purple-100 text-brand-purple' : 'hover:bg-gray-50 text-gray-600'}`}
+           >
+             <span className="font-letters font-bold">Texto</span>
+           </button>
+        </div>
+
+        {/* Estilos Básicos */}
+        <div className="flex gap-0.5 border-r border-gray-100 pr-1 mr-1">
+          <Button onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} icon={Bold} />
+          <Button onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} icon={Italic} />
+          <Button onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')} icon={Underline} />
+        </div>
+
+        {/* Alinhamento */}
+        <div className="flex gap-0.5 border-r border-gray-100 pr-1 mr-1 hidden md:flex">
+          <Button onClick={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} icon={AlignLeft} />
+          <Button onClick={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} icon={AlignCenter} />
+          <Button onClick={() => editor.chain().focus().setTextAlign('justify').run()} isActive={editor.isActive({ textAlign: 'justify' })} icon={AlignJustify} />
+        </div>
+
+        {/* Objetos */}
+        <div className="flex gap-0.5">
+           <Button onClick={addImage} icon={ImageIcon} title="Imagem" />
+           <Button onClick={addTable} icon={TableIcon} title="Tabela" />
+        </div>
       </div>
 
-      {/* Grupo: Estilos de Texto */}
-      <div className="flex gap-1 border-r pr-2 border-gray-200">
-        <Button 
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).setFontFamily('Multiara').run()} 
-          isActive={editor.isActive('heading', { level: 1 })}
-          icon={Heading1} 
-          title="Título (Multiara)" 
-        />
-        <Button 
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).setFontFamily('Dk Lemons').run()} 
-          isActive={editor.isActive('heading', { level: 2 })}
-          icon={Heading2} 
-          title="Subtítulo (Dk Lemons)" 
-        />
-        <div className="w-px h-6 bg-gray-200 mx-1 self-center" />
-        <Button onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} icon={Bold} />
-        <Button onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} icon={Italic} />
-        <Button onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')} icon={Underline} />
-      </div>
-
-      {/* Grupo: Alinhamento e Listas */}
-      <div className="flex gap-1 border-r pr-2 border-gray-200">
-        <Button onClick={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} icon={AlignLeft} />
-        <Button onClick={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} icon={AlignCenter} />
-        <Button onClick={() => editor.chain().focus().setTextAlign('right').run()} isActive={editor.isActive({ textAlign: 'right' })} icon={AlignRight} />
-        <Button onClick={() => editor.chain().focus().setTextAlign('justify').run()} isActive={editor.isActive({ textAlign: 'justify' })} icon={AlignJustify} />
-        <div className="w-px h-6 bg-gray-200 mx-1 self-center" />
-        <Button onClick={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive('bulletList')} icon={List} />
-        <Button onClick={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive('orderedList')} icon={ListOrdered} />
-      </div>
-
-      {/* Grupo: Inserir Objetos */}
-      <div className="flex gap-1 border-r pr-2 border-gray-200">
-        <Button onClick={addImage} icon={ImageIcon} title="Inserir Imagem" />
-        <Button onClick={addTable} icon={TableIcon} title="Inserir Tabela" />
-      </div>
-
-      {/* Salvar */}
-      <div className="ml-auto">
+      {/* Ação Principal: Salvar */}
+      <div className="pl-2 border-l border-gray-100">
         <button 
           onClick={onSave} 
           disabled={isSaving}
-          className="flex items-center gap-2 bg-brand-purple hover:bg-purple-800 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm disabled:opacity-50"
+          className={`
+            flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all shadow-md
+            ${isSaving 
+               ? 'bg-gray-100 text-gray-400 cursor-wait' 
+               : 'bg-brand-purple hover:bg-purple-700 text-white hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0'}
+          `}
         >
-          <Save size={16} />
-          {isSaving ? 'Salvando...' : 'Salvar'}
+          {isSaving ? (
+            <>Salvando...</>
+          ) : (
+            <>
+               <Save size={16} /> 
+               <span className="hidden sm:inline">Salvar</span>
+            </>
+          )}
         </button>
       </div>
     </div>
