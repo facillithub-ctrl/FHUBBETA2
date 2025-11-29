@@ -22,7 +22,7 @@ export default async function CreateDashboard() {
     <div className="space-y-10">
       
       {/* Seção de Boas-vindas e Ações Rápidas */}
-      <section className="bg-gradient-to-r from-brand-purple to-purple-800 rounded-3xl p-8 md:p-12 text-white shadow-xl shadow-purple-900/10 relative overflow-hidden">
+      <section className="bg-brand-gradient rounded-3xl p-8 md:p-12 text-white shadow-xl shadow-purple-900/10 relative overflow-hidden">
         {/* Elementos decorativos de fundo */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>

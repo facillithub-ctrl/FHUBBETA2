@@ -15,13 +15,16 @@ export async function createNewDocument() {
     .insert({
       user_id: user.id,
       title: 'Novo Projeto',
-      content_json: {},
+      content_json: {}, // Inicia vazio, o PageCanvas lida com o conteúdo padrão
       page_settings: { size: 'a4', orientation: 'portrait', bgColor: '#ffffff' }
     })
     .select('id')
     .single();
 
-  if (error) throw new Error('Falha ao criar documento');
+  if (error) {
+    console.error('Erro ao criar documento:', error);
+    throw new Error('Falha ao criar documento');
+  }
 
   redirect(`/dashboard/applications/create/${data.id}`);
 }
@@ -38,7 +41,10 @@ export async function saveDocument(id: string, content: any, title: string) {
     })
     .eq('id', id);
 
-  if (error) throw new Error('Falha ao salvar');
+  if (error) {
+    console.error('Erro ao salvar documento:', error);
+    throw new Error('Falha ao salvar');
+  }
   
   revalidatePath(`/dashboard/applications/create/${id}`);
   return { success: true };
@@ -52,12 +58,24 @@ export async function getDocument(id: string) {
     .eq('id', id)
     .single();
 
-  if (error) return null;
+  if (error) {
+    // Retorna null silenciosamente se não encontrar, permitindo tratamento na UI
+    return null;
+  }
   return data;
 }
 
 export async function deleteDocument(id: string) {
     const supabase = await createClient();
-    await supabase.from('facillit_create_documents').delete().eq('id', id);
+    const { error } = await supabase
+        .from('facillit_create_documents')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error('Erro ao deletar:', error);
+        throw new Error('Falha ao excluir documento');
+    }
+
     revalidatePath('/dashboard/applications/create');
 }
