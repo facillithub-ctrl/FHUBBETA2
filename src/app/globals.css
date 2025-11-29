@@ -5,6 +5,30 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Multiara';
+  src: url('/fonts/Multiara.ttf') format('truetype'); /* Ajuste a extensão se for .otf */
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Dk Lemons';
+  src: url('/fonts/DK_Lemons.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Letters For Learners';
+  src: url('/fonts/LettersForLearners.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Configuração Base */
 body {
   @apply bg-brand-light text-dark-text font-inter;

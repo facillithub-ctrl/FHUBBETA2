@@ -39,7 +39,7 @@ const navSections = [
             { href: '/dashboard/applications/games', slug: 'games', icon: Gamepad2, label: 'Games' },
             { href: '/dashboard/applications/connect', slug: 'connect', icon: Users, label: 'Connect' },
             { href: '/dashboard/applications/task', slug: 'task', icon: CheckSquare, label: 'Tarefas' },
-            { href: '/dashboard/applications/create', slug: 'create', icon: Lightbulb, label: 'Studio', badge: 'Beta' },
+            { href: '/dashboard/applications/create', slug: 'create', icon: Lightbulb, label: 'Create', badge: 'Beta' },
         ]
     },
     {

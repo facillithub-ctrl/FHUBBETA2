@@ -25,9 +25,14 @@ const config: Config = {
         'dark-background': '#111114',
         'dark-card': '#1A1A1D',
         'dark-border': '#2c2c31',
+        'paper': '#fdfbf7',
+        
       },
       fontFamily: {
         inter: ['Inter', 'sans-serif'],
+        'multiara': ['var(--font-multiara)', 'cursive'],
+        'dk-lemons': ['var(--font-dk-lemons)', 'sans-serif'],
+        'letters': ['var(--font-letters)', 'sans-serif'],
       },
       backgroundImage: {
         'brand-gradient': 'linear-gradient(135deg, #42047e 0%, #07f49e 100%)',
