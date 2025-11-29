@@ -2,28 +2,43 @@
 
 import { createLibraryServerClient } from '@/lib/librarySupabase';
 
+// Tipagem forte para garantir que o front não quebre
 export interface OfficialContent {
   id: string;
   title: string;
   description: string;
   content_type: 'book' | 'article' | 'video' | 'slide';
-  cover_image: string;
-  author: string;
-  subject: string;
+  cover_image: string | null;
+  author: string | null;
+  subject: string | null;
   url: string;
-  vertical?: string;
+  created_at: string;
 }
 
-export async function getDiscoverContent() {
+export interface DiscoverData {
+  featured: OfficialContent[];
+  math: OfficialContent[];
+  literature: OfficialContent[];
+  science: OfficialContent[];
+}
+
+export async function getDiscoverContent(): Promise<DiscoverData> {
   try {
     const libDb = createLibraryServerClient();
 
-    // Queries
+    // Executa todas as queries em paralelo para ser rápido
     const [featured, math, literature, science] = await Promise.all([
+      // Destaques: últimos 5 adicionados
       libDb.from('official_contents').select('*').order('created_at', { ascending: false }).limit(5),
-      libDb.from('official_contents').select('*').eq('subject', 'Matemática').limit(4),
-      libDb.from('official_contents').select('*').eq('subject', 'Literatura').limit(4),
-      libDb.from('official_contents').select('*').in('subject', ['Biologia', 'Física', 'Química']).limit(4)
+      
+      // Matemática
+      libDb.from('official_contents').select('*').eq('subject', 'Matemática').limit(6),
+      
+      // Literatura
+      libDb.from('official_contents').select('*').eq('subject', 'Literatura').limit(6),
+      
+      // Ciências (Biologia, Física, Química)
+      libDb.from('official_contents').select('*').in('subject', ['Biologia', 'Física', 'Química', 'Ciências']).limit(6)
     ]);
 
     return {
@@ -33,13 +48,7 @@ export async function getDiscoverContent() {
       science: (science.data as OfficialContent[]) || []
     };
   } catch (error) {
-    console.error('Erro ao carregar Library:', error);
-    // Retorna vazio para não quebrar a tela
-    return {
-      featured: [],
-      math: [],
-      literature: [],
-      science: []
-    };
+    console.error('Erro ao carregar Library Discover:', error);
+    return { featured: [], math: [], literature: [], science: [] };
   }
 }

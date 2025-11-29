@@ -13,14 +13,21 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
-      // Configuração correta para o Supabase Storage
+      // Configuração do Supabase Principal (Auth/App)
       {
         protocol: 'https',
         hostname: 'dcwmqivwwfzlixquspah.supabase.co',
         port: '',
         pathname: '/storage/v1/object/public/**',
       },
-      // --- ADICIONADO: Configuração para o Sanity ---
+      // --- CORREÇÃO: Adicionado o hostname do Supabase Library ---
+      {
+        protocol: 'https',
+        hostname: 'xtwlxqdnrsnsrzhgyxvo.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+      // Configuração para o Sanity
       {
         protocol: 'https',
         hostname: 'cdn.sanity.io',

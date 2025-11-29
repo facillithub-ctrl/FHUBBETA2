@@ -11,36 +11,35 @@ export default async function LibraryPage() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) redirect('/login');
 
-  // --- LÓGICA BLINDADA DE VERIFICAÇÃO DE ROLE ---
+  // --- CORREÇÃO DA LÓGICA DE CARGO ---
   
-  // 1. Prioridade: Metadados do Auth (Carrega instantâneo, sem query extra)
-  let rawRole = user.user_metadata?.role || user.user_metadata?.cargo || user.app_metadata?.role;
+  // 1. Buscamos SEMPRE o perfil no banco para garantir a informação correta.
+  // O erro anterior era tentar pegar 'role' (que não existe) ou confiar só no metadata 'student'.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('user_category') // AQUI ESTAVA O ERRO: mudado de 'role' para 'user_category'
+    .eq('id', user.id)
+    .single();
 
-  // 2. Fallback: Se não tiver no Auth, busca na tabela profiles
-  if (!rawRole) {
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      rawRole = profile?.role;
-    } catch (e) {
-      console.error('Erro ao buscar perfil:', e);
-    }
+  // 2. Normaliza o valor vindo do banco (ou usa fallback seguro)
+  let userCategory = profile?.user_category;
+
+  // Se não veio do banco, tentamos metadata como último recurso
+  if (!userCategory) {
+     userCategory = user.user_metadata?.role || user.user_metadata?.cargo || 'student';
   }
 
-  // 3. Normalização (Remove espaços e converte para minúsculo)
-  const userRole = rawRole ? String(rawRole).trim().toLowerCase() : 'student';
+  // 3. Normalização
+  const finalCategory = String(userCategory).trim().toLowerCase();
 
   // 4. Lista de permissões de professor
-  const teacherRoles = ['teacher', 'professor', 'admin', 'educator', 'coordenador', 'master'];
-  const isTeacher = teacherRoles.includes(userRole);
+  const teacherRoles = ['teacher', 'professor', 'admin', 'educator', 'coordenador', 'master', 'diretor', 'gestor'];
+  const isTeacher = teacherRoles.includes(finalCategory);
 
-  // Debug no servidor (Aparecerá no seu terminal onde roda o npm run dev)
-  console.log(`[Library Auth] Email: ${user.email} | Role detectada: "${userRole}" | É Professor? ${isTeacher ? 'SIM' : 'NÃO'}`);
+  // Debug (para confirmar no terminal)
+  console.log(`[Library] User: ${user.email} | DB Category: ${profile?.user_category} | Final: ${finalCategory} | isTeacher: ${isTeacher}`);
 
-  // Busca dados iniciais (apenas se for aluno, para economizar recursos)
+  // Carrega conteúdo inicial apenas se for aluno
   const initialDiscoverData = !isTeacher ? await getDiscoverContent() : null;
 
   return (

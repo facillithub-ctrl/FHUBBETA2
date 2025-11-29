@@ -3,34 +3,62 @@
 import { useState, useEffect } from 'react';
 import LearningGPS from '@/components/learning-gps/LearningGPS';
 import PublishContentModal from './PublishContentModal';
-import { createLibraryServerClient } from '@/lib/librarySupabase'; // Usaremos client-side aqui para lista rápida
 import Image from 'next/image';
+import { getTeacherDashboardData, getOfficialContentsList, type TeacherStats, type RecentActivityItem } from '../actions';
+
+// Utilitário de tempo relativo
+const timeAgo = (dateString: string) => {
+    const diff = Date.now() - new Date(dateString).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (minutes < 60) return `${minutes} min atrás`;
+    if (hours < 24) return `${hours} h atrás`;
+    return `${days} dias atrás`;
+};
 
 export default function TeacherLibraryDashboard({ user }: { user: any }) {
   const [activeTab, setActiveTab] = useState<'overview' | 'content'>('overview');
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  
+  // Estados de Dados Reais
+  const [stats, setStats] = useState<TeacherStats | null>(null);
+  const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
   const [publishedItems, setPublishedItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Carregar conteúdos publicados (Simulação de fetch real)
+  // Carregar dados iniciais da Visão Geral
   useEffect(() => {
-    async function fetchMyContent() {
+    async function loadStats() {
+        if (activeTab === 'overview' && !stats) {
+            try {
+                const data = await getTeacherDashboardData();
+                setStats(data.stats);
+                setRecentActivity(data.recentActivity);
+            } catch (e) {
+                console.error("Erro ao carregar stats do professor", e);
+            }
+        }
+    }
+    loadStats();
+  }, [activeTab, stats]);
+
+  // Carregar lista de conteúdos ao trocar de aba
+  useEffect(() => {
+    async function loadContent() {
       if (activeTab === 'content') {
         setLoading(true);
-        // Em um cenário real, filtraríamos pelo ID do professor. 
-        // Aqui pegamos os últimos oficiais para demonstração.
-        const libDb = createLibraryServerClient();
-        const { data } = await libDb
-          .from('official_contents')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(10);
-        
-        setPublishedItems(data || []);
+        try {
+          const items = await getOfficialContentsList();
+          setPublishedItems(items);
+        } catch (e) {
+          console.error("Erro ao listar conteúdos", e);
+        }
         setLoading(false);
       }
     }
-    fetchMyContent();
+    loadContent();
   }, [activeTab]);
 
   return (
@@ -82,49 +110,75 @@ export default function TeacherLibraryDashboard({ user }: { user: any }) {
                  <i className="fas fa-chalkboard-teacher text-9xl absolute -right-4 -bottom-4 opacity-10 rotate-12"></i>
               </div>
 
-              {/* Métricas Rápidas */}
+              {/* Métricas Reais */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <StatCard icon="fa-book-open" label="Conteúdos Ativos" value="24" color="text-blue-600 bg-blue-50" />
-                <StatCard icon="fa-eye" label="Visualizações Totais" value="1.2k" color="text-green-600 bg-green-50" />
-                <StatCard icon="fa-download" label="Downloads" value="450" color="text-purple-600 bg-purple-50" />
-                <StatCard icon="fa-users" label="Alunos Engajados" value="92%" color="text-yellow-600 bg-yellow-50" />
+                <StatCard 
+                    icon="fa-book-open" 
+                    label="Conteúdos Ativos" 
+                    value={stats?.activeContents ?? '-'} 
+                    color="text-blue-600 bg-blue-50" 
+                />
+                <StatCard 
+                    icon="fa-eye" 
+                    label="Visualizações Totais" 
+                    value={stats?.totalViews ?? '-'} 
+                    color="text-green-600 bg-green-50" 
+                />
+                <StatCard 
+                    icon="fa-check-circle" 
+                    label="Leituras Concluídas" 
+                    value={stats?.totalDownloads ?? '-'} 
+                    color="text-purple-600 bg-purple-50" 
+                />
+                <StatCard 
+                    icon="fa-users" 
+                    label="Alunos Engajados" 
+                    value={stats?.engagedStudents ?? '-'} 
+                    color="text-yellow-600 bg-yellow-50" 
+                />
               </div>
 
-              {/* Lista de Atividade Recente (Placeholder) */}
+              {/* Lista de Atividade Recente Real */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 className="font-bold text-gray-800 mb-4">Atividade Recente da Turma</h3>
                 <div className="space-y-4">
-                    {[1,2,3].map(i => (
-                        <div key={i} className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-lg transition-colors border-b border-gray-50 last:border-0">
-                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
-                                <i className="fas fa-user"></i>
+                    {recentActivity.length > 0 ? recentActivity.map((activity) => (
+                        <div key={activity.id} className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded-lg transition-colors border-b border-gray-50 last:border-0">
+                            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-xs">
+                                {activity.studentName.charAt(0)}
                             </div>
                             <div className="flex-1">
-                                <p className="text-sm text-gray-800"><b>Aluno Exemplo {i}</b> completou a leitura de "História da Arte".</p>
-                                <p className="text-xs text-gray-400">Há {i * 15} minutos</p>
+                                <p className="text-sm text-gray-800">
+                                    <b>{activity.studentName}</b> {activity.action} <span className="italic">"{activity.contentTitle}"</span>.
+                                </p>
+                                <p className="text-xs text-gray-400">{timeAgo(activity.time)}</p>
                             </div>
                         </div>
-                    ))}
+                    )) : (
+                        <p className="text-gray-400 text-sm py-4">Nenhuma atividade recente registrada.</p>
+                    )}
                 </div>
               </div>
            </div>
         )}
 
-        {/* ABA: GERENCIAR CONTEÚDOS */}
+        {/* ABA: GERENCIAR CONTEÚDOS (Lista Real) */}
         {activeTab === 'content' && (
            <div className="animate-fade-in space-y-6">
               <div className="flex justify-between items-center">
                   <h3 className="text-xl font-bold text-gray-800">Meus Materiais Publicados</h3>
                   <div className="flex gap-2">
-                      <input type="text" placeholder="Buscar..." className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-royal-blue" />
-                      <button onClick={() => setIsPublishModalOpen(true)} className="bg-royal-blue text-white w-8 h-8 rounded-lg flex items-center justify-center hover:bg-blue-700">
-                          <i className="fas fa-plus"></i>
+                      <button onClick={() => setIsPublishModalOpen(true)} className="bg-royal-blue text-white px-4 py-2 rounded-lg flex items-center justify-center hover:bg-blue-700 gap-2 text-sm font-bold">
+                          <i className="fas fa-plus"></i> Novo Conteúdo
                       </button>
                   </div>
               </div>
 
               {loading ? (
-                  <div className="text-center py-20 text-gray-400">Carregando seus materiais...</div>
+                  <div className="text-center py-20 text-gray-400">
+                      <i className="fas fa-circle-notch fa-spin text-2xl mb-2"></i>
+                      <p>Carregando repositório...</p>
+                  </div>
               ) : (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                     <table className="w-full text-left">
@@ -142,14 +196,14 @@ export default function TeacherLibraryDashboard({ user }: { user: any }) {
                         <tr key={item.id} className="hover:bg-gray-50 transition-colors group">
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded bg-gray-100 relative overflow-hidden flex-shrink-0">
-                                        {item.cover_image ? (
-                                            <Image src={item.cover_image} alt="" fill className="object-cover" />
+                                    <div className="w-10 h-10 rounded bg-gray-100 relative overflow-hidden flex-shrink-0 border border-gray-200">
+                                        {item.cover_image || (item.content_type === 'book' ? null : null) ? (
+                                            <Image src={item.cover_image || '/file.svg'} alt="" fill className="object-cover" />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-gray-400"><i className="fas fa-file"></i></div>
+                                            <div className="w-full h-full flex items-center justify-center text-gray-400"><i className={`fas fa-${item.content_type === 'video' ? 'play' : 'file-alt'}`}></i></div>
                                         )}
                                     </div>
-                                    <span className="font-medium text-gray-900 line-clamp-1">{item.title}</span>
+                                    <span className="font-medium text-gray-900 line-clamp-1 max-w-[200px]" title={item.title}>{item.title}</span>
                                 </div>
                             </td>
                             <td className="px-6 py-4">
@@ -169,7 +223,7 @@ export default function TeacherLibraryDashboard({ user }: { user: any }) {
                         )) : (
                             <tr>
                                 <td colSpan={5} className="px-6 py-12 text-center text-gray-400">
-                                    Nenhum conteúdo encontrado.
+                                    Nenhum conteúdo encontrado. Publique o primeiro!
                                 </td>
                             </tr>
                         )}
@@ -188,7 +242,6 @@ export default function TeacherLibraryDashboard({ user }: { user: any }) {
   );
 }
 
-// Subcomponente de Estatística
 const StatCard = ({ icon, label, value, color }: any) => (
     <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
       <div className={`w-12 h-12 rounded-lg ${color} flex items-center justify-center text-xl`}>

@@ -1,9 +1,10 @@
 'use server'
 
-import { createLibraryServerClient } from '@/lib/librarySupabase';
-import createClient from '@/utils/supabase/server'; // Importação default corrigida
+import { createLibraryServerClient, createLibraryAdminClient } from '@/lib/librarySupabase';
+import createClient from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 
+// --- Interfaces ---
 export interface RepositoryItem {
   id: string;
   title: string;
@@ -13,7 +14,34 @@ export interface RepositoryItem {
   size?: string;
 }
 
-// --- Ações do Repositório do Usuário (Modo 2) ---
+export interface TeacherStats {
+  activeContents: number;
+  totalViews: number;
+  totalDownloads: number;
+  engagedStudents: number;
+}
+
+export interface RecentActivityItem {
+  id: string;
+  studentName: string;
+  action: string;
+  time: string;
+  contentTitle: string;
+}
+
+export interface LibraryInsights {
+  booksRead: number;
+  totalXP: number;
+  currentLevel: number;
+  nextLevelXP: number;
+  streakDays: number;
+  favoriteCategory: string;
+  recentActivity: { date: string; count: number }[];
+}
+
+// ==============================================================================
+// 1. AÇÕES DO ALUNO (Repositório Pessoal / Drive)
+// ==============================================================================
 
 export async function getUserRepository(folderId: string | null = null) {
   const authClient = await createClient();
@@ -58,69 +86,172 @@ export async function createFolder(name: string, parentId: string | null) {
   revalidatePath('/dashboard/applications/library');
 }
 
-// --- Ações do Professor (Publicação) ---
-// ESTA É A FUNÇÃO QUE ESTAVA FALTANDO E CAUSOU O ERRO
+// ==============================================================================
+// 2. AÇÕES DO PROFESSOR (Publicação de Conteúdo Oficial)
+// ==============================================================================
 
 export async function publishOfficialContent(formData: FormData) {
-  const title = formData.get('title') as string;
-  const description = formData.get('description') as string;
-  const subject = formData.get('subject') as string;
-  const type = formData.get('type') as string;
-  const file = formData.get('file') as File;
-
-  const libDb = createLibraryServerClient();
-
-  // 1. Upload do Arquivo (Storage)
-  // Certifique-se de ter criado o bucket 'library-official' no seu Supabase
-  const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
+  const authClient = await createClient();
+  const { data: { user } } = await authClient.auth.getUser();
   
-  const { data: uploadData, error: uploadError } = await libDb
-    .storage
-    .from('library-official')
-    .upload(fileName, file);
+  if (!user) throw new Error('Unauthorized');
 
-  if (uploadError) {
-    console.error('Erro upload:', uploadError);
-    throw new Error('Falha no upload do arquivo');
+  // Extração dos dados do formulário
+  const title = (formData.get('title') as string) || 'Sem Título';
+  const description = (formData.get('description') as string) || '';
+  const subject = (formData.get('subject') as string) || 'Geral';
+  const type = (formData.get('type') as string) || 'book';
+  const author = (formData.get('author') as string) || 'FHub Oficial';
+  
+  const file = formData.get('file') as File;
+  const coverFile = formData.get('cover') as File;
+
+  if (!file || file.size === 0) {
+    throw new Error('Arquivo principal obrigatório.');
   }
 
-  // 2. Gerar URL pública
-  const { data: { publicUrl } } = libDb
+  // IMPORTANTE: Usamos o cliente ADMIN para permissão de escrita no Storage
+  const libDb = createLibraryAdminClient();
+
+  // --- A. Upload do Arquivo Principal ---
+  const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '');
+  const fileName = `${Date.now()}-${cleanName}`;
+  const fileBuffer = Buffer.from(await file.arrayBuffer());
+
+  const { error: uploadError } = await libDb
+    .storage
+    .from('library-official')
+    .upload(fileName, fileBuffer, {
+      contentType: file.type,
+      upsert: false
+    });
+
+  if (uploadError) {
+    console.error('Erro detalhado do upload:', uploadError);
+    throw new Error(`Falha no upload: ${uploadError.message}`);
+  }
+
+  const { data: { publicUrl: fileUrl } } = libDb
     .storage
     .from('library-official')
     .getPublicUrl(fileName);
 
-  // 3. Salvar metadados no banco
+  // --- B. Upload da Capa (Opcional) ---
+  let coverUrl = null;
+  if (coverFile && coverFile.size > 0) {
+    const cleanCoverName = coverFile.name.replace(/[^a-zA-Z0-9.-]/g, '');
+    const coverName = `covers/${Date.now()}-${cleanCoverName}`;
+    const coverBuffer = Buffer.from(await coverFile.arrayBuffer());
+
+    const { error: coverError } = await libDb.storage
+      .from('library-official')
+      .upload(coverName, coverBuffer, {
+        contentType: coverFile.type,
+        upsert: false
+      });
+    
+    if (!coverError) {
+      const { data } = libDb.storage.from('library-official').getPublicUrl(coverName);
+      coverUrl = data.publicUrl;
+    }
+  }
+
+  // --- C. Salvar Metadados no Banco ---
   const { error: dbError } = await libDb.from('official_contents').insert({
     title,
     description,
     subject,
     content_type: type,
-    url: publicUrl,
-    metadata: { size: file.size, original_name: file.name }
+    url: fileUrl,
+    cover_image: coverUrl,
+    author: author,
+    metadata: { 
+      size: file.size, 
+      original_name: file.name,
+      author_id: user.id 
+    }
   });
 
   if (dbError) {
-    console.error('Erro banco:', dbError);
-    throw new Error('Erro ao salvar no banco de dados');
+    console.error('Erro ao salvar no banco:', dbError);
+    // Limpeza: remove o arquivo se falhar no banco para não deixar lixo
+    await libDb.storage.from('library-official').remove([fileName]);
+    throw new Error('Erro ao salvar registro no banco de dados');
   }
 
   revalidatePath('/dashboard/applications/library');
 }
-// --- INTERFACE PARA INSIGHTS ---
-export interface LibraryInsights {
-  booksRead: number;
-  totalXP: number;
-  currentLevel: number;
-  nextLevelXP: number;
-  streakDays: number;
-  favoriteCategory: string;
-  recentActivity: { date: string; count: number }[];
+
+export async function getTeacherDashboardData() {
+  const libDb = createLibraryServerClient(); 
+  const authClient = await createClient();
+
+  // 1. Estatísticas
+  const [contentsRes, progressRes] = await Promise.all([
+    libDb.from('official_contents').select('id', { count: 'exact' }),
+    libDb.from('user_library_progress').select('user_id, status')
+  ]);
+
+  const totalContents = contentsRes.count || 0;
+  const allProgress = progressRes.data || [];
+
+  const uniqueStudents = new Set(allProgress.map(p => p.user_id)).size;
+  const totalCompleted = allProgress.filter(p => p.status === 'completed').length;
+
+  const stats: TeacherStats = {
+    activeContents: totalContents,
+    totalViews: allProgress.length,
+    totalDownloads: totalCompleted,
+    engagedStudents: uniqueStudents
+  };
+
+  // 2. Atividade Recente (Cross-Database Join)
+  const { data: recentProgress } = await libDb
+    .from('user_library_progress')
+    .select('created_at, user_id, status, official_contents(title)')
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  let recentActivity: RecentActivityItem[] = [];
+
+  if (recentProgress && recentProgress.length > 0) {
+    const userIds = recentProgress.map(p => p.user_id);
+    
+    // Busca nomes no banco de Auth/Profiles
+    const { data: profiles } = await authClient
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', userIds);
+    
+    const profileMap: Record<string, string> = {};
+    profiles?.forEach(p => { profileMap[p.id] = p.full_name || 'Aluno'; });
+
+    recentActivity = recentProgress.map((item: any) => ({
+      id: item.created_at + item.user_id,
+      studentName: profileMap[item.user_id] || 'Aluno Desconhecido',
+      action: item.status === 'completed' ? 'concluiu' : 'iniciou',
+      time: item.created_at,
+      contentTitle: item.official_contents?.title || 'Conteúdo'
+    }));
+  }
+
+  return { stats, recentActivity };
 }
 
-// Função auxiliar para calcular nível (Logarítmica: Níveis ficam mais difíceis)
+export async function getOfficialContentsList() {
+    const libDb = createLibraryServerClient();
+    const { data } = await libDb
+        .from('official_contents')
+        .select('*')
+        .order('created_at', { ascending: false });
+    return data || [];
+}
+
+// ==============================================================================
+// 3. GAMIFICATION & INSIGHTS DO ALUNO
+// ==============================================================================
+
 function calculateLevel(xp: number) {
-  // Fórmula: Level = raiz quadrada de (XP / 100). Ex: 100xp = Lvl 1, 400xp = Lvl 2, 900xp = Lvl 3
   const level = Math.floor(Math.sqrt(xp / 100));
   return level < 1 ? 1 : level;
 }
@@ -133,7 +264,6 @@ export async function getStudentInsights(): Promise<LibraryInsights> {
 
   const libDb = createLibraryServerClient();
 
-  // 1. Buscar todo o histórico de progresso do aluno
   const { data: progress } = await libDb
     .from('user_library_progress')
     .select(`
@@ -156,15 +286,11 @@ export async function getStudentInsights(): Promise<LibraryInsights> {
     };
   }
 
-  // 2. Calcular Estatísticas Reais
   const booksRead = progress.filter(p => p.status === 'completed').length;
-  
   const totalXP = progress.reduce((acc, curr) => acc + (curr.xp_earned || 0), 0);
   const currentLevel = calculateLevel(totalXP);
-  // XP necessário para o próximo nível: ((Level + 1)^2) * 100
   const nextLevelXP = Math.pow(currentLevel + 1, 2) * 100;
 
-  // 3. Calcular Categoria Favorita (Moda)
   const subjects: Record<string, number> = {};
   progress.forEach(p => {
     // @ts-ignore
@@ -173,51 +299,49 @@ export async function getStudentInsights(): Promise<LibraryInsights> {
   });
   const favoriteCategory = Object.keys(subjects).reduce((a, b) => subjects[a] > subjects[b] ? a : b, 'Variados');
 
-  // 4. Calcular Streak (Sequência de dias)
-  // Simplificação: Verifica se leu hoje ou ontem para manter o streak
-  const today = new Date().toISOString().split('T')[0];
-  const datesRead = progress.map(p => p.last_read_at?.split('T')[0]).sort().reverse();
-  
-  let streak = 0;
-  // Lógica complexa de streak omitida para brevidade, retornando mock funcional baseado na atividade recente
-  if (datesRead.includes(today)) streak = 1;
-
   return {
     booksRead,
     totalXP,
     currentLevel,
     nextLevelXP,
-    streakDays: streak + (booksRead > 0 ? booksRead : 0), // Exemplo: Soma livros lidos ao streak como bônus
+    streakDays: booksRead > 0 ? 1 : 0, // Mock simples de streak
     favoriteCategory,
-    recentActivity: [] // Pode ser preenchido se quiser um gráfico de linha do tempo
+    recentActivity: []
   };
 }
 
-// Função para MARCAR COMO LIDO (Ganha XP)
+// ==============================================================================
+// 4. REGISTRAR CONCLUSÃO E GANHAR XP
+// ==============================================================================
+
 export async function completeContent(contentId: string) {
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return;
 
   const libDb = createLibraryServerClient();
-  const xpReward = 150; // XP por livro lido
+  const xpReward = 150; // XP por conclusão
 
-  // Verifica se já existe
+  // Verifica se já leu para não duplicar XP infinito
   const { data: existing } = await libDb
     .from('user_library_progress')
-    .select('id')
+    .select('id, status')
     .eq('user_id', user.id)
     .eq('content_id', contentId)
     .single();
 
   if (existing) {
-    await libDb.from('user_library_progress').update({
-      status: 'completed',
-      progress_percentage: 100,
-      xp_earned: xpReward,
-      last_read_at: new Date().toISOString()
-    }).eq('id', existing.id);
+    // Se já existia, só atualiza se não estava completo
+    if (existing.status !== 'completed') {
+        await libDb.from('user_library_progress').update({
+          status: 'completed',
+          progress_percentage: 100,
+          xp_earned: xpReward,
+          last_read_at: new Date().toISOString()
+        }).eq('id', existing.id);
+    }
   } else {
+    // Se é a primeira vez
     await libDb.from('user_library_progress').insert({
       user_id: user.id,
       content_id: contentId,
