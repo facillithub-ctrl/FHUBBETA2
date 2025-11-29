@@ -2,14 +2,14 @@
 
 import { Editor } from '@tiptap/react';
 import { 
-  Type, Palette, Layout, FilePlus, Image as ImageIcon, 
+  Type, Palette, Layout, Image as ImageIcon, 
   Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, CheckSquare, Quote, Link as LinkIcon, 
-  Undo, Redo, Download, Printer, Settings, Layers, 
+  Undo, Redo, Download, Printer, Layers, FilePlus, 
   Subscript, Superscript, ChevronDown, ChevronRight, Square, Circle, Minus,
-  Save, Minimize, Maximize
+  Save, Columns, MoreHorizontal
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -26,7 +26,6 @@ export default function CreateToolbar({ editor, onSave, isSaving, onExport, page
   const [activeGroup, setActiveGroup] = useState<string | null>('texto');
   const [showColorPicker, setShowColorPicker] = useState<'text' | 'highlight' | null>(null);
 
-  // Lógica de grupos (Accordion)
   const toggleGroup = (group: string) => {
     setActiveGroup(activeGroup === group ? null : group);
   };
@@ -42,19 +41,25 @@ export default function CreateToolbar({ editor, onSave, isSaving, onExport, page
     }
   };
 
-  const insertShape = (shape: 'rectangle' | 'circle' | 'line') => {
-    if (shape === 'line') {
-      editor.chain().focus().setHorizontalRule().run();
-    } else {
-      editor.chain().focus().insertContent({
-        type: 'shape',
-        attrs: { type: shape, width: '100px', height: '100px', color: '#e5e7eb' }
-      }).run();
-    }
+  const insertShape = (type: 'rectangle' | 'circle') => {
+    editor.chain().focus().insertContent({
+      type: 'shape',
+      attrs: { type, width: '100px', height: '100px', color: '#e5e7eb' }
+    }).run();
   };
 
   const addPageBreak = () => {
     editor.chain().focus().insertContent('<div class="page-break"></div>').run();
+  };
+
+  const insertColumns = (cols: number) => {
+    editor.chain().focus().insertTable({ rows: 1, cols: cols, withHeaderRow: false }).run();
+  };
+
+  const updateShapeColor = (color: string) => {
+    if (editor.isActive('shape')) {
+      editor.chain().focus().updateAttributes('shape', { color }).run();
+    }
   };
 
   // Componente de Grupo Accordion
@@ -144,7 +149,7 @@ export default function CreateToolbar({ editor, onSave, isSaving, onExport, page
          
          {/* Cores */}
          <div className="col-span-2 relative">
-            <button onClick={() => setShowColorPicker(showColorPicker === 'text' ? null : 'text')} className="w-full flex items-center justify-center gap-1 p-1 bg-white border rounded text-xs">
+            <button onClick={() => setShowColorPicker(showColorPicker === 'text' ? null : 'text')} className="w-full flex items-center justify-center gap-1 p-1 bg-white border rounded text-xs h-8">
                <Palette size={12}/> Texto
             </button>
             {showColorPicker === 'text' && (
@@ -157,7 +162,7 @@ export default function CreateToolbar({ editor, onSave, isSaving, onExport, page
             )}
          </div>
          <div className="col-span-2 relative">
-            <button onClick={() => setShowColorPicker(showColorPicker === 'highlight' ? null : 'highlight')} className="w-full flex items-center justify-center gap-1 p-1 bg-white border rounded text-xs">
+            <button onClick={() => setShowColorPicker(showColorPicker === 'highlight' ? null : 'highlight')} className="w-full flex items-center justify-center gap-1 p-1 bg-white border rounded text-xs h-8">
                <div className="w-3 h-3 bg-yellow-200 rounded-sm"></div> Realce
             </button>
             {showColorPicker === 'highlight' && (
@@ -195,7 +200,7 @@ export default function CreateToolbar({ editor, onSave, isSaving, onExport, page
          
          <ToolBtn onClick={() => editor.chain().focus().setLink({ href: prompt('Link:') || '' }).run()} isActive={editor.isActive('link')} icon={LinkIcon} label="Link" />
          
-         <ToolBtn onClick={() => insertShape('line')} icon={Minus} label="Linha" />
+         <ToolBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} icon={Minus} label="Linha" />
          <ToolBtn onClick={() => insertShape('rectangle')} icon={Square} label="Retâng." />
          <ToolBtn onClick={() => insertShape('circle')} icon={Circle} label="Círculo" />
       </ToolGroup>
@@ -227,6 +232,14 @@ export default function CreateToolbar({ editor, onSave, isSaving, onExport, page
                   <option value="wide">Larga</option>
                </select>
             </div>
+            
+            <label className="text-[10px] font-bold text-gray-400 mt-2 block">COLUNAS</label>
+            <div className="flex gap-1">
+               <button onClick={() => insertColumns(1)} className="flex-1 p-1 border rounded hover:bg-gray-50 text-xs">1 Col</button>
+               <button onClick={() => insertColumns(2)} className="flex-1 p-1 border rounded hover:bg-gray-50 text-xs">2 Cols</button>
+               <button onClick={() => insertColumns(3)} className="flex-1 p-1 border rounded hover:bg-gray-50 text-xs">3 Cols</button>
+            </div>
+
             <button 
                onClick={addPageBreak}
                className="w-full py-2 bg-gray-100 hover:bg-gray-200 rounded text-xs font-bold text-gray-700 flex items-center justify-center gap-2 mt-2"
@@ -234,6 +247,19 @@ export default function CreateToolbar({ editor, onSave, isSaving, onExport, page
                <Layers size={14}/> Nova Página
             </button>
          </div>
+
+         {/* Editor de Cor da Forma */}
+         {editor.isActive('shape') && (
+           <div className="col-span-4 bg-purple-50 p-2 rounded border border-purple-100 mt-2">
+              <label className="text-[9px] font-bold text-brand-purple uppercase block mb-1">Cor da Forma</label>
+              <div className="flex gap-1 flex-wrap">
+                 {['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#e5e7eb', '#000'].map(c => (
+                    <button key={c} onClick={() => updateShapeColor(c)} className="w-5 h-5 rounded-full border border-gray-300" style={{background: c}} />
+                 ))}
+                 <input type="color" onChange={(e) => updateShapeColor(e.target.value)} className="w-5 h-5 p-0 border-0 rounded-full overflow-hidden" />
+              </div>
+           </div>
+         )}
       </ToolGroup>
 
       {/* --- GRUPO 5: EXPORTAR --- */}

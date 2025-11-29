@@ -3,7 +3,7 @@
 import { BubbleMenu, Editor } from '@tiptap/react';
 import { 
   Bold, Italic, Underline, Link as LinkIcon, 
-  Highlighter, Sparkles, PaintBucket, Trash2, X, Check
+  Highlighter, Sparkles, X, Check
 } from 'lucide-react';
 import { useState } from 'react';
 

@@ -105,4 +105,4 @@ export const ShapeExtension = Node.create({
   addNodeView() {
     return ReactNodeViewRenderer(ShapeComponent);
   },
-});
+}); 

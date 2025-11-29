@@ -78,4 +78,4 @@ export async function deleteDocument(id: string) {
     }
 
     revalidatePath('/dashboard/applications/create');
-}
+}   

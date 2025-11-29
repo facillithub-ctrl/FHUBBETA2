@@ -3,7 +3,7 @@
 import { useEditor, EditorContent, Extension } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 
-// --- IMPORTAÇÃO DE TODAS AS EXTENSÕES NECESSÁRIAS ---
+// --- IMPORTAÇÃO COMPLETA DAS EXTENSÕES ---
 import { Image } from '@tiptap/extension-image';
 import { Youtube } from '@tiptap/extension-youtube';
 import { Table } from '@tiptap/extension-table';
@@ -23,132 +23,105 @@ import { TaskItem } from '@tiptap/extension-task-item';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { Subscript } from '@tiptap/extension-subscript';
 import { Superscript } from '@tiptap/extension-superscript';
+import { ShapeExtension } from '../extensions/ShapeExtension';
 
 import { useState, useEffect } from 'react';
 import CreateToolbar from './CreateToolbar';
 import Ruler from './Ruler';
 import { saveDocument } from '../actions';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, Cloud } from 'lucide-react';
+import { ArrowLeft, Cloud, CheckCircle2, Menu, AlertCircle, X } from 'lucide-react';
 
-// --- EXTENSÃO CUSTOMIZADA PARA TAMANHO DA FONTE (ESSENCIAL) ---
+// --- EXTENSÃO CUSTOMIZADA PARA TAMANHO DA FONTE ---
 const FontSize = Extension.create({
   name: 'fontSize',
-  addOptions() {
-    return {
-      types: ['textStyle'],
-    };
-  },
+  addOptions() { return { types: ['textStyle'] }; },
   addGlobalAttributes() {
-    return [
-      {
-        types: this.options.types,
-        attributes: {
-          fontSize: {
-            default: null,
-            parseHTML: element => element.style.fontSize.replace(/['"]+/g, ''),
-            renderHTML: attributes => {
-              if (!attributes.fontSize) return {};
-              return { style: `font-size: ${attributes.fontSize}` };
-            },
+    return [{
+      types: this.options.types,
+      attributes: {
+        fontSize: {
+          default: null,
+          parseHTML: element => element.style.fontSize.replace(/['"]+/g, ''),
+          renderHTML: attributes => {
+            if (!attributes.fontSize) return {};
+            return { style: `font-size: ${attributes.fontSize}` };
           },
         },
       },
-    ];
+    }];
   },
   addCommands() {
     return {
-      setFontSize: (fontSize: string) => ({ chain }: any) => {
-        return chain().setMark('textStyle', { fontSize }).run();
-      },
-      unsetFontSize: () => ({ chain }: any) => {
-        return chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
-      },
+      setFontSize: (fontSize: string) => ({ chain }: any) => chain().setMark('textStyle', { fontSize }).run(),
+      unsetFontSize: () => ({ chain }: any) => chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run(),
     };
   },
 });
 
-interface PageCanvasProps {
+interface EditorCanvasProps {
   initialContent: any;
   documentId: string;
   initialTitle: string;
 }
 
-export default function PageCanvas({ initialContent, documentId, initialTitle }: PageCanvasProps) {
+export default function EditorCanvas({ initialContent, documentId, initialTitle }: EditorCanvasProps) {
   const [title, setTitle] = useState(initialTitle);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [pageSettings, setPageSettings] = useState({ size: 'a4', margin: 'normal' });
 
-  // Previne erro de "Unknown node type" com conteúdo padrão seguro
-  const defaultContent = {
-    type: 'doc',
-    content: [
-      { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: initialTitle || 'Novo Projeto' }] },
-      { type: 'paragraph', content: [] }
-    ]
+  // Configuração das dimensões da página
+  const getPageStyle = () => {
+    let width = '210mm'; // A4
+    let minHeight = '297mm';
+    let padding = '25mm';
+
+    if (pageSettings.size === 'letter') { width = '216mm'; minHeight = '279mm'; }
+    if (pageSettings.size === 'legal') { width = '216mm'; minHeight = '356mm'; }
+
+    if (pageSettings.margin === 'narrow') padding = '12.7mm';
+    if (pageSettings.margin === 'wide') padding = '50mm';
+
+    return { width, minHeight, padding };
   };
 
-  const safeContent = (initialContent && Object.keys(initialContent).length > 0) ? initialContent : defaultContent;
+  const safeContent = (initialContent && Object.keys(initialContent).length > 0) ? initialContent : { type: 'doc', content: [{ type: 'paragraph' }] };
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3, 4, 5, 6] },
         dropcursor: { color: '#8B5CF6', width: 2 },
-        codeBlock: false, // Desabilitamos para usar extensão especifica se necessario
+        codeBlock: false,
       }),
-      // Mídia
+      // --- TODAS AS EXTENSÕES ---
       Image.configure({ inline: true, allowBase64: true }),
       Youtube.configure({ width: 480, height: 320 }),
-      // Tabelas
-      Table.configure({ resizable: true, HTMLAttributes: { class: 'border-collapse table-auto w-full my-4' } }),
+      Table.configure({ resizable: true, HTMLAttributes: { class: 'border-collapse table-fixed w-full my-4' } }),
       TableRow, TableHeader, TableCell,
-      // Estilo e Formatação
-      TextStyle, 
-      FontSize, 
-      FontFamily,
-      Underline,
-      Subscript,
-      Superscript,
-      Color,
+      TextStyle, FontSize, FontFamily, Underline, Subscript, Superscript, Color,
       Highlight.configure({ multicolor: true }),
-      // Funcionalidades
-      TiptapLink.configure({ 
-        openOnClick: false, 
-        autolink: true,
-        HTMLAttributes: { class: 'text-blue-600 underline cursor-pointer hover:text-blue-800' } 
-      }),
+      TiptapLink.configure({ openOnClick: false, autolink: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      CharacterCount,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Placeholder.configure({ 
-          placeholder: 'Comece a escrever...',
-          emptyEditorClass: 'is-editor-empty before:content-[attr(data-placeholder)] before:text-gray-300 before:float-left before:pointer-events-none'
-      }),
+      CharacterCount, TaskList, TaskItem.configure({ nested: true }),
+      Placeholder.configure({ placeholder: 'Digite aqui...' }),
+      ShapeExtension, 
     ],
-    immediatelyRender: false, // CRÍTICO: Previne erro de hidratação no Next.js 15
-    content: safeContent,
     editorProps: {
       attributes: {
-        // Estilo da "Folha de Papel"
-        class: `
-          prose prose-lg max-w-none focus:outline-none 
-          w-[210mm] min-h-[297mm] mx-auto 
-          bg-white paper-shadow my-4 md:my-8 p-[15mm] md:p-[25mm] 
-          font-letters text-gray-800 
-          selection:bg-brand-purple/20 selection:text-brand-purple
-        `,
+        class: 'prose prose-lg max-w-none focus:outline-none bg-white font-letters text-gray-800 selection:bg-brand-purple/20 h-full',
         style: 'font-family: "Letters For Learners", sans-serif;',
       },
     },
-    onUpdate: () => setSaveStatus('unsaved')
+    immediatelyRender: false,
+    content: safeContent,
+    onUpdate: () => setSaveStatus('unsaved'),
   });
 
   // Autosave
   useEffect(() => {
-    const interval = setInterval(() => {
-        if (saveStatus === 'unsaved' && editor) handleSave();
-    }, 5000);
+    const interval = setInterval(() => { if (saveStatus === 'unsaved') handleSave(); }, 5000);
     return () => clearInterval(interval);
   }, [saveStatus, editor]);
 
@@ -158,54 +131,104 @@ export default function PageCanvas({ initialContent, documentId, initialTitle }:
     try {
       await saveDocument(documentId, editor.getJSON(), title);
       setSaveStatus('saved');
-    } catch (error) {
-      console.error(error);
-      setSaveStatus('unsaved');
+    } catch {
+      setSaveStatus('error');
     }
   };
 
-  return (
-    <div className="flex flex-col h-screen bg-studio-dots overflow-hidden relative font-sans">
-      
-      {/* Header */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-6 shrink-0 z-50">
-        <div className="flex items-center gap-3 w-full">
-          <Link href="/dashboard/applications/create" className="hover:bg-gray-100 p-2 rounded-full text-gray-500 transition-colors">
-            <ArrowLeft size={20} />
-          </Link>
-          <div className="flex flex-col w-full max-w-md">
-             <input 
-               value={title}
-               onChange={(e) => { setTitle(e.target.value); setSaveStatus('unsaved'); }}
-               className="text-lg font-bold font-dk-lemons bg-transparent border-none focus:ring-0 text-gray-800 w-full placeholder-gray-300 p-0 truncate"
-               placeholder="Título do Documento"
-             />
-             <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                {saveStatus === 'saving' && <span className="flex items-center gap-1 text-brand-purple"><Cloud size={12} className="animate-bounce"/> Salvando...</span>}
-                {saveStatus === 'saved' && <span className="flex items-center gap-1 text-green-600"><CheckCircle2 size={12}/> Salvo</span>}
-                {saveStatus === 'unsaved' && <span className="text-orange-400">Alterações pendentes</span>}
-             </div>
-          </div>
-        </div>
-      </div>
+  const handleExportPDF = () => {
+    window.print();
+  };
 
-      {/* Área Principal */}
-      <div className="flex-1 overflow-y-auto cursor-default scroll-smooth relative" onClick={() => editor?.commands.focus()}>
-        <div className="flex flex-col items-center py-4 md:py-6 min-h-full">
-          
-          <div className="sticky top-4 z-40 w-full px-2 md:px-0 mb-4">
-             <CreateToolbar editor={editor} onSave={handleSave} isSaving={saveStatus === 'saving'} />
+  const pageStyle = getPageStyle();
+
+  return (
+    <div className="flex h-screen bg-[#f0f2f5] overflow-hidden font-sans">
+      
+      {/* SIDEBAR DE FERRAMENTAS (Responsiva) */}
+      <aside 
+        className={`
+          flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 z-50
+          ${isSidebarOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full overflow-hidden'}
+          fixed inset-y-0 left-0 md:relative no-print shadow-xl md:shadow-none
+        `}
+      >
+        {/* Botão fechar mobile */}
+        <button 
+          onClick={() => setIsSidebarOpen(false)}
+          className="md:hidden absolute top-2 right-2 p-2 text-gray-500 hover:text-red-500 z-50"
+        >
+          <X size={20}/>
+        </button>
+
+        <CreateToolbar 
+          editor={editor} 
+          onSave={handleSave} 
+          isSaving={saveStatus === 'saving'}
+          onExport={handleExportPDF}
+          pageSettings={pageSettings}
+          setPageSettings={setPageSettings}
+        />
+      </aside>
+
+      {/* ÁREA PRINCIPAL */}
+      <main className="flex-1 flex flex-col h-full relative w-full">
+        
+        {/* HEADER */}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0 z-40 no-print">
+          <div className="flex items-center gap-4 w-full">
+            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded text-gray-600">
+              <Menu size={20} />
+            </button>
+            
+            <Link href="/dashboard/applications/create" className="p-2 hover:bg-gray-100 rounded text-gray-500">
+              <ArrowLeft size={20} />
+            </Link>
+
+            <div className="flex-1 max-w-2xl">
+               <input 
+                 value={title}
+                 onChange={(e) => { setTitle(e.target.value); setSaveStatus('unsaved'); }}
+                 className="text-lg font-bold font-dk-lemons w-full border-none focus:ring-0 p-0 text-gray-800"
+                 placeholder="Título do Documento"
+               />
+               <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider flex items-center gap-1">
+                 {saveStatus === 'saving' && <><Cloud size={10} className="animate-bounce"/> Salvando...</>}
+                 {saveStatus === 'saved' && <><CheckCircle2 size={10} className="text-green-500"/> Salvo</>}
+                 {saveStatus === 'unsaved' && <span className="text-orange-400">Não salvo</span>}
+               </span>
+            </div>
           </div>
-          
-          <div className="w-full overflow-x-auto px-4 md:px-0 flex justify-center pb-32">
-             <div className="relative transform origin-top transition-all duration-500">
-                <div className="hidden md:block"><Ruler /></div>
-                <EditorContent editor={editor} />
-             </div>
-          </div>
-          
+        </header>
+
+        {/* EDITOR SCROLLABLE */}
+        <div className="flex-1 overflow-y-auto bg-studio-dots p-4 md:p-8 flex justify-center cursor-text" onClick={() => editor?.commands.focus()}>
+           <div 
+             className="bg-white paper-shadow transition-all duration-300 relative editor-print-container"
+             style={{ 
+               width: pageStyle.width, 
+               minHeight: pageStyle.minHeight,
+               padding: pageStyle.padding 
+             }}
+           >
+              {/* Régua (Opcional, só visual) */}
+              <div className="absolute top-0 left-0 w-full h-6 border-b border-gray-100 no-print opacity-50 pointer-events-none">
+                 <Ruler />
+              </div>
+              
+              <EditorContent editor={editor} className="mt-4 outline-none editor-pages" />
+           </div>
         </div>
-      </div>
+
+      </main>
+      
+      {/* Overlay Mobile */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
     </div>
   );
 }
