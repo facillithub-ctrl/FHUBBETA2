@@ -10,13 +10,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Novas cores da marca
+        // Cores da marca
         'brand-purple': '#42047e',
         'brand-green': '#07f49e',
         'brand-dark': '#0f0f11',
-        'brand-light': '#f3f4f6', // <--- ADICIONADO PARA CORRIGIR O ERRO
+        'brand-light': '#f3f4f6',
         
-        // Cores de compatibilidade
+        // Cores de compatibilidade e Editor
         'royal-blue': '#42047e', 
         'dark-text': '#111114',
         'white-text': '#f8f9fa',
@@ -25,14 +25,14 @@ const config: Config = {
         'dark-background': '#111114',
         'dark-card': '#1A1A1D',
         'dark-border': '#2c2c31',
-        'paper': '#fdfbf7',
-        
+        'paper': '#fdfbf7', // Cor de papel creme suave
       },
       fontFamily: {
         inter: ['Inter', 'sans-serif'],
-        'multiara': ['var(--font-multiara)', 'cursive'],
-        'dk-lemons': ['var(--font-dk-lemons)', 'sans-serif'],
-        'letters': ['var(--font-letters)', 'sans-serif'],
+        // CORREÇÃO: Referência direta aos nomes definidos no @font-face do globals.css
+        'multiara': ['Multiara', 'cursive'],
+        'dk-lemons': ['Dk Lemons', 'sans-serif'],
+        'letters': ['Letters For Learners', 'sans-serif'],
       },
       backgroundImage: {
         'brand-gradient': 'linear-gradient(135deg, #42047e 0%, #07f49e 100%)',

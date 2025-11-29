@@ -5,44 +5,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* --- FONTES DO FACILLIT CREATE --- */
 @font-face {
   font-family: 'Multiara';
-  src: url('/fonts/Multiara.ttf') format('truetype');
+  /* Exemplo: public/fonts/Multiara/Multiara.ttf */
+  src: url('/fonts/Multiara/Multiara.ttf') format('truetype'); 
+  font-weight: normal;
+  font-style: normal;
   font-display: swap;
 }
 
 @font-face {
   font-family: 'Dk Lemons';
-  src: url('/fonts/DK_Lemons.otf') format('opentype');
+  /* Exemplo: public/fonts/DK_Lemons/DK_Lemons.otf */
+  src: url('/fonts/DK_Lemons/DK_Lemons.otf') format('opentype'); 
+  font-weight: normal;
+  font-style: normal;
   font-display: swap;
 }
 
 @font-face {
   font-family: 'Letters For Learners';
-  src: url('/fonts/LettersForLearners.ttf') format('truetype');
+  /* Exemplo: public/fonts/LettersForLearners/LettersForLearners.ttf */
+  src: url('/fonts/LettersForLearners/LettersForLearners.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
   font-display: swap;
-}
-
-/* PADRÃO DE GRID (PAPEL MILIMETRADO SUAVE) */
-.bg-grid-pattern {
-  background-size: 40px 40px;
-  background-image: 
-    linear-gradient(to right, #f0f0f0 1px, transparent 1px),
-    linear-gradient(to bottom, #f0f0f0 1px, transparent 1px);
-}
-
-/* ESTILO DA RÉGUA */
-.ruler-tick {
-  position: absolute;
-  bottom: 0;
-  border-left: 1px solid #9ca3af;
-}
-.ruler-number {
-  position: absolute;
-  top: 2px;
-  font-size: 10px;
-  color: #6b7280;
-  transform: translateX(-50%);
 }
 
 /* Configuração Base */
@@ -50,15 +38,44 @@ body {
   @apply bg-brand-light text-dark-text font-inter;
 }
 
-/* Estilos para scrollbar (Opcional, mas dá um toque moderno) */
+/* --- ESTILOS DO ESTÚDIO (Grid e Papel) --- */
+
+/* Padrão de pontos (Dot Grid) para a mesa de trabalho */
+.bg-studio-dots {
+  background-color: #f3f4f6;
+  background-image: radial-gradient(#d1d5db 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Sombra realista para a folha A4 */
+.paper-shadow {
+  box-shadow: 
+    0 1px 1px rgba(0,0,0,0.05), 
+    0 2px 2px rgba(0,0,0,0.05), 
+    0 4px 4px rgba(0,0,0,0.05), 
+    0 8px 8px rgba(0,0,0,0.05),
+    0 16px 16px rgba(0,0,0,0.05);
+}
+
+/* --- SCROLLBARS MODERNAS --- */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px; /* Altura para scroll horizontal */
 }
 ::-webkit-scrollbar-track {
   @apply bg-transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-brand-purple/30 rounded-full hover:bg-brand-purple/50 transition-colors;
+  @apply bg-brand-purple/20 rounded-full hover:bg-brand-purple/40 transition-colors;
+}
+
+/* Utilitário para esconder scrollbar mas manter funcionalidade */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
 }
 
 /* Utilitários de Animação */
@@ -106,20 +123,16 @@ body.noscroll {
   animation: fadeInRight 0.5s ease-out forwards;
 }
 
-/* --- ESTILO DO CARD GLASS (Corrigido) --- */
-/* Usamos bg-white/10 para um vidro claro genérico. 
-   Se quiser usar as cores da marca, pode trocar por bg-brand-purple/10 */
+/* Glass Card */
 .glass-card {
   @apply bg-white/60 dark:bg-brand-dark/60 backdrop-blur-lg border border-white/20 dark:border-white/5 rounded-2xl shadow-lg transition-all duration-300;
 }
 
-/* Gradiente de fundo para modo escuro para realçar o efeito glass */
 .dark body {
-  background: linear-gradient(to bottom right, #0a0a0b, #1a0533); /* Adaptado para o novo tom brand-dark e roxo escuro */
+  background: linear-gradient(to bottom right, #0a0a0b, #1a0533);
   @apply text-white;
 }
 
-/* Forçar alinhamento LTR (Left to Right) se necessário */
 .force-ltr, .force-ltr * {
   direction: ltr !important;
   text-align: left !important;
