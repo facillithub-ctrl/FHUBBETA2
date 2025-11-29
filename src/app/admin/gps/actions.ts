@@ -1,61 +1,59 @@
 "use server";
 
 import createClient from "@/utils/supabase/server";
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 
-// --- BUSCAR AÇÕES EXISTENTES (LISTA DO ADMIN) ---
-export async function getGPSActions() {
-    const supabase = await createClient();
-    const { data } = await supabase
-        .from('system_suggested_actions')
-        .select('*')
-        .order('created_at', { ascending: false });
+// --- CONFIGURAÇÃO DO CLIENTE ADMIN DA LIBRARY ---
+const getLibraryAdminClient = () => {
+    const url = process.env.NEXT_PUBLIC_LIBRARY_SUPABASE_URL;
+    const key = process.env.LIBRARY_SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_LIBRARY_SUPABASE_ANON_KEY;
     
-    return data || [];
-}
+    if (!url || !key) return null;
+    
+    return createSupabaseClient(url, key, {
+        auth: { persistSession: false }
+    });
+};
 
-// --- BUSCAR RECURSOS PARA O SELETOR (TESTES E TEMAS) ---
 export async function getResourcesForSelector(module: string) {
     const supabase = await createClient();
     
-    // 1. Buscar Testes (Simulados)
-    if (module === 'test') {
-        const { data } = await supabase
-            .from('tests')
-            .select('id, title')
-            // Removemos 'is_public' se quiser ver rascunhos também, mas idealmente mantemos
-            // Se não aparecer nada, tente remover o .eq('is_public', true)
-            .order('created_at', { ascending: false })
-            .limit(50);
-        return data || [];
-    }
-    
-    // 2. Buscar Temas de Redação (Write) - CORRIGIDO
-    if (module === 'write') {
-        const { data } = await supabase
-            .from('essay_prompts') 
-            .select('id, title')
-            // REMOVIDO: .eq('is_active', true) -> Isso causava o erro se a coluna não existisse
-            .order('created_at', { ascending: false })
-            .limit(50);
-        return data || [];
-    }
+    try {
+        if (module === 'test') {
+            const { data } = await supabase.from('tests').select('id, title').order('created_at', { ascending: false }).limit(50);
+            return data || [];
+        }
+        
+        if (module === 'write') {
+            const { data } = await supabase.from('essay_prompts').select('id, title').order('created_at', { ascending: false }).limit(50);
+            return data || [];
+        }
 
-    // 3. Buscar Aulas (Play) - Opcional, se tiver tabela de aulas
-    if (module === 'play') {
-        // Exemplo:
-        // const { data } = await supabase.from('videos').select('id, title').limit(50);
-        // return data || [];
-    }
+        if (module === 'library') {
+            const libDb = getLibraryAdminClient();
+            if (!libDb) return [];
 
+            // Busca na tabela official_contents (padrão do Facillit Library)
+            const { data } = await libDb.from('official_contents').select('id, title').order('created_at', { ascending: false }).limit(50);
+            return data || [];
+        }
+    } catch (err) {
+        console.error("Erro ao buscar recursos:", err);
+        return [];
+    }
     return [];
 }
 
-// --- CRIAR OU ATUALIZAR AÇÃO (UPSERT) ---
 export async function createOrUpdateGPSAction(data: any) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     
+    // Validação básica para evitar salvar sem link
+    if (!data.action_link) {
+        return { success: false, error: "O link da ação é obrigatório." };
+    }
+
     const payload = {
         title: data.title,
         description: data.description,
@@ -63,41 +61,33 @@ export async function createOrUpdateGPSAction(data: any) {
         action_link: data.action_link,
         priority: data.priority,
         active: data.active,
-        
-        // Campos visuais
         icon_name: data.icon_name || 'Star',
         bg_color: data.bg_color || 'bg-blue-600',
-        image_url: data.image_url || null,
         button_text: data.button_text || 'Acessar',
-        
+        target_role: data.target_role || 'all',
+        trigger_condition: data.trigger_condition || 'always',
         created_by: user?.id
     };
 
     try {
         if (data.id) {
-            const { error } = await supabase
-                .from('system_suggested_actions')
-                .update(payload)
-                .eq('id', data.id);
-            if (error) throw new Error(error.message);
+            await supabase.from('system_suggested_actions').update(payload).eq('id', data.id);
         } else {
-            const { error } = await supabase
-                .from('system_suggested_actions')
-                .insert(payload);
-            if (error) throw new Error(error.message);
+            await supabase.from('system_suggested_actions').insert(payload);
         }
-
         revalidatePath('/admin/gps');
-        revalidatePath('/dashboard');
         return { success: true };
-
     } catch (error: any) {
-        console.error("Erro ao salvar ação GPS:", error);
         return { success: false, error: error.message };
     }
 }
 
-// --- DELETAR AÇÃO ---
+export async function getGPSActions() {
+    const supabase = await createClient();
+    const { data } = await supabase.from('system_suggested_actions').select('*').order('created_at', { ascending: false });
+    return data || [];
+}
+
 export async function deleteGPSAction(id: string) {
     const supabase = await createClient();
     await supabase.from('system_suggested_actions').delete().eq('id', id);
