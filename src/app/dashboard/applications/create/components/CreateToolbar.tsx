@@ -7,9 +7,10 @@ import {
   List, ListOrdered, CheckSquare, Quote,
   Image as ImageIcon, Youtube, Link as LinkIcon, Table as TableIcon,
   Undo, Redo, Save, Highlighter, Palette, 
-  Link2Off, Subscript, Superscript, Upload, ChevronDown, Check, X
+  Subscript, Superscript, Upload, 
+  ChevronDown, X, Check
 } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -20,13 +21,27 @@ interface ToolbarProps {
 export default function CreateToolbar({ editor, onSave, isSaving }: ToolbarProps) {
   if (!editor) return null;
 
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [linkUrl, setLinkUrl] = useState('');
-  const [showLinkInput, setShowLinkInput] = useState(false);
-  const [showColorPicker, setShowColorPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
-  // --- FUNÇÕES DE AÇÃO ---
+  // Fecha dropdowns ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (toolbarRef.current && !toolbarRef.current.contains(event.target as Node)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
+  const toggleDropdown = (name: string) => {
+    setActiveDropdown(activeDropdown === name ? null : name);
+  };
+
+  // --- AÇÕES ---
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -38,233 +53,190 @@ export default function CreateToolbar({ editor, onSave, isSaving }: ToolbarProps
       };
       reader.readAsDataURL(file);
     }
-    // Reseta o input
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const setLink = () => {
     if (linkUrl) {
       editor.chain().focus().extendMarkRange('link').setLink({ href: linkUrl }).run();
-      setShowLinkInput(false);
+      setActiveDropdown(null);
       setLinkUrl('');
-    } else {
-      editor.chain().focus().unsetLink().run();
-      setShowLinkInput(false);
     }
   };
 
-  const openLinkMenu = () => {
-    const previousUrl = editor.getAttributes('link').href;
-    setLinkUrl(previousUrl || '');
-    setShowLinkInput(!showLinkInput);
-  };
+  // --- COMPONENTES VISUAIS ---
+  const Separator = () => <div className="w-px h-6 bg-gray-200 mx-1 self-center" />;
 
-  const addYoutube = () => {
-    const url = window.prompt('URL do Vídeo (YouTube):');
-    if (url) editor.chain().focus().setYoutubeVideo({ src: url }).run();
-  };
-
-  const addTable = () => {
-    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
-  };
-
-  // Botão Genérico
-  const ToolBtn = ({ onClick, isActive, icon: Icon, title, className = '' }: any) => (
+  const IconButton = ({ onClick, isActive, icon: Icon, title, className = '' }: any) => (
     <button
       onClick={onClick}
       title={title}
-      className={`p-1.5 rounded-md transition-all duration-200 flex-shrink-0 ${
+      className={`p-1.5 rounded-lg transition-all flex items-center justify-center ${
         isActive 
-          ? 'bg-purple-100 text-brand-purple shadow-sm ring-1 ring-purple-200' 
+          ? 'bg-purple-100 text-brand-purple' 
           : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
       } ${className}`}
     >
-      <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+      <Icon size={18} strokeWidth={2} />
     </button>
   );
 
   return (
-    <div className="w-full max-w-[210mm] mx-auto bg-white/95 backdrop-blur-md border border-gray-200/60 rounded-xl shadow-lg shadow-gray-200/50 p-2 flex flex-col gap-2 transition-all relative">
+    <div ref={toolbarRef} className="w-full bg-white rounded-xl shadow-lg border border-gray-200/80 p-1.5 flex flex-wrap gap-1 items-center relative z-50 animate-in fade-in slide-in-from-top-2">
       
-      {/* Input Oculto para Upload */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleImageUpload} 
-        accept="image/*" 
-        className="hidden" 
-      />
+      <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
 
-      {/* --- POPOVER DE LINK --- */}
-      {showLinkInput && (
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-200 shadow-xl rounded-lg p-2 flex gap-2 items-center w-72 animate-in fade-in slide-in-from-top-2">
-          <LinkIcon size={16} className="text-gray-400" />
-          <input
-            value={linkUrl}
-            onChange={(e) => setLinkUrl(e.target.value)}
-            placeholder="Cole o link aqui..."
-            className="flex-1 text-sm border-none focus:ring-0 outline-none placeholder-gray-400"
-            autoFocus
-            onKeyDown={(e) => e.key === 'Enter' && setLink()}
-          />
-          <button onClick={setLink} className="p-1 hover:bg-green-50 text-green-600 rounded"><Check size={14}/></button>
-          <button onClick={() => setShowLinkInput(false)} className="p-1 hover:bg-red-50 text-red-500 rounded"><X size={14}/></button>
-        </div>
-      )}
+      {/* HISTÓRICO */}
+      <div className="flex gap-0.5">
+        <IconButton onClick={() => editor.chain().focus().undo().run()} icon={Undo} title="Desfazer" />
+        <IconButton onClick={() => editor.chain().focus().redo().run()} icon={Redo} title="Refazer" />
+      </div>
+      
+      <Separator />
 
-      {/* LINHA 1: Fontes, Tamanho e Formatação Básica */}
-      <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-hide pb-1">
+      {/* FONTES (DROPDOWN) */}
+      <div className="relative">
+        <button 
+          onClick={() => toggleDropdown('fontFamily')}
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-gray-100 text-sm font-medium text-gray-700 w-32 justify-between"
+        >
+          <span className="truncate">
+            {editor.isActive('textStyle', { fontFamily: 'Multiara' }) ? 'Multiara' : 
+             editor.isActive('textStyle', { fontFamily: 'Dk Lemons' }) ? 'Dk Lemons' : 
+             editor.isActive('textStyle', { fontFamily: 'Letters For Learners' }) ? 'Manuscrito' : 'Padrão'}
+          </span>
+          <ChevronDown size={14} className="opacity-50" />
+        </button>
         
-        {/* Undo/Redo */}
-        <div className="flex gap-0.5 border-r border-gray-200 pr-1 mr-1">
-          <ToolBtn onClick={() => editor.chain().focus().undo().run()} icon={Undo} title="Desfazer" />
-          <ToolBtn onClick={() => editor.chain().focus().redo().run()} icon={Redo} title="Refazer" />
-        </div>
-
-        {/* CONTROLES DE FONTE */}
-        <div className="flex gap-2 items-center border-r border-gray-200 pr-2 mr-1">
-           {/* Família */}
-           <select 
-             onChange={(e) => {
-                const font = e.target.value;
-                if (font === 'Inter') editor.chain().focus().unsetFontFamily().run();
-                else editor.chain().focus().setFontFamily(font).run();
-             }}
-             className="text-xs font-medium border border-gray-200 rounded px-2 py-1 bg-gray-50 hover:bg-gray-100 focus:outline-none cursor-pointer w-28 truncate"
-             value={editor.getAttributes('textStyle').fontFamily || 'Inter'}
-           >
-              <option value="Inter">Padrão</option>
-              <option value="Letters For Learners">Manuscrito</option>
-              <option value="Multiara">Multiara (Título)</option>
-              <option value="Dk Lemons">Dk Lemons (Sub)</option>
-           </select>
-
-           {/* Tamanho */}
-           <select 
-              onChange={(e) => {
-                 // @ts-ignore
-                 editor.chain().focus().setFontSize(e.target.value).run();
-              }}
-              className="text-xs font-medium border border-gray-200 rounded px-2 py-1 bg-gray-50 hover:bg-gray-100 focus:outline-none cursor-pointer w-16 text-center"
-              value={editor.getAttributes('textStyle').fontSize || ''}
-           >
-              <option value="">Tam</option>
-              {['12px', '14px', '16px', '18px', '20px', '24px', '30px', '36px', '48px'].map(size => (
-                 <option key={size} value={size}>{size.replace('px', '')}</option>
-              ))}
-           </select>
-        </div>
-
-        {/* Formatação Rica */}
-        <div className="flex gap-0.5 border-r border-gray-200 pr-1 mr-1">
-          <ToolBtn onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} icon={Bold} />
-          <ToolBtn onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} icon={Italic} />
-          <ToolBtn onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')} icon={Underline} />
-          
-          {/* MENU DE CORES (Popover) */}
-          <div className="relative ml-1">
-             <button 
-               onClick={() => setShowColorPicker(!showColorPicker)}
-               className="flex items-center gap-1 p-1.5 rounded hover:bg-gray-100 group"
-               title="Cores de Texto e Realce"
-             >
-                <div className="w-4 h-4 rounded-full border border-gray-300 shadow-sm" style={{ backgroundColor: editor.getAttributes('textStyle').color || '#000' }}></div>
-                <ChevronDown size={10} className="text-gray-400 group-hover:text-gray-600" />
-             </button>
-
-             {showColorPicker && (
-               <>
-                 {/* Overlay para fechar ao clicar fora */}
-                 <div className="fixed inset-0 z-40" onClick={() => setShowColorPicker(false)}></div>
-                 <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-2xl rounded-xl p-3 z-50 w-56 grid grid-cols-5 gap-2 animate-in fade-in zoom-in-95">
-                    <span className="col-span-5 text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Texto</span>
-                    {['#000000', '#42047e', '#07f49e', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#6B7280'].map(color => (
-                       <button 
-                         key={color}
-                         onClick={() => { editor.chain().focus().setColor(color).run(); setShowColorPicker(false); }}
-                         className="w-6 h-6 rounded-full border border-gray-100 hover:scale-110 transition-transform shadow-sm"
-                         style={{ backgroundColor: color }}
-                         title={color}
-                       />
-                    ))}
-                    
-                    <div className="col-span-5 h-px bg-gray-100 my-1"></div>
-                    
-                    <span className="col-span-5 text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Realce</span>
-                    {['#FEF3C7', '#DCFCE7', '#DBEAFE', '#F3E8FF', '#FCE7F3', '#FFEDD5', '#E0E7FF', '#FFE4E6', '#FEF9C3', '#ECFCCB'].map(color => (
-                       <button 
-                         key={color}
-                         onClick={() => { editor.chain().focus().toggleHighlight({ color }).run(); setShowColorPicker(false); }}
-                         className="w-6 h-6 rounded border border-gray-200 hover:scale-110 transition-transform"
-                         style={{ backgroundColor: color }}
-                       />
-                    ))}
-                    
-                    <button 
-                      onClick={() => { editor.chain().focus().unsetColor().unsetHighlight().run(); setShowColorPicker(false); }}
-                      className="col-span-5 text-xs text-red-500 hover:bg-red-50 p-2 rounded mt-2 text-center border border-red-100 font-medium transition-colors"
-                    >
-                      Remover Cores
-                    </button>
-                 </div>
-               </>
-             )}
+        {activeDropdown === 'fontFamily' && (
+          <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl py-1 flex flex-col gap-0.5 z-50">
+             <button onClick={() => { editor.chain().focus().unsetFontFamily().run(); toggleDropdown('fontFamily'); }} className="px-3 py-2 text-left hover:bg-gray-50 text-sm font-inter">Padrão (Inter)</button>
+             <button onClick={() => { editor.chain().focus().setFontFamily('Letters For Learners').run(); toggleDropdown('fontFamily'); }} className="px-3 py-2 text-left hover:bg-gray-50 text-sm font-letters font-bold">Manuscrito</button>
+             <button onClick={() => { editor.chain().focus().setFontFamily('Multiara').run(); toggleDropdown('fontFamily'); }} className="px-3 py-2 text-left hover:bg-gray-50 text-sm font-multiara text-brand-purple">Multiara</button>
+             <button onClick={() => { editor.chain().focus().setFontFamily('Dk Lemons').run(); toggleDropdown('fontFamily'); }} className="px-3 py-2 text-left hover:bg-gray-50 text-sm font-dk-lemons text-brand-purple">Dk Lemons</button>
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Botão Salvar */}
-        <div className="ml-auto pl-2 border-l border-gray-200">
-            <button 
-            onClick={onSave} 
-            disabled={isSaving}
-            className={`
-                flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-xs transition-all shadow-sm
-                ${isSaving 
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                : 'bg-brand-purple hover:bg-purple-800 text-white hover:shadow-md'}
-            `}
-            >
-            <Save size={16} className={isSaving ? "animate-spin" : ""} />
-            <span className="hidden sm:inline">{isSaving ? 'Salvando...' : 'Salvar'}</span>
-            </button>
+      {/* TAMANHO (DROPDOWN) */}
+      <div className="relative">
+        <button onClick={() => toggleDropdown('fontSize')} className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-gray-100 text-sm font-medium text-gray-700">
+           <span>{editor.getAttributes('textStyle').fontSize?.replace('px','') || '16'}</span>
+           <ChevronDown size={14} className="opacity-50" />
+        </button>
+        
+        {activeDropdown === 'fontSize' && (
+          <div className="absolute top-full left-0 mt-1 w-16 bg-white border border-gray-200 rounded-lg shadow-xl py-1 flex flex-col z-50 max-h-60 overflow-y-auto">
+             {['12px','14px','16px','18px','20px','24px','30px','36px','48px'].map(size => (
+               <button 
+                 key={size}
+                 // @ts-ignore
+                 onClick={() => { editor.chain().focus().setFontSize(size).run(); toggleDropdown('fontSize'); }}
+                 className="px-2 py-1.5 text-center hover:bg-gray-50 text-sm"
+               >
+                 {size.replace('px','')}
+               </button>
+             ))}
+          </div>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* ESTILOS BÁSICOS */}
+      <div className="flex gap-0.5">
+        <IconButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} icon={Bold} />
+        <IconButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} icon={Italic} />
+        <IconButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')} icon={Underline} />
+        
+        {/* CORES (DROPDOWN) */}
+        <div className="relative">
+           <button onClick={() => toggleDropdown('colors')} className="p-1.5 rounded-lg hover:bg-gray-100 flex items-center justify-center relative">
+              <Palette size={18} className={editor.getAttributes('textStyle').color ? 'text-brand-purple' : 'text-gray-500'} />
+              <div className="absolute bottom-1 right-1 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: editor.getAttributes('textStyle').color || 'transparent' }}></div>
+           </button>
+           
+           {activeDropdown === 'colors' && (
+             <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-xl rounded-xl p-3 z-50 w-56 grid grid-cols-5 gap-2">
+                <span className="col-span-5 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Texto</span>
+                {['#000000', '#42047e', '#EF4444', '#F59E0B', '#10B981', '#3B82F6'].map(color => (
+                   <button key={color} onClick={() => editor.chain().focus().setColor(color).run()} className="w-6 h-6 rounded-full border border-gray-200 hover:scale-110 transition-transform" style={{ backgroundColor: color }} />
+                ))}
+                
+                <div className="col-span-5 h-px bg-gray-100 my-1"></div>
+                
+                <span className="col-span-5 text-[10px] text-gray-400 font-bold uppercase tracking-wider">Realce</span>
+                {['#FEF3C7', '#DCFCE7', '#DBEAFE', '#F3E8FF', '#FCE7F3'].map(color => (
+                   <button key={color} onClick={() => editor.chain().focus().toggleHighlight({ color }).run()} className="w-6 h-6 rounded border border-gray-200 hover:scale-110 transition-transform" style={{ backgroundColor: color }} />
+                ))}
+                
+                <button onClick={() => editor.chain().focus().unsetColor().unsetHighlight().run()} className="col-span-5 text-xs text-red-500 hover:bg-red-50 p-2 rounded mt-1 border border-red-100">
+                  Limpar Cores
+                </button>
+             </div>
+           )}
         </div>
       </div>
 
-      {/* LINHA 2: Estrutura, Listas e Mídia */}
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide border-t border-gray-100 pt-1">
+      <Separator />
+
+      {/* ALINHAMENTO E LISTAS */}
+      <div className="flex gap-0.5">
+         <IconButton onClick={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} icon={AlignLeft} />
+         <IconButton onClick={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} icon={AlignCenter} />
          
-         {/* Alinhamento */}
-         <div className="flex gap-0.5 border-r border-gray-200 pr-1 mr-1">
-            <ToolBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} icon={AlignLeft} />
-            <ToolBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} icon={AlignCenter} />
-            <ToolBtn onClick={() => editor.chain().focus().setTextAlign('justify').run()} isActive={editor.isActive({ textAlign: 'justify' })} icon={AlignJustify} />
+         <div className="hidden sm:flex gap-0.5 ml-1">
+            <IconButton onClick={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive('bulletList')} icon={List} />
+            <IconButton onClick={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive('orderedList')} icon={ListOrdered} />
+            <IconButton onClick={() => editor.chain().focus().toggleTaskList().run()} isActive={editor.isActive('taskList')} icon={CheckSquare} />
          </div>
+      </div>
 
-         {/* Listas e Tarefas */}
-         <div className="flex gap-0.5 border-r border-gray-200 pr-1 mr-1">
-            <ToolBtn onClick={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive('bulletList')} icon={List} />
-            <ToolBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive('orderedList')} icon={ListOrdered} />
-            <ToolBtn onClick={() => editor.chain().focus().toggleTaskList().run()} isActive={editor.isActive('taskList')} icon={CheckSquare} />
-            <ToolBtn onClick={() => editor.chain().focus().toggleBlockquote().run()} isActive={editor.isActive('blockquote')} icon={Quote} />
-         </div>
+      <Separator />
 
-         {/* Sub/Sobrescrito */}
-         <div className="flex gap-0.5 border-r border-gray-200 pr-1 mr-1">
-             <ToolBtn onClick={() => editor.chain().focus().toggleSubscript().run()} isActive={editor.isActive('subscript')} icon={Subscript} />
-             <ToolBtn onClick={() => editor.chain().focus().toggleSuperscript().run()} isActive={editor.isActive('superscript')} icon={Superscript} />
+      {/* MÍDIA E INSERÇÃO */}
+      <div className="flex gap-0.5">
+         <div className="relative">
+            <IconButton onClick={() => toggleDropdown('link')} isActive={editor.isActive('link')} icon={LinkIcon} />
+            {activeDropdown === 'link' && (
+               <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-xl rounded-lg p-2 flex gap-2 w-64 z-50">
+                  <input 
+                    value={linkUrl} 
+                    onChange={(e) => setLinkUrl(e.target.value)} 
+                    placeholder="Cole o link..." 
+                    className="flex-1 text-sm border-none bg-gray-50 rounded px-2 focus:ring-1 focus:ring-brand-purple outline-none"
+                    autoFocus
+                  />
+                  <button onClick={setLink} className="bg-brand-purple text-white p-1 rounded hover:bg-purple-700">OK</button>
+               </div>
+            )}
          </div>
+         
+         <IconButton onClick={() => fileInputRef.current?.click()} icon={Upload} title="Upload Imagem" />
+         
+         <div className="relative">
+            <IconButton onClick={() => toggleDropdown('media')} icon={ImageIcon} />
+            {activeDropdown === 'media' && (
+               <div className="absolute top-full left-0 mt-2 bg-white border border-gray-200 shadow-xl rounded-lg p-1 flex flex-col gap-1 w-40 z-50">
+                  <button onClick={() => { const url = window.prompt('URL da Imagem:'); if(url) editor.chain().focus().setImage({ src: url }).run(); toggleDropdown('media'); }} className="text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"><ImageIcon size={14}/> Imagem Web</button>
+                  <button onClick={() => { const url = window.prompt('URL do YouTube:'); if(url) editor.chain().focus().setYoutubeVideo({ src: url }).run(); toggleDropdown('media'); }} className="text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"><Youtube size={14}/> YouTube</button>
+                  <button onClick={() => { editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(); toggleDropdown('media'); }} className="text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"><TableIcon size={14}/> Tabela</button>
+                  <button onClick={() => { editor.chain().focus().toggleBlockquote().run(); toggleDropdown('media'); }} className="text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"><Quote size={14}/> Citação</button>
+               </div>
+            )}
+         </div>
+      </div>
 
-         {/* Inserção de Objetos */}
-         <div className="flex gap-0.5">
-            <ToolBtn onClick={openLinkMenu} isActive={editor.isActive('link')} icon={LinkIcon} title="Link" />
-            <ToolBtn onClick={() => fileInputRef.current?.click()} icon={Upload} title="Upload Imagem (Dispositivo)" />
-            <ToolBtn onClick={() => {
-                const url = window.prompt('URL da Imagem:');
-                if(url) editor.chain().focus().setImage({ src: url }).run();
-            }} icon={ImageIcon} title="Imagem (Web)" />
-            <ToolBtn onClick={addYoutube} icon={Youtube} title="Vídeo" />
-            <ToolBtn onClick={addTable} icon={TableIcon} title="Tabela" />
-         </div>
+      {/* SALVAR (DIREITA) */}
+      <div className="ml-auto pl-2 border-l border-gray-200">
+         <button 
+           onClick={onSave} 
+           disabled={isSaving}
+           className="flex items-center gap-2 bg-brand-purple text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-purple-800 disabled:opacity-50 transition-all shadow-md hover:shadow-lg"
+         >
+           <Save size={14} className={isSaving ? "animate-spin" : ""} />
+           <span className="hidden sm:inline">{isSaving ? '...' : 'Salvar'}</span>
+         </button>
       </div>
     </div>
   );
