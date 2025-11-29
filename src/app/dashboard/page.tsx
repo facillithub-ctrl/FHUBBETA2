@@ -9,6 +9,8 @@ import { getLearningGPSData } from '@/components/learning-gps/actions';
 import { client, urlFor } from '@/lib/sanity';
 import CountdownWidget from '@/components/dashboard/CountdownWidget';
 import type { UserProfile } from './types';
+// Importação do tipo necessário para corrigir o erro
+import type { LearningAction } from '@/components/learning-gps/types';
 
 // --- SANITY FETCH (BLOG REAL) ---
 async function getLatestBlogPosts() {
@@ -82,14 +84,13 @@ const MotivationalWidget = () => {
   const quote = quotes[dayOfYear % quotes.length];
 
   return (
-    <div className="relative overflow-hidden rounded-2xl p-6 bg-gradient-to-br from-blue-600 to-brand-purple text-white shadow-lg h-full flex flex-col justify-center">
+    <div className="relative overflow-hidden rounded-2xl p-6 bg-brand-gradient text-white shadow-lg h-full flex flex-col justify-center">
       <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white opacity-10 rounded-full blur-3xl"></div>
       <div className="relative z-10 flex items-start gap-4">
         <div className="bg-white/20 p-3 rounded-xl backdrop-blur-md">
            <i className="fas fa-quote-left text-2xl text-white"></i>
         </div>
         <div>
-          {/* CORREÇÃO AQUI: Aspas escapadas com &quot; */}
           <p className="font-medium text-lg leading-relaxed italic opacity-95">&quot;{quote.text}&quot;</p>
           <p className="text-sm font-bold mt-2 opacity-80 uppercase tracking-wider">— {quote.author}</p>
         </div>
@@ -232,7 +233,8 @@ const StudentDashboard = ({
                 </div>
                 
                 <div className="space-y-3">
-                   {topGpsActions.length > 0 ? topGpsActions.map((action, i) => (
+                   {/* CORREÇÃO AQUI: Tipagem explicita de (action: LearningAction) */}
+                   {topGpsActions.length > 0 ? topGpsActions.map((action: LearningAction, i: number) => (
                       <div key={action.id || i} className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 hover:bg-white border border-transparent hover:border-gray-200 transition-all group cursor-pointer">
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${action.bg_color || 'bg-blue-100'} text-white shadow-sm`}>
                              <i className={`fas fa-${action.icon_name ? action.icon_name.toLowerCase() : 'star'}`}></i>
