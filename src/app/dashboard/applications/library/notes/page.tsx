@@ -1,16 +1,27 @@
 // src/app/dashboard/applications/library/notes/page.tsx
 import { createLibraryServerClient } from '@/lib/librarySupabase';
 import createClient from '@/utils/supabase/server';
+import { redirect } from 'next/navigation';
+
+// CORREÇÃO: Força a renderização dinâmica para evitar erro no build (Netlify)
+export const dynamic = 'force-dynamic';
 
 export default async function NotesPage() {
   const authClient = await createClient();
   const { data: { user } } = await authClient.auth.getUser();
+
+  // Se não houver usuário (durante o build ou acesso sem login), não tenta buscar notas
+  if (!user) {
+    // Em produção real redirecionaria, mas no build apenas retorna null para não quebrar
+    return null; 
+  }
+
   const libDb = createLibraryServerClient();
   
   const { data: notes } = await libDb
     .from('user_repository_items')
     .select('*')
-    .eq('user_id', user?.id)
+    .eq('user_id', user.id)
     .eq('type', 'note')
     .order('updated_at', { ascending: false });
 
@@ -48,4 +59,4 @@ export default async function NotesPage() {
       </div>
     </div>
   );
-}
+}   
