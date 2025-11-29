@@ -9,7 +9,7 @@
 @font-face {
   font-family: 'Multiara';
   /* Exemplo: public/fonts/Multiara/Multiara.ttf */
-  src: url('/fonts/Multiara/Multiara.ttf') format('truetype'); 
+  src: url('/fonts/muthiara//Muthiara\ demo\ version.otf') format('truetype'); 
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -18,7 +18,7 @@
 @font-face {
   font-family: 'Dk Lemons';
   /* Exemplo: public/fonts/DK_Lemons/DK_Lemons.otf */
-  src: url('/fonts/DK_Lemons/DK_Lemons.otf') format('opentype'); 
+  src: url('//fonts/dk_lemon_yellow_sun//DK\ Lemon\ Yellow\ Sun.otf') format('truetype'); 
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -27,7 +27,7 @@
 @font-face {
   font-family: 'Letters For Learners';
   /* Exemplo: public/fonts/LettersForLearners/LettersForLearners.ttf */
-  src: url('/fonts/LettersForLearners/LettersForLearners.ttf') format('truetype');
+  src: url('/fonts/letters_for_learners/Letters\ for\ Learners.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;

@@ -2,7 +2,7 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-// Imports nomeados para evitar erros de build
+// Imports nomeados
 import { Image } from '@tiptap/extension-image';
 import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
@@ -13,14 +13,14 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import { FontFamily } from '@tiptap/extension-font-family';
 import { Underline } from '@tiptap/extension-underline';
 import { Placeholder } from '@tiptap/extension-placeholder';
-import { Color } from '@tiptap/extension-color'; // Opcional, para cores
+import { Color } from '@tiptap/extension-color';
 
 import { useState } from 'react';
 import CreateToolbar from './CreateToolbar';
 import Ruler from './Ruler';
 import { saveDocument } from '../actions';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, Cloud, FileText } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Cloud } from 'lucide-react';
 
 interface PageCanvasProps {
   initialContent: any;
@@ -31,6 +31,20 @@ interface PageCanvasProps {
 export default function PageCanvas({ initialContent, documentId, initialTitle }: PageCanvasProps) {
   const [title, setTitle] = useState(initialTitle);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+
+  // CORREÇÃO: Validação robusta do conteúdo inicial
+  // Se for null, undefined ou objeto vazio {}, usamos o conteúdo padrão
+  const defaultContent = {
+    type: 'doc',
+    content: [
+        { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: initialTitle || 'Novo Projeto' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: '' }] }
+    ]
+  };
+
+  const contentToLoad = (initialContent && Object.keys(initialContent).length > 0) 
+    ? initialContent 
+    : defaultContent;
 
   const editor = useEditor({
     extensions: [
@@ -53,13 +67,11 @@ export default function PageCanvas({ initialContent, documentId, initialTitle }:
           emptyEditorClass: 'is-editor-empty before:content-[attr(data-placeholder)] before:text-gray-300 before:float-left before:pointer-events-none'
       }),
     ],
-    immediatelyRender: false, // CRÍTICO para Next.js 15
-    content: initialContent || {},
+    // Evita erro de hidratação no Next.js
+    immediatelyRender: false, 
+    content: contentToLoad,
     editorProps: {
       attributes: {
-        // Classes Tailwind otimizadas
-        // w-[210mm] define a largura A4
-        // min-h-[297mm] define altura A4 mínima
         class: `
           prose prose-lg max-w-none focus:outline-none 
           w-[210mm] min-h-[297mm] mx-auto 
@@ -77,7 +89,8 @@ export default function PageCanvas({ initialContent, documentId, initialTitle }:
     if (!editor) return;
     setSaveStatus('saving');
     try {
-      await saveDocument(documentId, editor.getJSON(), title); // removido plainText se não usado na action
+      // Salva o JSON completo
+      await saveDocument(documentId, editor.getJSON(), title);
       setSaveStatus('saved');
     } catch (error) {
       console.error(error);
@@ -130,12 +143,9 @@ export default function PageCanvas({ initialContent, documentId, initialTitle }:
           {/* Container Scrollável Horizontalmente para Mobile (Folha A4) */}
           <div className="w-full overflow-x-auto px-4 md:px-0 flex justify-center pb-20">
              <div className="relative transform origin-top transition-transform duration-300">
-                {/* Régua (Opcional, escondida em telas muito pequenas se necessário) */}
                 <div className="hidden md:block">
                    <Ruler />
                 </div>
-                
-                {/* O Papel */}
                 <EditorContent editor={editor} />
              </div>
           </div>
