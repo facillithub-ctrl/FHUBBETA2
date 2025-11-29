@@ -5,50 +5,35 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- FONTES DO FACILLIT CREATE (Caminhos Corrigidos) --- */
-
+/* --- FONTES (Caminhos Corrigidos) --- */
 @font-face {
   font-family: 'Multiara';
-  /* Caminho exato baseado na sua pasta public */
   src: url('/fonts/muthiara/Muthiara demo version.otf') format('opentype');
-  font-weight: normal;
-  font-style: normal;
   font-display: swap;
 }
-
 @font-face {
   font-family: 'Dk Lemons';
-  /* Caminho exato baseado na sua pasta public */
   src: url('/fonts/dk_lemon_yellow_sun/DK Lemon Yellow Sun.otf') format('opentype');
-  font-weight: normal;
-  font-style: normal;
   font-display: swap;
 }
-
 @font-face {
   font-family: 'Letters For Learners';
-  /* Caminho exato baseado na sua pasta public */
   src: url('/fonts/letters_for_learners/Letters for Learners.ttf') format('truetype');
-  font-weight: normal;
-  font-style: normal;
   font-display: swap;
 }
 
-/* Configuração Base */
 body {
-  @apply bg-brand-light text-dark-text font-inter;
+  @apply bg-[#f0f2f5] text-gray-900 font-inter;
 }
 
-/* --- ESTILOS DO ESTÚDIO DE CRIAÇÃO (Facillit Create) --- */
-
-/* Padrão de pontos (Dot Grid) feito em CSS puro para evitar 404 de imagem */
+/* --- EDITOR VISUAL (PÁGINAS) --- */
 .bg-studio-dots {
   background-color: #f3f4f6;
   background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
   background-size: 20px 20px;
 }
 
-/* Sombra realista para a folha A4 */
+/* Folha A4 Realista */
 .paper-shadow {
   box-shadow: 
     0 1px 1px rgba(0,0,0,0.05), 
@@ -58,201 +43,58 @@ body {
     0 16px 16px rgba(0,0,0,0.05);
 }
 
-/* Visualização de Páginas e Quebras */
-.page-break {
-  page-break-after: always;
-  break-after: page;
-  height: 24px;
-  background: repeating-linear-gradient(
-    45deg,
-    #f3f4f6,
-    #f3f4f6 10px,
-    #e5e7eb 10px,
-    #e5e7eb 20px
-  );
-  border-top: 1px dashed #cbd5e1;
-  border-bottom: 1px dashed #cbd5e1;
-  margin: 2rem 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #6b7280;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  font-weight: 600;
-  user-select: none;
-}
-
-.page-break::after {
-  content: "Quebra de Página";
-  background: #f3f4f6;
-  padding: 0 10px;
-  border-radius: 4px;
-}
-
-/* Formas Básicas (Shapes) */
-.shape-rectangle {
+/* --- FORMAS E SELEÇÃO --- */
+.node-shape {
   display: inline-block;
-  width: 100px;
-  height: 100px;
-  background-color: #e5e7eb;
-  border: 2px solid #000;
-  margin: 0.5rem;
-}
-.shape-circle {
-  display: inline-block;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  background-color: #e5e7eb;
-  border: 2px solid #000;
-  margin: 0.5rem;
-}
-.shape-line {
-  width: 100%;
-  height: 2px;
-  background-color: #000;
-  margin: 1rem 0;
+  vertical-align: middle;
+  transition: all 0.2s;
+  cursor: pointer;
 }
 
-/* --- SCROLLBARS MODERNAS --- */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px; /* Altura para scroll horizontal */
-}
-::-webkit-scrollbar-track {
-  @apply bg-transparent;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded-full hover:bg-brand-purple/40 transition-colors;
+/* Borda azul/roxa quando selecionado no Tiptap */
+.ProseMirror-selectednode .node-shape > div {
+  outline: 2px solid #8B5CF6;
+  outline-offset: 2px;
 }
 
-/* Utilitário para esconder scrollbar mas manter funcionalidade */
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
-.scrollbar-hide {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+/* Alças de Redimensionamento (Mostra no hover) */
+.node-shape:hover .resize-handle {
+  display: block !important;
+  opacity: 0.5;
 }
 
-/* --- UTILITÁRIOS DE ANIMAÇÃO E UI --- */
+/* --- UTILITÁRIOS --- */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-body.noscroll {
-    overflow: hidden;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { @apply bg-gray-300 rounded-full hover:bg-gray-400; }
 
-/* Card Flip Animation */
-.module-card-inner {
-  transition: transform 0.6s;
-  transform-style: preserve-3d;
-}
-.module-card.is-flipped .module-card-inner {
-  transform: rotateY(180deg);
-}
-.module-card-front, .module-card-back {
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-.module-card-back {
-  transform: rotateY(180deg);
-}
-
-/* Carrossel Infinito */
-@keyframes scroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-.testimonial-carousel {
-  animation: scroll 40s linear infinite;
-}
-
-/* Animações de Entrada */
-@keyframes fadeInRight {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-.animate-fade-in-right {
-  animation: fadeInRight 0.5s ease-out forwards;
-}
-
-/* Glass Card Genérico */
-.glass-card {
-  @apply bg-white/60 dark:bg-brand-dark/60 backdrop-blur-lg border border-white/20 dark:border-white/5 rounded-2xl shadow-lg transition-all duration-300;
-}
-
-.dark body {
-  background: linear-gradient(to bottom right, #0a0a0b, #1a0533);
-  @apply text-white;
-}
-
-.force-ltr, .force-ltr * {
-  direction: ltr !important;
-  text-align: left !important;
-}
-
-/* --- MODO DE IMPRESSÃO / EXPORTAÇÃO PDF --- */
+/* --- MODO DE IMPRESSÃO (PDF) --- */
 @media print {
-  @page {
-    margin: 0;
-    size: auto;
-  }
+  @page { margin: 0; size: auto; }
   
-  body {
+  body, html {
     background: white !important;
-    color: black !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  /* Oculta tudo o que não é conteúdo do editor */
-  .no-print, 
-  header, 
-  nav, 
-  aside, 
-  .toolbar-container,
-  .bg-studio-dots {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    width: 0 !important;
-    overflow: hidden !important;
-  }
-
-  /* Garante que o editor ocupe a folha corretamente */
-  .editor-print-container, 
-  .ProseMirror {
-    position: relative !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 20mm !important; /* Margem padrão de impressão */
-    box-shadow: none !important;
-    border: none !important;
-    background: white !important;
+    height: auto !important;
     overflow: visible !important;
-    display: block !important;
   }
 
-  /* Ajusta quebras de página */
-  .page-break {
-    height: 0;
-    margin: 0;
-    border: none;
-    background: none;
-    page-break-after: always;
-    break-after: page;
-    visibility: hidden;
+  /* Oculta UI */
+  .no-print, header, aside, .toolbar-container {
+    display: none !important;
   }
-  .page-break::after {
-    content: "";
+
+  /* Mostra apenas o conteúdo */
+  .ProseMirror {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20mm !important;
+    box-shadow: none !important;
+    background: white !important;
   }
 }

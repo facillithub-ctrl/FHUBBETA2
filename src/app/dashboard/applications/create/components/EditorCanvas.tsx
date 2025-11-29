@@ -3,7 +3,7 @@
 import { useEditor, EditorContent, Extension } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 
-// --- IMPORTAÇÕES PARA CORRIGIR "IS NOT A FUNCTION" ---
+// --- EXTENSÕES ---
 import { Image } from '@tiptap/extension-image';
 import { Youtube } from '@tiptap/extension-youtube';
 import { Table } from '@tiptap/extension-table';
@@ -23,15 +23,16 @@ import { TaskItem } from '@tiptap/extension-task-item';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { Subscript } from '@tiptap/extension-subscript';
 import { Superscript } from '@tiptap/extension-superscript';
+import { ShapeExtension } from '../extensions/ShapeExtension';
 
 import { useState, useEffect } from 'react';
 import CreateToolbar from './CreateToolbar';
 import Ruler from './Ruler';
 import { saveDocument } from '../actions';
 import Link from 'next/link';
-import { ArrowLeft, Cloud, CheckCircle2, Menu } from 'lucide-react';
+import { ArrowLeft, Cloud, CheckCircle2, Menu, AlertCircle, X } from 'lucide-react';
 
-// Extensão de Tamanho de Fonte (necessária para os presets e seletor)
+// Extensão de Fonte
 const FontSize = Extension.create({
   name: 'fontSize',
   addOptions() { return { types: ['textStyle'] }; },
@@ -66,24 +67,24 @@ interface EditorCanvasProps {
 
 export default function EditorCanvas({ initialContent, documentId, initialTitle }: EditorCanvasProps) {
   const [title, setTitle] = useState(initialTitle);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [pageSettings, setPageSettings] = useState({ size: 'a4', margin: 'normal' });
 
-  // Configuração das dimensões da página
   const getPageStyle = () => {
-    let width = '210mm'; // A4
+    let width = '210mm'; 
     let minHeight = '297mm';
     let padding = '25mm';
 
     if (pageSettings.size === 'letter') { width = '216mm'; minHeight = '279mm'; }
     if (pageSettings.size === 'legal') { width = '216mm'; minHeight = '356mm'; }
-
     if (pageSettings.margin === 'narrow') padding = '12.7mm';
     if (pageSettings.margin === 'wide') padding = '50mm';
 
     return { width, minHeight, padding };
   };
+
+  const safeContent = (initialContent && Object.keys(initialContent).length > 0) ? initialContent : { type: 'doc', content: [{ type: 'paragraph' }] };
 
   const editor = useEditor({
     extensions: [
@@ -92,33 +93,29 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
         dropcursor: { color: '#8B5CF6', width: 2 },
         codeBlock: false,
       }),
-      // --- TODAS AS EXTENSÕES CARREGADAS AQUI ---
       Image.configure({ inline: true, allowBase64: true }),
       Youtube.configure({ width: 480, height: 320 }),
-      Table.configure({ resizable: true, HTMLAttributes: { class: 'border-collapse table-auto w-full my-4' } }),
+      Table.configure({ resizable: true }),
       TableRow, TableHeader, TableCell,
       TextStyle, FontSize, FontFamily, Underline, Subscript, Superscript, Color,
       Highlight.configure({ multicolor: true }),
       TiptapLink.configure({ openOnClick: false, autolink: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      CharacterCount,
-      TaskList,
-      TaskItem.configure({ nested: true }),
+      CharacterCount, TaskList, TaskItem.configure({ nested: true }),
       Placeholder.configure({ placeholder: 'Digite aqui...' }),
+      ShapeExtension, 
     ],
     editorProps: {
       attributes: {
-        // Classes Tailwind em uma linha única
         class: 'prose prose-lg max-w-none focus:outline-none bg-white font-letters text-gray-800 selection:bg-brand-purple/20 h-full',
         style: 'font-family: "Letters For Learners", sans-serif;',
       },
     },
     immediatelyRender: false,
-    content: (initialContent && Object.keys(initialContent).length > 0) ? initialContent : { type: 'doc', content: [{ type: 'paragraph' }] },
+    content: safeContent,
     onUpdate: () => setSaveStatus('unsaved'),
   });
 
-  // Autosave
   useEffect(() => {
     const interval = setInterval(() => { if (saveStatus === 'unsaved') handleSave(); }, 5000);
     return () => clearInterval(interval);
@@ -131,85 +128,44 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
       await saveDocument(documentId, editor.getJSON(), title);
       setSaveStatus('saved');
     } catch {
-      setSaveStatus('unsaved');
+      setSaveStatus('error');
     }
   };
 
-  const handleExport = (type: 'pdf' | 'html') => {
-    if (type === 'pdf') window.print();
-  };
-
+  const handleExportPDF = () => window.print();
   const pageStyle = getPageStyle();
 
   return (
     <div className="flex h-screen bg-[#f0f2f5] overflow-hidden font-sans">
       
-      {/* BARRA LATERAL (Toolbar) */}
-      <aside 
-        className={`
-          flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 z-50
-          ${isSidebarOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full overflow-hidden'}
-          fixed inset-y-0 left-0 md:relative no-print
-        `}
-      >
-        <CreateToolbar 
-          editor={editor} 
-          onSave={handleSave} 
-          isSaving={saveStatus === 'saving'}
-          onExport={handleExport}
-          pageSettings={pageSettings}
-          setPageSettings={setPageSettings}
-        />
+      {/* SIDEBAR */}
+      <aside className={`flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 z-50 ${isSidebarOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full overflow-hidden'} fixed inset-y-0 left-0 md:relative no-print shadow-xl md:shadow-none`}>
+        <button onClick={() => setIsSidebarOpen(false)} className="md:hidden absolute top-2 right-2 p-2 text-gray-500 hover:text-red-500 z-50"><X size={20}/></button>
+        <CreateToolbar editor={editor} onSave={handleSave} isSaving={saveStatus === 'saving'} onExport={handleExportPDF} pageSettings={pageSettings} setPageSettings={setPageSettings} />
       </aside>
 
-      {/* ÁREA PRINCIPAL */}
+      {/* MAIN AREA */}
       <main className="flex-1 flex flex-col h-full relative w-full">
-        
-        {/* HEADER */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0 z-40 no-print">
           <div className="flex items-center gap-4 w-full">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded text-gray-600">
-              <Menu size={20} />
-            </button>
-            
-            <Link href="/dashboard/applications/create" className="p-2 hover:bg-gray-100 rounded text-gray-500">
-              <ArrowLeft size={20} />
-            </Link>
-
+            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded text-gray-600"><Menu size={20} /></button>
+            <Link href="/dashboard/applications/create" className="p-2 hover:bg-gray-100 rounded text-gray-500"><ArrowLeft size={20} /></Link>
             <div className="flex-1 max-w-2xl">
-               <input 
-                 value={title}
-                 onChange={(e) => { setTitle(e.target.value); setSaveStatus('unsaved'); }}
-                 className="text-lg font-bold font-dk-lemons w-full border-none focus:ring-0 p-0 text-gray-800"
-                 placeholder="Título do Documento"
-               />
-               <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
-                 {saveStatus === 'saving' ? 'Salvando...' : saveStatus === 'saved' ? 'Salvo' : 'Não salvo'}
-               </span>
+               <input value={title} onChange={(e) => { setTitle(e.target.value); setSaveStatus('unsaved'); }} className="text-lg font-bold font-dk-lemons w-full border-none focus:ring-0 p-0 text-gray-800" placeholder="Título do Documento" />
+               <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{saveStatus === 'saving' ? 'Salvando...' : saveStatus === 'saved' ? 'Salvo' : 'Não salvo'}</span>
             </div>
           </div>
         </header>
 
-        {/* EDITOR SCROLLABLE */}
         <div className="flex-1 overflow-y-auto bg-studio-dots p-4 md:p-8 flex justify-center cursor-text" onClick={() => editor?.commands.focus()}>
-           <div 
-             className="bg-white paper-shadow transition-all duration-300 relative editor-print-container"
-             style={{ 
-               width: pageStyle.width, 
-               minHeight: pageStyle.minHeight,
-               padding: pageStyle.padding 
-             }}
-           >
-              {/* Régua (Opcional, só visual) */}
-              <div className="absolute top-0 left-0 w-full h-6 border-b border-gray-100 no-print opacity-50 pointer-events-none">
-                 <Ruler />
-              </div>
-              
+           <div className="bg-white paper-shadow transition-all duration-300 relative editor-print-container" style={{ width: pageStyle.width, minHeight: pageStyle.minHeight, padding: pageStyle.padding }}>
+              <div className="absolute top-0 left-0 w-full h-6 border-b border-gray-100 no-print opacity-50 pointer-events-none"><Ruler /></div>
               <EditorContent editor={editor} className="mt-4 outline-none editor-pages" />
            </div>
         </div>
-
       </main>
+      
+      {isSidebarOpen && <div className="fixed inset-0 bg-black/20 z-40 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
     </div>
   );
 }

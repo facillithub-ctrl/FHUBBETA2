@@ -6,9 +6,10 @@ import {
   Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, CheckSquare, Quote, Link as LinkIcon, 
   Undo, Redo, Download, Printer, Settings, Layers, 
-  Subscript, Superscript, ChevronDown, ChevronRight, Square, Circle, Minus
+  Subscript, Superscript, ChevronDown, ChevronRight, Square, Circle, Minus,
+  Save, Minimize, Maximize
 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 
 interface ToolbarProps {
   editor: Editor | null;
@@ -25,7 +26,7 @@ export default function CreateToolbar({ editor, onSave, isSaving, onExport, page
   const [activeGroup, setActiveGroup] = useState<string | null>('texto');
   const [showColorPicker, setShowColorPicker] = useState<'text' | 'highlight' | null>(null);
 
-  // Groups Logic
+  // Lógica de grupos (Accordion)
   const toggleGroup = (group: string) => {
     setActiveGroup(activeGroup === group ? null : group);
   };
@@ -45,8 +46,10 @@ export default function CreateToolbar({ editor, onSave, isSaving, onExport, page
     if (shape === 'line') {
       editor.chain().focus().setHorizontalRule().run();
     } else {
-      // Inserção simples de HTML para formas
-      editor.chain().focus().insertContent(`<div class="shape-${shape}"></div>`).run();
+      editor.chain().focus().insertContent({
+        type: 'shape',
+        attrs: { type: shape, width: '100px', height: '100px', color: '#e5e7eb' }
+      }).run();
     }
   };
 
