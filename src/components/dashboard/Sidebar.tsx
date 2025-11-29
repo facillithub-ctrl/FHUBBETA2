@@ -26,17 +26,17 @@ const navSections = [
         title: "Módulos de Estudo",
         icon: Book,
         items: [
-            { href: '/dashboard/applications/write', slug: 'write', icon: PenTool, label: 'Redação IA', badge: 'Novo' },
-            { href: '/dashboard/applications/test', slug: 'test', icon: FileText, label: 'Simulados' },
-            { href: '/dashboard/applications/edu', slug: 'edu', icon: GraduationCap, label: 'Minhas Turmas' },
-            { href: '/dashboard/applications/library', slug: 'library', icon: BookOpen, label: 'Biblioteca' },
+            { href: '/dashboard/applications/write', slug: 'write', icon: PenTool, label: 'Write', },
+            { href: '/dashboard/applications/test', slug: 'test', icon: FileText, label: 'Test' },
+            { href: '/dashboard/applications/edu', slug: 'edu', icon: GraduationCap, label: 'Edu' },
+            { href: '/dashboard/applications/library', slug: 'library', icon: BookOpen, label: 'Library', badge: 'Novo' },
         ]
     },
     {
         title: "Apps & Comunidade",
         icon: Grid,
         items: [
-            { href: '/dashboard/applications/games', slug: 'games', icon: Gamepad2, label: 'Facillit Games' },
+            { href: '/dashboard/applications/games', slug: 'games', icon: Gamepad2, label: 'Games' },
             { href: '/dashboard/applications/connect', slug: 'connect', icon: Users, label: 'Connect' },
             { href: '/dashboard/applications/task', slug: 'task', icon: CheckSquare, label: 'Tarefas' },
             { href: '/dashboard/applications/create', slug: 'create', icon: Lightbulb, label: 'Studio', badge: 'Beta' },

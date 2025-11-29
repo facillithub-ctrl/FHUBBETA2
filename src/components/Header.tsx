@@ -8,9 +8,8 @@ import { usePathname } from 'next/navigation';
 // --- Estrutura de Dados ---
 
 const ecossistema = {
-  "For Students": [
+  "For Education": [
     { title: "Facillit Write", href: "/modulos/facillit-write", desc: "Redação e correção IA", icon: "fa-pen-fancy" },
-    { title: "Facillit Day", href: "/modulos/facillit-day", desc: "Agenda e Hábitos", icon: "fa-calendar-alt" },
     { title: "Facillit Test", href: "/modulos/facillit-test", desc: "Simulados e Provas", icon: "fa-clipboard-check" },
     { title: "Facillit Play", href: "/modulos/facillit-play", desc: "Streaming Educacional", icon: "fa-play-circle" },
     { title: "Facillit Games", href: "/modulos/facillit-games", desc: "Aprendizagem lúdica", icon: "fa-gamepad" },
@@ -27,11 +26,11 @@ const ecossistema = {
     { title: "Facillit People", href: "/modulos/facillit-people", desc: "Gestão de RH", icon: "fa-users-cog" },
     { title: "Facillit Card", href: "/modulos/facillit-card", desc: "Benefícios", icon: "fa-credit-card" },
     { title: "Facillit API", href: "/modulos/facillit-api", desc: "Integração", icon: "fa-code" },
-    { title: "Facillit Finances", href: "/modulos/facillit-finances", desc: "Gestão Financeira", icon: "fa-chart-line" },
   ],
   "Global": [
-    { title: "Facillit Global", href: "/solucoes/global", desc: "Conexão mundial", icon: "fa-globe-americas" },
-  ]
+ { title: "Facillit Day", href: "/modulos/facillit-day", desc: "Agenda e Hábitos", icon: "fa-calendar-alt" },
+ { title: "Facillit Finances", href: "/modulos/facillit-finances", desc: "Gestão Financeira", icon: "fa-chart-line" },
+ ],
 };
 
 const recursos = [
