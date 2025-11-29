@@ -13,7 +13,6 @@ import ProgressionChart from './ProgressionChart';
 import PracticePlanWidget from './PracticePlanWidget';
 import PromptLibrary from './PromptLibrary';
 import CountdownWidget from '@/components/dashboard/CountdownWidget';
-// IMPORTAÇÃO DO LEARNING GPS (MENTOR AUTOMÁTICO)
 import LearningGPS from "@/components/learning-gps/LearningGPS"; 
 import { 
     PenTool, BookOpen, Plus, Home, History, MessageSquare, BarChart2, 
@@ -113,22 +112,27 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
     }
   }, []);
 
-  // --- ROTEAMENTO INTELIGENTE (GPS) ---
+  // --- ROTEAMENTO INTELIGENTE (GPS FIX) ---
   useEffect(() => {
     const action = searchParams.get('action');
     const promptId = searchParams.get('promptId');
     const essayIdFromUrl = searchParams.get('essayId');
 
-    if (action === 'new') {
-        // Se vier com promptId (do GPS), pré-carrega o tema
-        if (promptId) {
-            const prompt = prompts.find(p => p.id === promptId);
-            if (prompt) {
-                setCurrentEssay({ prompt_id: prompt.id, title: prompt.title });
-            }
+    // Caso 1: Nova Redação via GPS (com Prompt Específico)
+    if (action === 'new' && promptId) {
+        const prompt = prompts.find(p => p.id === promptId);
+        if (prompt) {
+            setCurrentEssay({ prompt_id: prompt.id, title: prompt.title });
+            setView('edit');
         }
+    } 
+    // Caso 2: Nova Redação Genérica (sem Prompt)
+    else if (action === 'new') {
+        setCurrentEssay(null);
         setView('edit');
-    } else if (essayIdFromUrl) {
+    }
+    // Caso 3: Abrir Redação Existente
+    else if (essayIdFromUrl) {
         const essayToOpen = initialEssays.find(e => e.id === essayIdFromUrl);
         if (essayToOpen) handleSelectEssay(essayToOpen);
     }
@@ -200,7 +204,7 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
       {activeTab === 'overview' && (
           <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-300">
               
-              {/* LEARNING GPS (Inserido aqui para destaque máximo) */}
+              {/* LEARNING GPS */}
               <LearningGPS />
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

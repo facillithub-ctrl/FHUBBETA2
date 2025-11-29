@@ -17,16 +17,14 @@ import { useToast } from "@/contexts/ToastContext";
 import { StudentDashboardData, StudentCampaign } from "../types";
 import LearningGPS from "@/components/learning-gps/LearningGPS";
 
-// --- CORES DO TEMA ---
 const COLORS = {
-  primary: '#4F46E5', // Royal Blue
-  secondary: '#10B981', // Emerald
-  accent: '#F59E0B', // Amber
-  danger: '#EF4444', // Red
+  primary: '#4F46E5', 
+  secondary: '#10B981', 
+  accent: '#F59E0B', 
+  danger: '#EF4444', 
   chart: ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d']
 };
 
-// --- HEADER DE GAMIFICAÇÃO ---
 const GamificationHeader = ({ data }: { data: any }) => {
   const safeData = data || { level: 1, current_xp: 0, next_level_xp: 100, streak_days: 0, badges: [] };
   const progress = safeData.current_xp % 100;
@@ -118,8 +116,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
   const [view, setView] = useState<"dashboard" | "attempt" | "detail" | "results">("dashboard");
   const [selectedTest, setSelectedTest] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Filtro de navegação via URL (GPS)
   const [filterSubject, setFilterSubject] = useState('Todas as Matérias');
   
   const { addToast } = useToast();
@@ -128,7 +124,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
   const safeStats = dashboardData?.stats || { simuladosFeitos: 0, mediaGeral: 0, taxaAcerto: 0, tempoMedio: 0, questionsAnsweredTotal: 0 };
   const allTests = [...(globalTests || []), ...(classTests || [])];
 
-  // --- HANDLERS ---
   const handleInitiateTest = async (testId: string) => {
       setIsLoading(true);
       try {
@@ -184,24 +179,28 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
       window.location.reload();
   };
 
-  // --- EFEITO: ROTEAMENTO INTELIGENTE (GPS) ---
+  // --- EFEITO: ROTEAMENTO INTELIGENTE (GPS FIX) ---
   useEffect(() => {
-      const viewParam = searchParams.get('view');
+      const action = searchParams.get('action');
       const testId = searchParams.get('testId');
+      const viewParam = searchParams.get('view');
       const subject = searchParams.get('subject');
 
-      if (viewParam === 'detail' && testId) {
+      // CASO 1: Iniciar Teste Imediatamente (GPS)
+      if (action === 'start' && testId) {
+          handleInitiateTest(testId);
+      }
+      // CASO 2: Ver Detalhes
+      else if (viewParam === 'detail' && testId) {
           handleViewDetails(testId);
       }
-      
-      if (subject) {
+      // CASO 3: Filtro de Matéria
+      else if (subject) {
           setActiveTab('browse');
           setFilterSubject(subject);
           addToast({ title: "Filtro Aplicado", message: `Exibindo apenas testes de ${subject}`, type: "info" });
       }
-  }, [searchParams, addToast]); // Dependência corrigida aqui
-
-  // --- SUB-RENDERIZADORES ---
+  }, [searchParams]);
 
   const renderOverview = () => (
       <div className="animate-in slide-in-from-left duration-300 space-y-8">
@@ -267,6 +266,7 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
       </div>
   );
 
+  // ... (renderAnalytics, renderAIStudy e renderBrowse mantidos iguais)
   const renderAnalytics = () => {
     const bloomData = dashboardData?.bloomAnalysis || [];
     const errorData = dashboardData?.errorAnalysis || [];

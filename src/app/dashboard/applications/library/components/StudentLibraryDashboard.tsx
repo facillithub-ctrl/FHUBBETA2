@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import LearningGPS from '@/components/learning-gps/LearningGPS';
 import { getUserRepository, getStudentInsights, type LibraryInsights } from '../actions';
 import { getPortfolioItems } from '../portfolio/actions';
@@ -9,7 +10,7 @@ import FileList from './FileList';
 import PortfolioCard from '../portfolio/PortfolioCard';
 import GamificationWidget from './GamificationWidget';
 import InsightsGrid from './InsightsGrid';
-import ContentPlayer from './ContentPlayer'; // Certifique-se de ter criado este componente
+import ContentPlayer from './ContentPlayer'; 
 
 export default function StudentLibraryDashboard({ 
   user, 
@@ -29,6 +30,7 @@ export default function StudentLibraryDashboard({
   const [selectedContent, setSelectedContent] = useState<any | null>(null);
   
   const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
 
   // Efeito para carregar dados sob demanda (Lazy Loading)
   useEffect(() => {
@@ -63,6 +65,30 @@ export default function StudentLibraryDashboard({
     }
     loadTabData();
   }, [activeTab, insights, driveItems.length, portfolioItems.length]);
+
+  // CORREÇÃO: Efeito para abrir conteúdo direto (GPS)
+  useEffect(() => {
+      const view = searchParams.get('view');
+      const contentId = searchParams.get('contentId');
+
+      if (view === 'read' && contentId) {
+          // Busca nos dados iniciais para ver se o conteúdo já está disponível
+          const allInitial = [
+              ...(initialDiscoverData.featured || []),
+              ...(initialDiscoverData.math || []),
+              ...(initialDiscoverData.literature || []),
+              ...(initialDiscoverData.science || [])
+          ];
+          const found = allInitial.find((c: any) => c.id === contentId);
+          
+          if (found) {
+              setSelectedContent(found);
+          } else {
+              // Se não achar na lista inicial, muda para aba de descobrir (onde poderia ser carregado)
+              setActiveTab('discover');
+          }
+      }
+  }, [searchParams, initialDiscoverData]);
 
   // Função para abrir o conteúdo no Player
   const handleOpenContent = (item: any) => {
