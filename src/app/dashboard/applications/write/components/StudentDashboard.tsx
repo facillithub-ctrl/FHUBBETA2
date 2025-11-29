@@ -118,8 +118,8 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
     const promptId = searchParams.get('promptId');
     const essayIdFromUrl = searchParams.get('essayId');
 
-    // Caso 1: Nova Redação via GPS (com Prompt Específico)
-    if (action === 'new' && promptId) {
+    // Caso 1: Nova Redação via GPS (Apenas PromptID ou Action+PromptID)
+    if (promptId) {
         const prompt = prompts.find(p => p.id === promptId);
         if (prompt) {
             setCurrentEssay({ prompt_id: prompt.id, title: prompt.title });

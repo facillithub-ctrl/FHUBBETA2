@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition, useRef, MouseEvent } from 'react';
-// CORREÇÃO: Importamos generateAndSaveAIAnalysis em vez de generateAIAnalysis
+// Importação de Ações
 import { Essay, getEssayDetails, submitCorrection, Annotation, AIFeedback, generateAndSaveAIAnalysis } from '../actions';
+// Importação para buscar testes (para o GPS)
+import { getTestsForTeacher } from '@/app/dashboard/applications/test/actions';
 import Image from 'next/image';
 import createClient from '@/utils/supabase/client';
 import { useToast } from '@/contexts/ToastContext';
@@ -40,13 +42,18 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
     const [isLoading, setIsLoading] = useState(true);
     const { addToast } = useToast();
     
+    // Estados de Correção
     const [feedback, setFeedback] = useState('');
     const [grades, setGrades] = useState({ c1: 0, c2: 0, c3: 0, c4: 0, c5: 0 });
     const [badge, setBadge] = useState('');
-    const [additionalLink, setAdditionalLink] = useState('');
     const [annotations, setAnnotations] = useState<Annotation[]>([]);
     const [aiFeedbackData, setAiFeedbackData] = useState<AIFeedback | null>(null);
     
+    // Estados do GPS (Novos)
+    const [availableTests, setAvailableTests] = useState<any[]>([]);
+    const [recommendedTestId, setRecommendedTestId] = useState('');
+    const [additionalLink, setAdditionalLink] = useState('');
+
     const [popupState, setPopupState] = useState<{ visible: boolean; top: number; left: number; selectionText?: string; position?: Annotation['position'] }>({ visible: false, top: 0, left: 0 });
     const [isSubmitting, startTransition] = useTransition();
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -68,23 +75,22 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
             setIsLoading(true);
             const { data } = await getEssayDetails(essayId);
             if (data) setEssay(data as EssayWithProfile);
+            
+            // Carrega testes para o GPS
+            const tests = await getTestsForTeacher();
+            if (tests.data) setAvailableTests(tests.data);
+            
             setIsLoading(false);
         };
         load();
     }, [essayId]);
 
-    // CORREÇÃO: Atualizado para usar generateAndSaveAIAnalysis
     const handleGenerateAI = async () => {
         if (!essay?.content) return addToast({ title: "Erro", message: "Sem texto para analisar.", type: "error" });
-        
         setIsGeneratingAI(true);
         addToast({ title: "IA", message: "Gerando análise...", type: "success" });
-        
         try {
-            // Chama a nova função passando ID, conteúdo e título
             const result = await generateAndSaveAIAnalysis(essay.id, essay.content, essay.title || "Sem título");
-            
-            // Verifica se 'data' existe no resultado (Type Guard)
             if ('data' in result && result.data) {
                 setAiFeedbackData(result.data as unknown as AIFeedback);
                 addToast({ title: "Sucesso", message: "Análise da IA gerada!", type: "success" });
@@ -92,7 +98,6 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                 addToast({ title: "Erro IA", message: result.error as string, type: "error" });
             }
         } catch (error) {
-            console.error(error);
             addToast({ title: "Erro", message: "Falha na conexão com a IA.", type: "error" });
         } finally {
             setIsGeneratingAI(false);
@@ -140,9 +145,21 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
             }
 
             const result = await submitCorrection({
-                essay_id: essayId, feedback, grade_c1: grades.c1, grade_c2: grades.c2, grade_c3: grades.c3, grade_c4: grades.c4, grade_c5: grades.c5,
-                final_grade, audio_feedback_url: uploadedAudioUrl, annotations, badge: badge || null, additional_link: additionalLink || null,
-                ai_feedback: aiFeedbackData 
+                essay_id: essayId, 
+                feedback, 
+                grade_c1: grades.c1, 
+                grade_c2: grades.c2, 
+                grade_c3: grades.c3, 
+                grade_c4: grades.c4, 
+                grade_c5: grades.c5,
+                final_grade, 
+                audio_feedback_url: uploadedAudioUrl, 
+                annotations, 
+                badge: badge || null, 
+                ai_feedback: aiFeedbackData,
+                // NOVOS CAMPOS GPS
+                recommended_test_id: recommendedTestId || undefined,
+                additional_link: additionalLink || undefined
             });
 
             if (!result.error) { addToast({ title: "Sucesso", message: "Correção enviada!", type: "success" }); onBack(); } else { addToast({ title: "Erro", message: result.error, type: "error" }); }
@@ -167,6 +184,7 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
             </div>
 
             <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 xl:grid-cols-3 gap-8">
+                {/* ÁREA DA REDAÇÃO (ESQUERDA) */}
                 <div className="xl:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 min-h-[80vh] p-8 relative overflow-hidden" onMouseUp={handleTextMouseUp}>
                     <div className="absolute top-0 left-0 w-full h-1 bg-brand-gradient"></div>
                     {essay.image_submission_url ? (
@@ -192,6 +210,7 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                     )}
                 </div>
 
+                {/* ÁREA DE FERRAMENTAS (DIREITA) */}
                 <div className="space-y-6">
                     {/* Painel IA */}
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
@@ -208,7 +227,7 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                         </div>
                     </div>
 
-                    {/* Feedback */}
+                    {/* Feedback e Áudio */}
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
                         <h3 className="font-bold text-sm uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2"><i className="fas fa-comment-dots text-blue-500"></i> Feedback</h3>
                         <textarea rows={6} value={feedback} onChange={e => setFeedback(e.target.value)} placeholder="Escreva uma análise construtiva..." className="w-full p-4 border rounded-xl text-sm mb-4 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-brand-purple focus:outline-none resize-none transition-colors" />
@@ -220,11 +239,52 @@ export default function CorrectionInterface({ essayId, onBack }: { essayId: stri
                         </div>
                     </div>
 
-                    {/* Extras */}
+                    {/* GPS e Extras */}
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-                        <h3 className="font-bold text-sm uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2"><i className="fas fa-award text-brand-purple"></i> Extras</h3>
-                        <div className="mb-4"><label className="block text-xs font-bold text-gray-400 mb-2">Atribuir Selo</label><select value={badge} onChange={e => setBadge(e.target.value)} className="w-full p-2.5 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-brand-purple focus:outline-none"><option value="">Selecionar Selo...</option><option value="Exemplar">🏆 Redação Exemplar</option><option value="Destaque">⭐ Destaque da Turma</option><option value="Criativo">🎨 Criatividade</option><option value="Analítico">🧠 Pensamento Analítico</option><option value="Superação">🚀 Superação</option></select></div>
-                        <div><label className="block text-xs font-bold text-gray-400 mb-2">Recomendação</label><div className="relative"><i className="fas fa-link absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" value={additionalLink} onChange={e => setAdditionalLink(e.target.value)} placeholder="Cole um link aqui..." className="w-full pl-9 p-2.5 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-brand-purple focus:outline-none" /></div></div>
+                        <h3 className="font-bold text-sm uppercase tracking-wider text-gray-500 mb-4 flex items-center gap-2"><i className="fas fa-compass text-green-500"></i> GPS de Estudo</h3>
+                        
+                        {/* Seletor de Teste Recomendado */}
+                        <div className="mb-4">
+                            <label className="block text-xs font-bold text-gray-400 mb-2">Recomendar Simulado (Reforço)</label>
+                            <select 
+                                value={recommendedTestId} 
+                                onChange={e => setRecommendedTestId(e.target.value)} 
+                                className="w-full p-2.5 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-green-500 focus:outline-none"
+                            >
+                                <option value="">Nenhum teste específico</option>
+                                {availableTests.map((t: any) => (
+                                    <option key={t.id} value={t.id}>{t.title} ({t.subject || 'Geral'})</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Link Extra */}
+                        <div className="mb-4">
+                            <label className="block text-xs font-bold text-gray-400 mb-2">Link Extra (Vídeo/Artigo)</label>
+                            <div className="relative">
+                                <i className="fas fa-link absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input 
+                                    type="text" 
+                                    value={additionalLink} 
+                                    onChange={e => setAdditionalLink(e.target.value)} 
+                                    placeholder="https://..." 
+                                    className="w-full pl-9 p-2.5 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-green-500 focus:outline-none" 
+                                />
+                            </div>
+                        </div>
+
+                        {/* Selo */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 mb-2">Atribuir Selo (Gamification)</label>
+                            <select value={badge} onChange={e => setBadge(e.target.value)} className="w-full p-2.5 border rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-brand-purple focus:outline-none">
+                                <option value="">Nenhum</option>
+                                <option value="Exemplar">🏆 Redação Exemplar</option>
+                                <option value="Destaque">⭐ Destaque da Turma</option>
+                                <option value="Criativo">🎨 Criatividade</option>
+                                <option value="Analítico">🧠 Pensamento Analítico</option>
+                                <option value="Superação">🚀 Superação</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>

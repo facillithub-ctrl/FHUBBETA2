@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import LearningGPS from '@/components/learning-gps/LearningGPS';
-import { getUserRepository, getStudentInsights, type LibraryInsights } from '../actions';
+import { getUserRepository, getStudentInsights, getLibraryContentById, type LibraryInsights } from '../actions';
 import { getPortfolioItems } from '../portfolio/actions';
 import Image from 'next/image';
 import FileList from './FileList';
@@ -66,26 +66,33 @@ export default function StudentLibraryDashboard({
     loadTabData();
   }, [activeTab, insights, driveItems.length, portfolioItems.length]);
 
-  // CORREÇÃO: Efeito para abrir conteúdo direto (GPS)
+  // EFEITO: ROTEAMENTO INTELIGENTE (GPS)
   useEffect(() => {
       const view = searchParams.get('view');
       const contentId = searchParams.get('contentId');
 
-      if (view === 'read' && contentId) {
-          // Busca nos dados iniciais para ver se o conteúdo já está disponível
+      // Detecta se tem contentId, mesmo sem view='read' explícito
+      if (contentId) {
+          // 1. Tenta achar nos dados já carregados (cache instantâneo)
           const allInitial = [
-              ...(initialDiscoverData.featured || []),
-              ...(initialDiscoverData.math || []),
-              ...(initialDiscoverData.literature || []),
-              ...(initialDiscoverData.science || [])
+              ...(initialDiscoverData?.featured || []),
+              ...(initialDiscoverData?.math || []),
+              ...(initialDiscoverData?.literature || []),
+              ...(initialDiscoverData?.science || [])
           ];
           const found = allInitial.find((c: any) => c.id === contentId);
           
           if (found) {
               setSelectedContent(found);
           } else {
-              // Se não achar na lista inicial, muda para aba de descobrir (onde poderia ser carregado)
-              setActiveTab('discover');
+              // 2. Se não achar, busca no servidor (Deep Linking robusto)
+              setLoading(true); 
+              getLibraryContentById(contentId).then((data) => {
+                  if (data) {
+                      setSelectedContent(data);
+                  }
+                  setLoading(false);
+              });
           }
       }
   }, [searchParams, initialDiscoverData]);

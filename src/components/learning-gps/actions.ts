@@ -1,132 +1,106 @@
-"use server";
+'use server'
 
-import createClient from "@/utils/supabase/server";
-import { GPSData, LearningAction, ModuleType } from "./types";
+import createClient from '@/utils/supabase/server';
+import { GPSAction } from './types';
+
+export type GPSData = {
+    recommendations: GPSAction[];
+    shortcuts: {
+        write: GPSAction[];
+        test: GPSAction[];
+        library: GPSAction[];
+    };
+};
 
 export async function getLearningGPSData(): Promise<GPSData> {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) return { actions: [], stats: { completedToday: 0, streak: 0 } };
+  if (!user) return { recommendations: [], shortcuts: { write: [], test: [], library: [] } };
 
-    // Busca perfil para saber se é Aluno ou Professor
-    const { data: profile } = await supabase.from('profiles').select('user_category, streak_days').eq('id', user.id).single();
-    const userRole = profile?.user_category || 'student'; // 'student', 'professor', 'diretor'
+  const recommendations: GPSAction[] = [];
 
-    const actions: LearningAction[] = [];
+  // 1. RECOMENDAÇÕES DO PROFESSOR (Via Correção de Redação)
+  const { data: corrections } = await supabase
+    .from('essay_corrections')
+    .select('id, recommended_test_id, additional_link, essays!inner(title)')
+    .eq('essays.student_id', user.id)
+    .order('corrected_at', { ascending: false })
+    .limit(3);
 
-    // =====================================================================
-    // 1. AÇÕES DO SISTEMA (GERENCIADAS PELO ADMIN)
-    // =====================================================================
-    const { data: systemActions } = await supabase
-        .from('system_suggested_actions')
-        .select('*')
-        .eq('active', true);
+  corrections?.forEach((c: any) => {
+      if (c.recommended_test_id) {
+          recommendations.push({
+              id: `rec-test-${c.id}`,
+              title: "Reforço Indicado",
+              description: `Treino focado na redação "${c.essays.title}".`,
+              module: 'test',
+              link: `/dashboard/applications/test?testId=${c.recommended_test_id}&action=start`,
+              icon_name: 'Target',
+              bg_color: 'bg-red-600',
+              priority: 'high',
+              type: 'recommendation',
+              source: 'Professor'
+          });
+      }
+      if (c.additional_link) {
+          recommendations.push({
+              id: `rec-link-${c.id}`,
+              title: "Material Extra",
+              description: "Conteúdo de apoio sugerido pelo professor.",
+              module: 'library',
+              link: c.additional_link,
+              icon_name: 'Link',
+              bg_color: 'bg-indigo-600',
+              priority: 'medium',
+              type: 'recommendation',
+              source: 'Professor'
+          });
+      }
+  });
 
-    if (systemActions) {
-        systemActions.forEach((sys: any) => {
-            // FILTRO DE PERFIL: Se a ação for para 'teacher' e o user for 'student', pula.
-            if (sys.target_role && sys.target_role !== 'all' && sys.target_role !== userRole) {
-                return;
-            }
+  // 2. AÇÕES DO ADMIN (GPS DO SISTEMA)
+  // CORREÇÃO: Removido filtro de prioridade 'high' para mostrar tudo que estiver ativo
+  const { data: adminData } = await supabase
+    .from('system_suggested_actions')
+    .select('*')
+    .eq('active', true)
+    .order('priority', { ascending: false }) // High primeiro, depois Medium/Low
+    .limit(5); // Aumentado limite para garantir visibilidade
 
-            // Ações "Always" entram direto. 
-            // Condicionais específicas (ex: low_grammar) podem ser tratadas aqui se tiverem lógica global
-            // ou ignoradas se dependerem de cálculo complexo abaixo.
-            // Por simplicidade, assumimos que ações do admin são 'always' ou compatíveis.
-            if (!sys.trigger_condition || sys.trigger_condition === 'always') {
-                actions.push({
-                    id: sys.id,
-                    title: sys.title,
-                    description: sys.description,
-                    module: sys.module as ModuleType,
-                    category: 'pending',
-                    priority: sys.priority || 'medium',
-                    link: sys.action_link,
-                    icon_name: sys.icon_name || 'Star',
-                    bg_color: sys.bg_color || 'bg-blue-600',
-                    button_text: sys.button_text || 'Acessar',
-                    reason: 'Sugestão da Escola',
-                    target_role: sys.target_role,
-                    trigger_condition: sys.trigger_condition
-                });
-            }
-        });
-    }
+  adminData?.forEach((item: any) => {
+      recommendations.push({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          module: item.module,
+          link: item.action_link,
+          icon_name: item.icon_name || 'Star',
+          bg_color: item.bg_color || 'bg-blue-600',
+          priority: item.priority,
+          type: 'system',
+          source: 'Facillit'
+      });
+  });
 
-    // =====================================================================
-    // 2. INTELIGÊNCIA CRUZADA (WRITE -> TEST)
-    // Se o aluno é fraco em Gramática (C1) na Redação -> Recomenda Teste
-    // =====================================================================
-    if (userRole === 'aluno' || userRole === 'vestibulando') {
-        
-        // Busca as últimas 3 correções de redação
-        const { data: recentCorrections } = await supabase
-            .from('essay_corrections')
-            .select('grade_c1, essays(submitted_at)')
-            .eq('essays.student_id', user.id) // Join implícito
-            .order('created_at', { ascending: false })
-            .limit(3);
+  // 3. ATALHOS INTELIGENTES (Menu de Módulos)
+  const shortcuts = {
+      write: [
+          { id: 'w-new', title: 'Escrever Redação', description: 'Novo tema', module: 'write', link: '/dashboard/applications/write?action=new', icon_name: 'PenTool', type: 'shortcut' },
+          { id: 'w-hist', title: 'Minhas Correções', description: 'Ver histórico', module: 'write', link: '/dashboard/applications/write?tab=history', icon_name: 'History', type: 'shortcut' },
+          { id: 'w-lib', title: 'Temas', description: 'Banco de temas', module: 'write', link: '/dashboard/applications/write?view=prompts_library', icon_name: 'Book', type: 'shortcut' }
+      ] as GPSAction[],
+      test: [
+          { id: 't-turbo', title: 'Modo Turbo', description: 'Treino 5min', module: 'test', link: '/dashboard/applications/test?action=turbo', icon_name: 'Zap', type: 'shortcut' },
+          { id: 't-list', title: 'Simulados', description: 'Ver lista', module: 'test', link: '/dashboard/applications/test?tab=browse', icon_name: 'List', type: 'shortcut' },
+          { id: 't-res', title: 'Resultados', description: 'Analytics', module: 'test', link: '/dashboard/applications/test?tab=analytics', icon_name: 'BarChart', type: 'shortcut' }
+      ] as GPSAction[],
+      library: [
+          { id: 'l-drive', title: 'Meu Drive', description: 'Arquivos', module: 'library', link: '/dashboard/applications/library?tab=drive', icon_name: 'Folder', type: 'shortcut' },
+          { id: 'l-disc', title: 'Descobrir', description: 'Conteúdos', module: 'library', link: '/dashboard/applications/library?tab=discover', icon_name: 'Compass', type: 'shortcut' },
+          { id: 'l-port', title: 'Portfólio', description: 'Projetos', module: 'library', link: '/dashboard/applications/library?tab=portfolio', icon_name: 'Briefcase', type: 'shortcut' }
+      ] as GPSAction[]
+  };
 
-        if (recentCorrections && recentCorrections.length > 0) {
-            // Calcula média da Competência 1 (Norma Culta)
-            const avgC1 = recentCorrections.reduce((acc, curr) => acc + (curr.grade_c1 || 0), 0) / recentCorrections.length;
-
-            // Se média < 120 (em 200), aciona o alerta
-            if (avgC1 < 120) {
-                actions.push({
-                    id: 'auto-fix-grammar',
-                    title: 'Reforço: Gramática e Norma Culta',
-                    description: 'Notamos dificuldade na Competência 1 das suas redações. Treine agora.',
-                    module: 'test',
-                    category: 'recovery', // Categoria especial de recuperação
-                    priority: 'high',
-                    // Link leva para um filtro automático de questões de gramática
-                    link: '/dashboard/applications/test?subject=Gramática&difficulty=easy',
-                    icon_name: 'SpellCheck', // Ícone específico
-                    bg_color: 'bg-rose-600',
-                    button_text: 'Fazer Exercícios',
-                    reason: 'Baseado na sua média de Redação (C1)'
-                });
-            }
-        }
-    }
-
-    // =====================================================================
-    // 3. RECOMENDAÇÕES PARA PROFESSORES (DASHBOARD INTELIGENTE)
-    // =====================================================================
-    if (userRole === 'professor' || userRole === 'diretor') {
-        const { count: pendingEssays } = await supabase
-            .from('essays')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'submitted');
-
-        if ((pendingEssays || 0) > 5) {
-            actions.unshift({
-                id: 'teacher-pending-essays',
-                title: 'Correções Acumuladas',
-                description: `Existem ${pendingEssays} redações aguardando sua avaliação.`,
-                module: 'write',
-                category: 'pending',
-                priority: 'high',
-                link: '/dashboard/applications/write?view=correction_queue',
-                icon_name: 'AlertCircle',
-                bg_color: 'bg-amber-600',
-                button_text: 'Corrigir Fila',
-                reason: 'Alta demanda'
-            });
-        }
-    }
-
-    return {
-        // Ordena: High > Medium > Low
-        actions: actions.sort((a, b) => {
-            const map = { high: 3, medium: 2, low: 1 };
-            return map[b.priority] - map[a.priority];
-        }),
-        stats: {
-            completedToday: 0,
-            streak: profile?.streak_days || 0
-        }
-    };
+  return { recommendations, shortcuts };
 }

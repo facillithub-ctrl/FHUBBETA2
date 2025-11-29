@@ -40,3 +40,25 @@ export type GPSData = {
         streak: number;
     };
 };
+export type GPSItemType = 'recommendation' | 'shortcut' | 'system';
+
+export interface GPSAction {
+  id: string;
+  title: string;
+  description: string;
+  module: 'write' | 'test' | 'library' | 'games';
+  link: string;
+  icon_name: string; // Nome do ícone Lucide
+  bg_color?: string;
+  priority?: 'high' | 'medium' | 'low';
+  type: GPSItemType;
+  source?: string; // 'Professor', 'IA', 'Sistema'
+}
+
+export interface GPSModuleGroup {
+    module: string;
+    label: string;
+    icon: string;
+    color: string;
+    actions: GPSAction[];
+}

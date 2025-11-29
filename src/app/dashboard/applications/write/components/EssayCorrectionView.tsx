@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { 
     getEssayDetails, 
     getCorrectionForEssay, 
@@ -44,10 +45,9 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                 const essayRes = await getEssayDetails(essayId);
                 if (essayRes.data) {
                     const correctionRes = await getCorrectionForEssay(essayId);
-                    // Cast forçado para garantir compatibilidade
                     const finalCorrection = correctionRes.data ? { ...correctionRes.data } as unknown as CorrectionWithDetails : null;
 
-                    // Lógica de Aba Inicial: Se não houver correção humana mas houver IA, foca na IA
+                    // Lógica de Aba Inicial
                     if (!finalCorrection?.feedback && finalCorrection?.ai_feedback) {
                         setActiveTab('ia');
                     }
@@ -135,10 +135,8 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
 
     if (!data) return <div className="text-center p-10 text-gray-500">Redação não encontrada.</div>;
 
-    // CORREÇÃO: Tratamento robusto para aiData e inferência de array
     const rawAiData = correction?.ai_feedback;
     const aiData = (Array.isArray(rawAiData) ? rawAiData[0] : rawAiData) as AIFeedback | null | undefined;
-    
     const hasHumanCorrection = !!correction?.feedback;
 
     return (
@@ -147,12 +145,10 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
             {/* --- HEADER FLUTUANTE --- */}
             <div className="sticky top-4 z-40 px-4 md:px-0 mb-8 pointer-events-none">
                 <div className="pointer-events-auto max-w-7xl mx-auto bg-white/90 backdrop-blur-xl border border-gray-200/60 shadow-lg rounded-2xl flex items-center justify-between p-4 md:px-6 md:py-4 transition-all">
-                    
                     <div className="flex items-center gap-4">
                         <button onClick={onBack} className="w-10 h-10 rounded-full bg-gray-100 hover:bg-brand-purple hover:text-white text-gray-500 transition-all flex items-center justify-center shadow-sm">
                             <i className="fas fa-arrow-left"></i>
                         </button>
-                        
                         <div>
                             <h1 className="text-base md:text-lg font-bold text-slate-900 truncate max-w-[200px] md:max-w-md leading-tight">
                                 {data.title || "Redação sem Título"}
@@ -170,7 +166,6 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                             </div>
                         </div>
                     </div>
-
                     <div className="flex items-center gap-3">
                         {correction?.final_grade !== undefined && (
                             <div className="hidden md:flex flex-col items-end mr-2 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
@@ -230,7 +225,6 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                     {correction?.final_grade !== undefined && (
                         <div className="bg-white rounded-3xl p-6 shadow-lg shadow-purple-900/5 border border-purple-100 relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-brand-purple/10 to-indigo-100/50 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700"></div>
-                            
                             <div className="relative z-10 flex justify-between items-start">
                                 <div>
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Resultado Final</p>
@@ -247,14 +241,11 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                                     </div>
                                 )}
                             </div>
-
-                            {/* Competências */}
                             <div className="grid grid-cols-5 gap-2 mt-6 pt-6 border-t border-gray-100">
                                 {[1, 2, 3, 4, 5].map(i => (
                                     <div key={i} className="flex flex-col items-center">
                                         <span className="text-[10px] font-bold text-gray-400 uppercase mb-1">C{i}</span>
                                         <span className="text-sm font-bold text-slate-800 bg-gray-50 px-2 py-1 rounded-md min-w-[30px] text-center">
-                                            {/* CORREÇÃO: Cast específico para garantir que é renderizável */}
                                             {correction[`grade_c${i}` as GradeKey] ?? '-'}
                                         </span>
                                     </div>
@@ -263,10 +254,49 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                         </div>
                     )}
 
+                    {/* GPS - RECOMENDAÇÃO DO PROFESSOR (NOVO BLOCO) */}
+                    {(correction?.recommended_test_id || correction?.additional_link) && (
+                        <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-100 rounded-3xl p-5 shadow-sm relative overflow-hidden animate-in fade-in slide-in-from-right">
+                            <div className="flex items-center gap-3 mb-3 relative z-10">
+                                <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                                    <i className="fas fa-bullseye"></i>
+                                </div>
+                                <h3 className="font-bold text-red-900 text-sm">Recomendação do Professor</h3>
+                            </div>
+                            
+                            <div className="space-y-2 relative z-10">
+                                {correction.recommended_test_id && (
+                                    <Link 
+                                        href={`/dashboard/applications/test?testId=${correction.recommended_test_id}&action=start`} 
+                                        className="flex items-center justify-between p-3 bg-white rounded-xl border border-red-100 hover:shadow-md transition-all group"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <i className="fas fa-clipboard-check text-red-500"></i>
+                                            <span className="text-xs font-bold text-slate-700 group-hover:text-red-600">Fazer Simulado de Reforço</span>
+                                        </div>
+                                        <i className="fas fa-chevron-right text-xs text-gray-400"></i>
+                                    </Link>
+                                )}
+                                {correction.additional_link && (
+                                    <Link 
+                                        href={correction.additional_link} 
+                                        target="_blank"
+                                        className="flex items-center justify-between p-3 bg-white rounded-xl border border-red-100 hover:shadow-md transition-all group"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <i className="fas fa-link text-blue-500"></i>
+                                            <span className="text-xs font-bold text-slate-700 group-hover:text-blue-600">Acessar Material Extra</span>
+                                        </div>
+                                        <i className="fas fa-external-link-alt text-xs text-gray-400"></i>
+                                    </Link>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* TABS CONTAINER */}
                     <div className="bg-white rounded-3xl shadow-sm border border-gray-200 flex flex-col overflow-hidden min-h-[500px]">
                         
-                        {/* TAB HEADERS */}
                         <div className="px-6 pt-6 pb-2">
                             <div className="bg-gray-100/80 p-1 rounded-xl flex gap-1">
                                 <button onClick={() => setActiveTab('humano')} className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wide rounded-lg transition-all ${activeTab === 'humano' ? 'bg-white text-brand-purple shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Professor</button>
@@ -275,9 +305,7 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                             </div>
                         </div>
 
-                        {/* TAB CONTENT */}
                         <div className="p-6 flex-1 bg-white overflow-y-auto custom-scrollbar">
-                            
                             {/* 1. HUMANO */}
                             {activeTab === 'humano' && (
                                 <div className="animate-fade-in space-y-6">
@@ -292,14 +320,12 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                                                         {correction?.profiles?.full_name || 'Professor'}
                                                         <VerificationBadge badge={correction?.profiles?.verification_badge} size="12px" />
                                                     </div>
-                                                    <p className="text-xs text-slate-500 mt-0.5">Corretor Especialista Certificado</p>
+                                                    <p className="text-xs text-slate-500 mt-0.5">Corretor Especialista</p>
                                                 </div>
                                             </div>
-                                            
                                             <div className="prose prose-sm text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100">
                                                 <p className="whitespace-pre-wrap">{correction?.feedback}</p>
                                             </div>
-
                                             {correction?.audio_feedback_url && (
                                                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-center gap-3">
                                                     <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white shrink-0">
@@ -332,9 +358,6 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                                             <div className="relative">
                                                 <div className="w-20 h-20 border-4 border-indigo-100 rounded-full"></div>
                                                 <div className="absolute top-0 left-0 w-20 h-20 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                                <div className="absolute inset-0 flex items-center justify-center text-indigo-500 text-xl">
-                                                    <i className="fas fa-robot"></i>
-                                                </div>
                                             </div>
                                             <p className="text-sm font-medium text-indigo-900 animate-pulse">Analisando redação...</p>
                                         </div>
@@ -347,7 +370,6 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                                                     <p className="text-xs text-indigo-700">Baseada nos critérios do ENEM.</p>
                                                 </div>
                                             </div>
-                                            {/* CORREÇÃO: Tipagem explícita para o parâmetro item */}
                                             {aiData.detailed_feedback?.map((item: { competency: string; feedback: string }, idx: number) => (
                                                 <div key={idx} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm group hover:border-indigo-200 transition-colors">
                                                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -360,17 +382,7 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                                         </>
                                     ) : (
                                         <div className="flex flex-col items-center justify-center h-full py-10 text-center">
-                                            <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200 mb-6 transform rotate-3">
-                                                <i className="fas fa-magic text-3xl text-white"></i>
-                                            </div>
-                                            <h3 className="text-lg font-bold text-slate-900">Correção Instantânea</h3>
-                                            <p className="text-sm text-slate-500 max-w-xs mx-auto mt-2 mb-6">
-                                                Receba feedback detalhado e um plano de estudos personalizado em segundos.
-                                            </p>
-                                            <button 
-                                                onClick={handleGenerateAI}
-                                                className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-800 hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-2"
-                                            >
+                                            <button onClick={handleGenerateAI} className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
                                                 <i className="fas fa-bolt text-yellow-400"></i> Gerar Análise
                                             </button>
                                         </div>
@@ -389,16 +401,12 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-bold text-blue-900">Plano de Ação</p>
-                                                    <p className="text-xs text-blue-700">Tarefas sugeridas para melhorar sua nota.</p>
+                                                    <p className="text-xs text-blue-700">Tarefas sugeridas.</p>
                                                 </div>
                                             </div>
                                             <div className="space-y-2">
-                                                {/* CORREÇÃO: Tipagem explícita para o parâmetro item */}
                                                 {aiData.actionable_items.map((item: string, idx: number) => (
-                                                    <div key={idx} className="flex gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-blue-200 transition-colors cursor-default group">
-                                                        <div className="mt-0.5 w-5 h-5 rounded border border-gray-300 flex items-center justify-center text-white group-hover:border-blue-400">
-                                                            <i className="fas fa-check text-[10px] opacity-0 group-hover:opacity-20"></i>
-                                                        </div>
+                                                    <div key={idx} className="flex gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-blue-200 transition-colors">
                                                         <span className="text-sm text-slate-700 font-medium">{item}</span>
                                                     </div>
                                                 ))}
@@ -406,9 +414,7 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                                         </>
                                     ) : (
                                         <div className="text-center py-12 text-slate-400">
-                                            <i className="fas fa-clipboard-list text-4xl mb-3 opacity-20"></i>
-                                            <p className="text-sm">Gere a análise de IA primeiro para ver o plano.</p>
-                                            <button onClick={() => setActiveTab('ia')} className="mt-4 text-blue-600 font-bold text-xs hover:underline">Ir para IA</button>
+                                            <p className="text-sm">Gere a análise de IA primeiro.</p>
                                         </div>
                                     )}
                                 </div>

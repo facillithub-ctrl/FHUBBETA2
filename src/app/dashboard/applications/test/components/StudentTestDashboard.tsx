@@ -190,8 +190,8 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
       if (action === 'start' && testId) {
           handleInitiateTest(testId);
       }
-      // CASO 2: Ver Detalhes
-      else if (viewParam === 'detail' && testId) {
+      // CASO 2: Ver Detalhes (Pode ser explícito ou só ter o ID)
+      else if (testId) {
           handleViewDetails(testId);
       }
       // CASO 3: Filtro de Matéria

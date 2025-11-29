@@ -351,3 +351,22 @@ export async function completeContent(contentId: string) {
     });
   }
 }
+
+// ==============================================================================
+// 5. GPS & DEEP LINKING
+// ==============================================================================
+
+export async function getLibraryContentById(contentId: string) {
+  const libDb = createLibraryServerClient();
+  
+  // Tenta buscar em conteúdos oficiais
+  const { data: official, error } = await libDb
+    .from('official_contents')
+    .select('*')
+    .eq('id', contentId)
+    .single();
+  
+  if (official) return official;
+
+  return null;
+}
