@@ -10,8 +10,9 @@ export interface CreateDocument {
 }
 
 export interface PageSettings {
-  size: 'a4' | 'letter';
+  size: 'a4' | 'letter' | 'legal';
   orientation: 'portrait' | 'landscape';
-  bgColor: string;
-  lineStyle: 'none' | 'ruled' | 'grid' | 'dotted';
+  margin: 'normal' | 'narrow' | 'wide';
+  bgColor?: string;
+  lineStyle?: 'none' | 'ruled' | 'grid' | 'dotted';
 }

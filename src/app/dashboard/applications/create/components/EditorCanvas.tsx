@@ -3,7 +3,7 @@
 import { useEditor, EditorContent, Extension } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 
-// --- IMPORTAÇÃO DAS EXTENSÕES ---
+// --- IMPORTAÇÕES PARA CORRIGIR "IS NOT A FUNCTION" ---
 import { Image } from '@tiptap/extension-image';
 import { Youtube } from '@tiptap/extension-youtube';
 import { Table } from '@tiptap/extension-table';
@@ -29,41 +29,31 @@ import CreateToolbar from './CreateToolbar';
 import Ruler from './Ruler';
 import { saveDocument } from '../actions';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, Cloud, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Cloud, CheckCircle2, Menu } from 'lucide-react';
 
-// --- EXTENSÃO CUSTOMIZADA PARA TAMANHO DA FONTE ---
+// Extensão de Tamanho de Fonte (necessária para os presets e seletor)
 const FontSize = Extension.create({
   name: 'fontSize',
-  addOptions() {
-    return {
-      types: ['textStyle'],
-    };
-  },
+  addOptions() { return { types: ['textStyle'] }; },
   addGlobalAttributes() {
-    return [
-      {
-        types: this.options.types,
-        attributes: {
-          fontSize: {
-            default: null,
-            parseHTML: element => element.style.fontSize.replace(/['"]+/g, ''),
-            renderHTML: attributes => {
-              if (!attributes.fontSize) return {};
-              return { style: `font-size: ${attributes.fontSize}` };
-            },
+    return [{
+      types: this.options.types,
+      attributes: {
+        fontSize: {
+          default: null,
+          parseHTML: element => element.style.fontSize.replace(/['"]+/g, ''),
+          renderHTML: attributes => {
+            if (!attributes.fontSize) return {};
+            return { style: `font-size: ${attributes.fontSize}` };
           },
         },
       },
-    ];
+    }];
   },
   addCommands() {
     return {
-      setFontSize: (fontSize: string) => ({ chain }: any) => {
-        return chain().setMark('textStyle', { fontSize }).run();
-      },
-      unsetFontSize: () => ({ chain }: any) => {
-        return chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run();
-      },
+      setFontSize: (fontSize: string) => ({ chain }: any) => chain().setMark('textStyle', { fontSize }).run(),
+      unsetFontSize: () => ({ chain }: any) => chain().setMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run(),
     };
   },
 });
@@ -76,12 +66,24 @@ interface EditorCanvasProps {
 
 export default function EditorCanvas({ initialContent, documentId, initialTitle }: EditorCanvasProps) {
   const [title, setTitle] = useState(initialTitle);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved');
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [pageSettings, setPageSettings] = useState({ size: 'a4', margin: 'normal' });
 
-  // Garante que o conteúdo inicial seja válido
-  const safeContent = (initialContent && Object.keys(initialContent).length > 0) 
-    ? initialContent 
-    : { type: 'doc', content: [{ type: 'paragraph' }] };
+  // Configuração das dimensões da página
+  const getPageStyle = () => {
+    let width = '210mm'; // A4
+    let minHeight = '297mm';
+    let padding = '25mm';
+
+    if (pageSettings.size === 'letter') { width = '216mm'; minHeight = '279mm'; }
+    if (pageSettings.size === 'legal') { width = '216mm'; minHeight = '356mm'; }
+
+    if (pageSettings.margin === 'narrow') padding = '12.7mm';
+    if (pageSettings.margin === 'wide') padding = '50mm';
+
+    return { width, minHeight, padding };
+  };
 
   const editor = useEditor({
     extensions: [
@@ -90,53 +92,35 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
         dropcursor: { color: '#8B5CF6', width: 2 },
         codeBlock: false,
       }),
-      // Mídia
+      // --- TODAS AS EXTENSÕES CARREGADAS AQUI ---
       Image.configure({ inline: true, allowBase64: true }),
       Youtube.configure({ width: 480, height: 320 }),
-      // Tabelas
       Table.configure({ resizable: true, HTMLAttributes: { class: 'border-collapse table-auto w-full my-4' } }),
       TableRow, TableHeader, TableCell,
-      // Estilos
-      TextStyle, 
-      FontSize, 
-      FontFamily,
-      Underline,
-      Subscript,
-      Superscript,
-      Color,
+      TextStyle, FontSize, FontFamily, Underline, Subscript, Superscript, Color,
       Highlight.configure({ multicolor: true }),
-      // Funcionalidades
-      TiptapLink.configure({ 
-        openOnClick: false, 
-        autolink: true,
-        HTMLAttributes: { class: 'text-blue-600 underline cursor-pointer hover:text-blue-800' } 
-      }),
+      TiptapLink.configure({ openOnClick: false, autolink: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       CharacterCount,
       TaskList,
       TaskItem.configure({ nested: true }),
-      Placeholder.configure({ 
-          placeholder: 'Comece a escrever sua ideia...',
-          emptyEditorClass: 'is-editor-empty before:content-[attr(data-placeholder)] before:text-gray-300 before:float-left before:pointer-events-none'
-      }),
+      Placeholder.configure({ placeholder: 'Digite aqui...' }),
     ],
     editorProps: {
       attributes: {
-        // CORREÇÃO AQUI: String única, sem quebras de linha
-        class: 'prose prose-lg max-w-none focus:outline-none w-[210mm] min-h-[297mm] mx-auto bg-white paper-shadow my-8 p-[20mm] font-letters text-gray-800 selection:bg-brand-purple/20 selection:text-brand-purple',
+        // Classes Tailwind em uma linha única
+        class: 'prose prose-lg max-w-none focus:outline-none bg-white font-letters text-gray-800 selection:bg-brand-purple/20 h-full',
         style: 'font-family: "Letters For Learners", sans-serif;',
       },
     },
     immediatelyRender: false,
-    content: safeContent,
+    content: (initialContent && Object.keys(initialContent).length > 0) ? initialContent : { type: 'doc', content: [{ type: 'paragraph' }] },
     onUpdate: () => setSaveStatus('unsaved'),
   });
 
   // Autosave
   useEffect(() => {
-    const interval = setInterval(() => {
-        if (saveStatus === 'unsaved' && editor) handleSave();
-    }, 4000);
+    const interval = setInterval(() => { if (saveStatus === 'unsaved') handleSave(); }, 5000);
     return () => clearInterval(interval);
   }, [saveStatus, editor]);
 
@@ -146,62 +130,86 @@ export default function EditorCanvas({ initialContent, documentId, initialTitle 
     try {
       await saveDocument(documentId, editor.getJSON(), title);
       setSaveStatus('saved');
-    } catch (error) {
-      console.error(error);
-      setSaveStatus('error');
+    } catch {
+      setSaveStatus('unsaved');
     }
   };
 
+  const handleExport = (type: 'pdf' | 'html') => {
+    if (type === 'pdf') window.print();
+  };
+
+  const pageStyle = getPageStyle();
+
   return (
-    <div className="flex flex-col h-screen bg-studio-dots overflow-hidden relative font-sans">
+    <div className="flex h-screen bg-[#f0f2f5] overflow-hidden font-sans">
       
-      {/* HEADER */}
-      <div className="bg-white/90 backdrop-blur-md border-b border-gray-200 h-16 flex items-center justify-between px-4 lg:px-8 shrink-0 z-50">
-        <div className="flex items-center gap-4 w-full max-w-3xl">
-          <Link href="/dashboard/applications/create" className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors">
-            <ArrowLeft size={20} />
-          </Link>
-          
-          <div className="h-6 w-px bg-gray-300 mx-1 hidden sm:block"></div>
+      {/* BARRA LATERAL (Toolbar) */}
+      <aside 
+        className={`
+          flex-shrink-0 bg-white border-r border-gray-200 transition-all duration-300 z-50
+          ${isSidebarOpen ? 'w-80 translate-x-0' : 'w-0 -translate-x-full overflow-hidden'}
+          fixed inset-y-0 left-0 md:relative no-print
+        `}
+      >
+        <CreateToolbar 
+          editor={editor} 
+          onSave={handleSave} 
+          isSaving={saveStatus === 'saving'}
+          onExport={handleExport}
+          pageSettings={pageSettings}
+          setPageSettings={setPageSettings}
+        />
+      </aside>
 
-          <div className="flex flex-col flex-1">
-             <input 
-               value={title}
-               onChange={(e) => { setTitle(e.target.value); setSaveStatus('unsaved'); }}
-               className="text-xl font-bold font-dk-lemons bg-transparent border-none focus:ring-0 text-gray-800 w-full placeholder-gray-300 p-0 leading-tight truncate"
-               placeholder="Título do Documento"
-             />
-             <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-gray-400 mt-0.5">
-                {saveStatus === 'saving' && <span className="flex items-center gap-1 text-brand-purple"><Cloud size={10} className="animate-bounce"/> Salvando</span>}
-                {saveStatus === 'saved' && <span className="flex items-center gap-1 text-green-600"><CheckCircle2 size={10}/> Salvo</span>}
-                {saveStatus === 'unsaved' && <span className="text-orange-400">Não salvo</span>}
-                {saveStatus === 'error' && <span className="flex items-center gap-1 text-red-500"><AlertCircle size={10}/> Erro ao salvar</span>}
-             </div>
-          </div>
-        </div>
-      </div>
+      {/* ÁREA PRINCIPAL */}
+      <main className="flex-1 flex flex-col h-full relative w-full">
+        
+        {/* HEADER */}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 shrink-0 z-40 no-print">
+          <div className="flex items-center gap-4 w-full">
+            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-gray-100 rounded text-gray-600">
+              <Menu size={20} />
+            </button>
+            
+            <Link href="/dashboard/applications/create" className="p-2 hover:bg-gray-100 rounded text-gray-500">
+              <ArrowLeft size={20} />
+            </Link>
 
-      {/* ÁREA PRINCIPAL DO EDITOR */}
-      <div className="flex-1 overflow-y-auto cursor-default scroll-smooth relative bg-studio-dots" onClick={() => editor?.commands.focus()}>
-        <div className="flex flex-col items-center py-6 min-h-full">
-          
-          {/* BARRA DE FERRAMENTAS FLUTUANTE */}
-          <div className="sticky top-4 z-40 w-full px-4 mb-6 max-w-[214mm]">
-             <CreateToolbar editor={editor} onSave={handleSave} isSaving={saveStatus === 'saving'} />
+            <div className="flex-1 max-w-2xl">
+               <input 
+                 value={title}
+                 onChange={(e) => { setTitle(e.target.value); setSaveStatus('unsaved'); }}
+                 className="text-lg font-bold font-dk-lemons w-full border-none focus:ring-0 p-0 text-gray-800"
+                 placeholder="Título do Documento"
+               />
+               <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">
+                 {saveStatus === 'saving' ? 'Salvando...' : saveStatus === 'saved' ? 'Salvo' : 'Não salvo'}
+               </span>
+            </div>
           </div>
-          
-          {/* FOLHA DE PAPEL */}
-          <div className="w-full overflow-x-auto px-4 md:px-0 flex justify-center pb-32">
-             <div className="relative transform transition-all duration-300 origin-top">
-                <div className="hidden md:block select-none opacity-50 hover:opacity-100 transition-opacity">
-                   <Ruler />
-                </div>
-                <EditorContent editor={editor} />
-             </div>
-          </div>
-          
+        </header>
+
+        {/* EDITOR SCROLLABLE */}
+        <div className="flex-1 overflow-y-auto bg-studio-dots p-4 md:p-8 flex justify-center cursor-text" onClick={() => editor?.commands.focus()}>
+           <div 
+             className="bg-white paper-shadow transition-all duration-300 relative editor-print-container"
+             style={{ 
+               width: pageStyle.width, 
+               minHeight: pageStyle.minHeight,
+               padding: pageStyle.padding 
+             }}
+           >
+              {/* Régua (Opcional, só visual) */}
+              <div className="absolute top-0 left-0 w-full h-6 border-b border-gray-100 no-print opacity-50 pointer-events-none">
+                 <Ruler />
+              </div>
+              
+              <EditorContent editor={editor} className="mt-4 outline-none editor-pages" />
+           </div>
         </div>
-      </div>
+
+      </main>
     </div>
   );
 }

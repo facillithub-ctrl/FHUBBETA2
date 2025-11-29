@@ -15,8 +15,8 @@ export async function createNewDocument() {
     .insert({
       user_id: user.id,
       title: 'Novo Projeto',
-      content_json: {}, // Inicia vazio, o PageCanvas lida com o conteúdo padrão
-      page_settings: { size: 'a4', orientation: 'portrait', bgColor: '#ffffff' }
+      content_json: {}, // Começa vazio
+      page_settings: { size: 'a4', orientation: 'portrait', margin: 'normal' }
     })
     .select('id')
     .single();
@@ -59,7 +59,7 @@ export async function getDocument(id: string) {
     .single();
 
   if (error) {
-    // Retorna null silenciosamente se não encontrar, permitindo tratamento na UI
+    console.error('Erro ao buscar documento:', error);
     return null;
   }
   return data;
