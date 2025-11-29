@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image'; // Importar Image
 import { useNotifications } from '@/hooks/useNotifications';
 import { UserProfile } from '@/app/dashboard/types';
 import { VerificationBadge } from '@/components/VerificationBadge'; 
@@ -24,7 +25,6 @@ export default function Topbar({ onToggleSidebar, userProfile }: TopbarProps) {
   const displayName = userProfile?.fullName || 'Usuário';
   const displayInitial = displayName[0]?.toUpperCase() || 'U';
   const userNickname = userProfile?.nickname || 'user';
-  // CORREÇÃO: Usa userCategory vindo do DB, em vez de hardcoded ou metadata antigo
   const displayRole = userProfile?.userCategory || 'Estudante'; 
 
   // Fecha dropdowns ao clicar fora
@@ -152,7 +152,13 @@ export default function Topbar({ onToggleSidebar, userProfile }: TopbarProps) {
                 </div>
                 
                 {userProfile?.avatarUrl ? (
-                    <img src={userProfile.avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-lg" />
+                    <Image 
+                        src={userProfile.avatarUrl} 
+                        alt="Avatar" 
+                        width={40} 
+                        height={40} 
+                        className="rounded-full object-cover border-2 border-white shadow-lg" 
+                    />
                 ) : (
                     <div className="w-10 h-10 rounded-full bg-brand-purple text-white flex items-center justify-center font-bold shadow-lg shadow-brand-purple/20">
                         {displayInitial}

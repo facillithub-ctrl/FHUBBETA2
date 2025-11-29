@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend
 } from "recharts";
 import AvailableTestCard from "./AvailableTestCard";
 import SurveyCard from "./SurveyCard";
@@ -190,29 +190,23 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
       const testId = searchParams.get('testId');
       const subject = searchParams.get('subject');
 
-      // Se vier com ?view=detail&testId=... (Link Direto)
       if (viewParam === 'detail' && testId) {
           handleViewDetails(testId);
       }
       
-      // Se vier com ?subject=Matemática (Link de Filtro)
       if (subject) {
           setActiveTab('browse');
           setFilterSubject(subject);
           addToast({ title: "Filtro Aplicado", message: `Exibindo apenas testes de ${subject}`, type: "info" });
       }
-  }, [searchParams]);
+  }, [searchParams, addToast]); // Dependência corrigida aqui
 
   // --- SUB-RENDERIZADORES ---
 
   const renderOverview = () => (
       <div className="animate-in slide-in-from-left duration-300 space-y-8">
           <GamificationHeader data={dashboardData?.gamification} />
-          
-          {/* LEARNING GPS INTEGRADO */}
           <LearningGPS />
-          
-          {/* KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { label: 'Simulados Feitos', value: safeStats.simuladosFeitos, color: 'text-royal-blue', icon: 'fa-clipboard-check' },
@@ -243,9 +237,7 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
                               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                               <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
                               <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} domain={[0, 100]} />
-                              <Tooltip 
-                                contentStyle={{backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}}
-                              />
+                              <Tooltip contentStyle={{backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}} />
                               <Line type="monotone" dataKey="avgScore" stroke={COLORS.primary} strokeWidth={3} dot={{r: 4, fill: COLORS.primary}} activeDot={{r: 6}} />
                           </LineChart>
                       </ResponsiveContainer>
@@ -442,8 +434,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
           </div>
       </div>
   );
-
-  // --- RENDERIZAÇÃO CONDICIONAL PRINCIPAL ---
 
   if (view === "attempt" && selectedTest) {
       return <AttemptView test={selectedTest} onFinish={handleFinishAttempt} />;

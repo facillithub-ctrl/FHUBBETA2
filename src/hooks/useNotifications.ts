@@ -1,5 +1,5 @@
 // src/hooks/useNotifications.ts
-import { useState, useEffect, useCallback } from 'react'; // Adicionado useCallback
+import { useState, useEffect, useCallback } from 'react';
 import createClient from '@/utils/supabase/client';
 
 export type NotificationItem = {
@@ -17,10 +17,9 @@ export function useNotifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   
-  // supabase client é estável, mas para garantir no callback podemos movê-lo ou ignorar dependência
   const supabase = createClient();
 
-  // Envolvemos a função em useCallback para ela ter uma referência estável
+  // Dependência adicionada para satisfazer o linter
   const fetchNotifications = useCallback(async () => {
     try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -42,7 +41,7 @@ export function useNotifications() {
     } finally {
         setLoading(false);
     }
-  }, []); // Dependências vazias pois createClient é externo/estável
+  }, [supabase]); 
 
   const markAsRead = async (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
@@ -61,7 +60,7 @@ export function useNotifications() {
 
   useEffect(() => {
     fetchNotifications();
-  }, [fetchNotifications]); // Agora o linter fica feliz
+  }, [fetchNotifications]); 
 
   return { notifications, unreadCount, markAsRead, markAllAsRead, loading, refetch: fetchNotifications };
 }

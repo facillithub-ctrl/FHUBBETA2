@@ -149,7 +149,7 @@ export default function TeacherLibraryDashboard({ user }: { user: any }) {
                             </div>
                             <div className="flex-1">
                                 <p className="text-sm text-gray-800">
-                                    <b>{activity.studentName}</b> {activity.action} <span className="italic">"{activity.contentTitle}"</span>.
+                                    <b>{activity.studentName}</b> {activity.action} <span className="italic">&quot;{activity.contentTitle}&quot;</span>.
                                 </p>
                                 <p className="text-xs text-gray-400">{timeAgo(activity.time)}</p>
                             </div>
