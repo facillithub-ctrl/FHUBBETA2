@@ -90,7 +90,7 @@ export default function DiscoverView({ data, onContentSelect }: DiscoverViewProp
                           onClick={() => onContentSelect(featuredItem)}
                           className="bg-white text-black px-8 py-3.5 rounded-xl font-bold hover:bg-gray-100 transition-all flex items-center gap-3 shadow-xl hover:-translate-y-1"
                        >
-                          <i className="fas fa-play"></i> Assistir Agora
+                          <i className="fas fa-play"></i> Ler Agora
                        </button>
                     </div>
                 </div>
