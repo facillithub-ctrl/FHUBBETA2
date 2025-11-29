@@ -1,10 +1,10 @@
+import createClient from '@/utils/supabase/server';
 import { getDocument } from '../actions';
-import PageCanvas from '../components/PageCanvas';
+import EditorCanvas from '../components/EditorCanvas';
 import { redirect } from 'next/navigation';
 
 export default async function EditorPage({ params }: { params: Promise<{ id: string }> }) {
-  // Em Next.js 15, params é uma Promise e deve ser aguardado
-  const { id } = await params; 
+  const { id } = await params;
   const doc = await getDocument(id);
 
   if (!doc) {
@@ -12,7 +12,7 @@ export default async function EditorPage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <PageCanvas 
+    <EditorCanvas 
       initialContent={doc.content_json} 
       documentId={doc.id}
       initialTitle={doc.title}

@@ -1,7 +1,6 @@
 'use server'
 
-// CORREÇÃO: Importando como default (sem chaves)
-import createClient from '@/utils/supabase/server'; 
+import createClient from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
@@ -15,22 +14,19 @@ export async function createNewDocument() {
     .from('facillit_create_documents')
     .insert({
       user_id: user.id,
-      title: 'Sem Título',
+      title: 'Novo Projeto',
       content_json: {},
-      page_settings: { size: 'a4', orientation: 'portrait', bgColor: '#fdfbf7', lineStyle: 'none' }
+      page_settings: { size: 'a4', orientation: 'portrait', bgColor: '#ffffff' }
     })
     .select('id')
     .single();
 
-  if (error) {
-    console.error('Erro ao criar:', error);
-    throw new Error('Falha ao criar documento');
-  }
+  if (error) throw new Error('Falha ao criar documento');
 
   redirect(`/dashboard/applications/create/${data.id}`);
 }
 
-export async function saveDocument(id: string, content: any, title: string, plainText: string) {
+export async function saveDocument(id: string, content: any, title: string) {
   const supabase = await createClient();
   
   const { error } = await supabase
@@ -38,7 +34,6 @@ export async function saveDocument(id: string, content: any, title: string, plai
     .update({
       content_json: content,
       title: title,
-      plain_text: plainText,
       updated_at: new Date().toISOString()
     })
     .eq('id', id);
@@ -61,7 +56,8 @@ export async function getDocument(id: string) {
   return data;
 }
 
-export async function generateAISummary(text: string) {
-  // Simulação de IA
-  return `Resumo Automático:\n\n${text.substring(0, 150)}...\n(Resumo gerado pela IA do Facillit)`;
+export async function deleteDocument(id: string) {
+    const supabase = await createClient();
+    await supabase.from('facillit_create_documents').delete().eq('id', id);
+    revalidatePath('/dashboard/applications/create');
 }
