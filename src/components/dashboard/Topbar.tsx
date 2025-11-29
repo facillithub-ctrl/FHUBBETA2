@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image'; // Importar Image
+import Image from 'next/image';
 import { useNotifications } from '@/hooks/useNotifications';
 import { UserProfile } from '@/app/dashboard/types';
 import { VerificationBadge } from '@/components/VerificationBadge'; 
@@ -51,16 +51,16 @@ export default function Topbar({ onToggleSidebar, userProfile }: TopbarProps) {
   };
 
   return (
-    <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 sticky top-0 z-30">
+    <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between px-6 sticky top-0 z-30 transition-colors">
       
       {/* ESQUERDA: Toggle Sidebar + BUSCADOR */}
       <div className="flex items-center gap-4 flex-1">
-        <button onClick={onToggleSidebar} className="lg:hidden text-gray-500 hover:text-brand-purple">
+        <button onClick={onToggleSidebar} className="lg:hidden text-gray-500 hover:text-brand-purple transition-colors">
           <i className="fas fa-bars text-xl"></i>
         </button>
 
-        {/* Buscador Adicionado */}
-        <div className="hidden md:flex items-center bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-full border border-gray-100 dark:border-gray-700 w-full max-w-md focus-within:ring-2 focus-within:ring-brand-purple/20 transition-all">
+        {/* Buscador */}
+        <div className="hidden md:flex items-center bg-gray-50 dark:bg-gray-800 px-4 py-2 rounded-full border border-gray-100 dark:border-gray-700 w-full max-w-md focus-within:ring-2 focus-within:ring-brand-purple/20 transition-all hover:bg-gray-100 dark:hover:bg-gray-700/50">
             <i className="fas fa-search text-gray-400 mr-3"></i>
             <input 
                 type="text" 
@@ -86,7 +86,7 @@ export default function Topbar({ onToggleSidebar, userProfile }: TopbarProps) {
           </button>
 
           {isNotifOpen && (
-            <div className="absolute right-0 mt-3 w-80 md:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden flex flex-col max-h-[500px] animate-fade-in-up">
+            <div className="absolute right-0 mt-3 w-80 md:w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden flex flex-col max-h-[500px] animate-fade-in-up ring-1 ring-black/5">
                 <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800">
                   <h3 className="font-bold text-gray-700 dark:text-gray-200 text-sm">Notificações</h3>
                   {unreadCount > 0 && (
@@ -135,72 +135,133 @@ export default function Topbar({ onToggleSidebar, userProfile }: TopbarProps) {
           )}
         </div>
 
-        {/* --- PERFIL DO USUÁRIO --- */}
+        {/* --- PERFIL DO USUÁRIO (DROPDOWN PREMIUM) --- */}
         <div className="relative pl-6 border-l border-gray-100 dark:border-gray-800" ref={userMenuRef}>
             <button 
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-3 hover:opacity-80 transition-opacity focus:outline-none"
+                className="flex items-center gap-3 hover:opacity-80 transition-all focus:outline-none group"
             >
                 <div className="text-right hidden md:block">
                     <div className="flex items-center justify-end gap-1">
                         <p className="text-sm font-bold text-gray-700 dark:text-gray-200">{displayName}</p>
-                        {/* Verificado adicionado */}
+                        {/* Badge visível APENAS no desktop */}
                         <VerificationBadge badge={userProfile?.verification_badge} size="4px" />
                     </div>
-                    {/* Role corrigida */}
                     <p className="text-[10px] text-gray-400 font-medium tracking-wide uppercase truncate max-w-[100px]">{displayRole}</p>
                 </div>
                 
-                {userProfile?.avatarUrl ? (
-                    <Image 
-                        src={userProfile.avatarUrl} 
-                        alt="Avatar" 
-                        width={40} 
-                        height={40} 
-                        className="rounded-full object-cover border-2 border-white shadow-lg" 
-                    />
-                ) : (
-                    <div className="w-10 h-10 rounded-full bg-brand-purple text-white flex items-center justify-center font-bold shadow-lg shadow-brand-purple/20">
-                        {displayInitial}
+                {/* WRAPPER PARA AVATAR E SELO */}
+                <div className="relative inline-block font-sans">
+                    
+                    {/* AVATAR COM CÍRCULO PERFEITO */}
+                    <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white dark:border-gray-800 shadow-lg ring-2 ring-transparent group-hover:ring-brand-purple/20 transition-all">
+                        {userProfile?.avatarUrl ? (
+                            <Image 
+                                src={userProfile.avatarUrl} 
+                                alt="Avatar" 
+                                fill
+                                className="object-cover"
+                                sizes="40px"
+                            />
+                        ) : (
+                            <div className="w-full h-full bg-brand-purple text-white flex items-center justify-center font-bold text-lg">
+                                {displayInitial}
+                            </div>
+                        )}
                     </div>
-                )}
+
+                    {/* SELO DE VERIFICADO NO CANTO DA FOTO (APENAS MOBILE - md:hidden) */}
+                    {userProfile?.verification_badge && (
+                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white dark:bg-gray-900 rounded-full flex items-center justify-center p-[3px] z-10 shadow-sm md:hidden">
+                            <VerificationBadge badge={userProfile.verification_badge} size="12px" />
+                        </div>
+                    )}
+                </div>
+                
                 <i className={`fas fa-chevron-down text-xs text-gray-400 transition-transform duration-200 ${isUserMenuOpen ? 'rotate-180' : ''}`}></i>
             </button>
 
-            {/* Dropdown Menu Adicionado */}
+            {/* --- MENU DROPDOWN REFORMULADO --- */}
             {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 py-2 animate-fade-in-up z-50">
-                    <div className="px-4 py-3 border-b border-gray-50 dark:border-gray-700 mb-1">
-                        <p className="text-sm font-bold text-gray-800 dark:text-white truncate">{displayName}</p>
-                        <p className="text-xs text-gray-400 truncate">{userProfile?.email}</p>
+                <div className="absolute right-0 mt-3 w-80 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 overflow-hidden py-0 animate-fade-in-up z-50 ring-1 ring-black/5">
+                    
+                    {/* Header Premium com Gradiente */}
+                    <div className="relative bg-brand-gradient p-6 text-white overflow-hidden">
+                        {/* Efeito Decorativo */}
+                        <div className="absolute top-[-20%] right-[-20%] w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+                        <div className="absolute bottom-[-10%] left-[-10%] w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+
+                        <div className="relative z-10 flex items-center gap-4">
+                            <div className="relative w-16 h-16 rounded-full border-4 border-white/20 shadow-inner overflow-hidden">
+                                {userProfile?.avatarUrl ? (
+                                    <Image src={userProfile.avatarUrl} alt="Avatar Large" fill className="object-cover" />
+                                ) : (
+                                    <div className="w-full h-full bg-white/20 flex items-center justify-center font-bold text-2xl">{displayInitial}</div>
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-bold text-lg truncate">{displayName}</h3>
+                                    <VerificationBadge badge={userProfile?.verification_badge} size="12px" />
+                                </div>
+                                <p className="text-blue-100 text-xs truncate mb-1">{userProfile?.email}</p>
+                                <span className="inline-block bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-white/10">
+                                    {displayRole}
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
-                    <Link 
-                        href="/dashboard/account" 
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-brand-purple transition-colors"
-                        onClick={() => setIsUserMenuOpen(false)}
-                    >
-                        <i className="fas fa-cog w-4 text-center"></i>
-                        Gerenciar Conta
-                    </Link>
+                    {/* Corpo do Menu */}
+                    <div className="p-3 space-y-1">
+                        
+                        {/* Botão Facillit Account Destacado */}
+                        <Link 
+                            href="/dashboard/account" 
+                            className="block mb-3"
+                            onClick={() => setIsUserMenuOpen(false)}
+                        >
+                            <div className="bg-gray-50 dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-gray-100 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-800 p-3 rounded-xl flex items-center gap-3 transition-all group">
+                                <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-royal-blue dark:text-blue-400 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
+                                    <i className="fas fa-user-shield"></i>
+                                </div>
+                                <div>
+                                    <p className="font-bold text-gray-800 dark:text-white text-sm group-hover:text-royal-blue dark:group-hover:text-blue-400 transition-colors">Facillit Account</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Gerenciar conta e dados</p>
+                                </div>
+                                <i className="fas fa-chevron-right ml-auto text-gray-300 group-hover:text-royal-blue text-xs"></i>
+                            </div>
+                        </Link>
 
-                    <Link 
-                        href={`/u/${userNickname}`} 
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-brand-purple transition-colors"
-                        onClick={() => setIsUserMenuOpen(false)}
-                    >
-                        <i className="fas fa-globe w-4 text-center"></i>
-                        Meu Perfil Público
-                    </Link>
-                    
-                    <div className="border-t border-gray-50 dark:border-gray-700 my-1 mt-1"></div>
+                        <div className="border-t border-gray-100 dark:border-gray-800 my-2 opacity-50"></div>
 
-                    <form action="/auth/signout" method="post">
-                        <button type="submit" className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                            <i className="fas fa-sign-out-alt w-4 text-center"></i>
-                            Sair
-                        </button>
-                    </form>
+                        <Link 
+                            href={`/u/${userNickname}`} 
+                            className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors group"
+                            onClick={() => setIsUserMenuOpen(false)}
+                        >
+                            <span className="w-6 text-center text-gray-400 group-hover:text-brand-purple"><i className="fas fa-globe"></i></span>
+                            Meu Perfil Público
+                        </Link>
+
+                        <Link 
+                            href="/recursos/ajuda" 
+                            className="flex items-center gap-3 px-3 py-2.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors group"
+                            onClick={() => setIsUserMenuOpen(false)}
+                        >
+                            <span className="w-6 text-center text-gray-400 group-hover:text-green-500"><i className="fas fa-life-ring"></i></span>
+                            Central de Ajuda
+                        </Link>
+                        
+                        <div className="border-t border-gray-100 dark:border-gray-800 my-2"></div>
+
+                        <form action="/auth/signout" method="post">
+                            <button type="submit" className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors font-medium">
+                                <span className="w-6 text-center"><i className="fas fa-sign-out-alt"></i></span>
+                                Sair da Plataforma
+                            </button>
+                        </form>
+                    </div>
                 </div>
             )}
         </div>

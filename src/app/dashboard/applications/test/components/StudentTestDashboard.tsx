@@ -32,7 +32,7 @@ const GamificationHeader = ({ data }: { data: any }) => {
   const progress = safeData.current_xp % 100;
   
   return (
-    <div className="bg-gradient-to-r from-royal-blue to-indigo-900 rounded-2xl p-6 text-white mb-8 shadow-xl relative overflow-hidden animate-in fade-in duration-700">
+    <div className="bg-brand-gradient rounded-2xl p-6 text-white mb-8 shadow-xl relative overflow-hidden animate-in fade-in duration-700">
       <div className="absolute top-0 right-0 p-4 opacity-10 text-9xl transform translate-x-10 -translate-y-10 pointer-events-none">
         <i className="fas fa-trophy"></i>
       </div>
@@ -355,7 +355,7 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
     const insights = dashboardData?.insights || [];
     return (
         <div className="space-y-8 animate-in fade-in">
-            <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-2xl p-8 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 group">
+            <div className="bg-brand-gradient rounded-2xl p-8 text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 group">
                 <div className="relative z-10">
                     <h2 className="text-3xl font-black italic uppercase tracking-wider mb-2 flex items-center gap-3">
                         <i className="fas fa-bolt text-yellow-300 animate-pulse"></i> Modo Turbo 5&apos;

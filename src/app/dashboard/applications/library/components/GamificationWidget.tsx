@@ -6,7 +6,7 @@ export default function GamificationWidget({ insights }: { insights: LibraryInsi
   const progressToNextLevel = (insights.totalXP / insights.nextLevelXP) * 100;
 
   return (
-    <div className="bg-gradient-to-br from-indigo-900 to-royal-blue rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
+    <div className="bg-brand-gradient rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
       {/* Background Decorator */}
       <div className="absolute top-0 right-0 p-4 opacity-10">
         <i className="fas fa-trophy text-9xl"></i>

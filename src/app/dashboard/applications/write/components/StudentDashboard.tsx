@@ -227,7 +227,7 @@ export default function StudentDashboard({ initialEssays, prompts, statistics, s
                                 </div>
                             </div>
 
-                            <div className="bg-gradient-to-br from-[#42047e] to-[#2E14ED] p-5 rounded-xl text-white shadow-md flex flex-col justify-between relative overflow-hidden">
+                            <div className="bg-brand-gradient p-5 rounded-xl text-white shadow-md flex flex-col justify-between relative overflow-hidden">
                                 <div className="absolute right-0 top-0 w-16 h-16 bg-white/10 rounded-bl-full"></div>
                                 <div className="flex justify-between items-start mb-2 relative z-10">
                                     <span className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Ranking</span>

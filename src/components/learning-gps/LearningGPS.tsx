@@ -99,7 +99,7 @@ export default function LearningGPS() {
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-6 gap-4">
                 <div>
                     <h2 className="text-2xl font-black text-gray-800 dark:text-white flex items-center gap-2">
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-brand-green">
                             GPS de Aprendizagem
                         </span>
                         <LucideIcons.Compass className="text-blue-600 animate-pulse" size={24} />
