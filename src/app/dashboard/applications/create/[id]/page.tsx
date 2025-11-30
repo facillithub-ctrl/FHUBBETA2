@@ -12,7 +12,9 @@ import Underline from '@tiptap/extension-underline';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Link from 'next/link';
-import { ArrowLeft, Save, Cloud, CheckCircle2, Loader2 } from 'lucide-react';
+import { 
+  ArrowLeft, Save, Cloud, CheckCircle2, Loader2, Printer 
+} from 'lucide-react';
 
 import { ResizableShapeExtension } from '../extensions/ResizableShape';
 import { ColumnExtension } from '../extensions/ColumnExtension';
@@ -20,7 +22,9 @@ import { Toolbar } from '../components/CreateToolbar';
 import { getDocumentById, saveDocumentContent } from '../actions';
 import { PageSettings, PAGE_SIZES, PAGE_MARGINS } from '../types';
 
-interface PageProps { params: Promise<{ id: string }>; }
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
 
 export default function EditorPage({ params }: PageProps) {
   const resolvedParams = React.use(params);
@@ -30,6 +34,7 @@ export default function EditorPage({ params }: PageProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [docTitle, setDocTitle] = useState('Documento');
   
+  // Estado do Layout (A4, Margens)
   const [pageSettings, setPageSettings] = useState<PageSettings>({
     size: 'a4',
     orientation: 'portrait',
@@ -43,67 +48,67 @@ export default function EditorPage({ params }: PageProps) {
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       TextStyle, FontFamily, Color, Underline,
-      Highlight.configure({ multicolor: true }), // Habilita várias cores de realce
+      Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TaskList, TaskItem.configure({ nested: true }),
-      ResizableShapeExtension,
+      ResizableShapeExtension, // Agora funciona sem erro de tipo
       ColumnExtension,
     ],
     editorProps: {
       attributes: {
-        class: 'focus:outline-none prose prose-slate max-w-none min-h-full',
-        style: 'font-size: 16px; line-height: 1.5;',
+        // Classe mínima, o estilo real vem do container pai (getPageStyle)
+        class: 'focus:outline-none prose prose-slate max-w-none h-full',
+        style: 'min-height: 100%;',
       },
     },
     onUpdate: ({ editor }) => {
       setIsSaving(true);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
-        try { await saveDocumentContent(id, editor.getJSON()); } finally { setIsSaving(false); }
+        try {
+          await saveDocumentContent(id, editor.getJSON());
+        } finally {
+          setIsSaving(false);
+        }
       }, 2000);
     },
   });
 
   useEffect(() => {
     let mounted = true;
-    getDocumentById(id).then(doc => {
+    const load = async () => {
+      const doc = await getDocumentById(id);
       if (mounted && doc) {
         setDocTitle(doc.title);
-        if (editor && editor.isEmpty && doc.content) editor.commands.setContent(doc.content);
-        setIsLoading(false);
+        if (editor && editor.isEmpty && doc.content) {
+           editor.commands.setContent(doc.content);
+        }
       }
-    });
+      if (mounted) setIsLoading(false);
+    };
+    load();
     return () => { mounted = false; };
   }, [id, editor]);
 
-  // Função para adicionar "Página" (Quebra visual e de impressão)
-  const addPageBreak = () => {
-    if (!editor) return;
-    editor.chain().focus().setHorizontalRule().run();
-    // Em um cenário ideal com extensão 'Pages', seria insertPageBreak()
-  };
-
-  // Função para Imprimir
-  const handlePrint = () => {
-    window.print();
-  };
-
-  // Foca no editor ao clicar na página (mesmo na parte branca vazia)
-  const focusEditor = () => {
-    if (editor && !editor.isFocused) {
-      editor.chain().focus().run();
+  // Função para focar no editor clicando na "folha"
+  const handlePageClick = (e: React.MouseEvent) => {
+    if (editor && !editor.isFocused && e.target === e.currentTarget) {
+      editor.commands.focus();
     }
   };
 
-  // Estilos da Página
+  // Estilo Dinâmico da Página (Word)
   const getPageStyle = () => {
     const size = PAGE_SIZES[pageSettings.size];
     const width = pageSettings.orientation === 'portrait' ? size.w : size.h;
-    const minHeight = pageSettings.orientation === 'portrait' ? size.h : size.w;
+    const height = pageSettings.orientation === 'portrait' ? size.h : size.w;
     const padding = PAGE_MARGINS[pageSettings.margin];
 
     return {
-      width, minHeight, padding,
+      width: width,
+      minHeight: height,
+      padding: padding,
+      // Suporte a colunas visual
       columnCount: pageSettings.columns > 1 ? pageSettings.columns : 'auto',
       columnGap: '2rem',
     };
@@ -115,9 +120,11 @@ export default function EditorPage({ params }: PageProps) {
     <div className="flex flex-col h-full bg-[#E3E5E8] dark:bg-[#0C0C0E] overflow-hidden">
       
       {/* Header */}
-      <header className="h-14 bg-white dark:bg-[#1a1b1e] border-b border-gray-200 dark:border-white/10 flex items-center justify-between px-4 shrink-0 z-50 print:hidden">
+      <header className="h-14 bg-white dark:bg-[#1a1b1e] border-b border-gray-200 dark:border-white/10 flex items-center justify-between px-4 shrink-0 z-50">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard/applications/create" className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"><ArrowLeft size={20} /></Link>
+          <Link href="/dashboard/applications/create" className="p-2 hover:bg-gray-100 rounded-lg text-gray-500">
+            <ArrowLeft size={20} />
+          </Link>
           <div>
             <h1 className="text-sm font-bold text-gray-800 dark:text-white leading-none">{docTitle}</h1>
             <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1.5">
@@ -126,46 +133,45 @@ export default function EditorPage({ params }: PageProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-           <button onClick={() => saveDocumentContent(id, editor?.getJSON())} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-full shadow-sm transition active:scale-95">
+           <button className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg text-gray-600"><Printer size={18} /></button>
+           <button onClick={() => saveDocumentContent(id, editor?.getJSON())} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-full shadow-sm transition">
               <Save size={14} /> Salvar
            </button>
         </div>
       </header>
 
       {/* Toolbar */}
-      <div className="print:hidden">
-        <Toolbar 
-          editor={editor} 
-          pageSettings={pageSettings} 
-          setPageSettings={setPageSettings} 
-          onAddPage={addPageBreak}
-          onPrint={handlePrint}
-        />
-      </div>
+      <Toolbar 
+        editor={editor} 
+        pageSettings={pageSettings} 
+        setPageSettings={setPageSettings} 
+        onAddPage={() => editor?.chain().focus().setHorizontalRule().run()} 
+        onPrint={() => window.print()}
+      />
 
-      {/* Canvas */}
-      <div className="flex-1 overflow-y-auto bg-[#E3E5E8] dark:bg-[#0C0C0E] relative scrollbar-thin scrollbar-thumb-gray-300 p-8 print:p-0 print:bg-white print:overflow-visible">
-        <div className="flex justify-center min-h-full pb-32 print:block print:pb-0">
+      {/* Canvas - Scroll Corrigido */}
+      <div className="flex-1 overflow-y-auto bg-[#E3E5E8] dark:bg-[#0C0C0E] relative scrollbar-thin scrollbar-thumb-gray-300 p-8 print:p-0 print:bg-white">
+        <div className="flex justify-center min-h-full pb-32 print:pb-0">
+           
            {/* A Folha de Papel */}
            <div 
-             className="bg-white dark:bg-[#151515] dark:text-gray-200 shadow-lg print:shadow-none transition-all duration-300 cursor-text"
+             className="bg-white dark:bg-[#151515] dark:text-gray-200 shadow-lg print:shadow-none transition-all duration-300 ease-in-out cursor-text relative"
              style={getPageStyle()}
-             onClick={focusEditor} // Clicar na folha foca o editor
+             onClick={handlePageClick}
            >
              <EditorContent editor={editor} />
            </div>
+
         </div>
       </div>
-
-      {/* CSS Global para Impressão e Page Breaks */}
+      
       <style jsx global>{`
         @media print {
           @page { margin: 0; size: auto; }
           body { background: white; }
-          .print\\:hidden { display: none !important; }
-          .ProseMirror hr { page-break-after: always; border: 0; } 
+          .print\\:hidden, header, .sticky { display: none !important; }
+          .ProseMirror hr { page-break-after: always; opacity: 0; } 
         }
-        /* Visualização da quebra de página no editor */
         .ProseMirror hr {
           border-top: 2px dashed #ccc;
           margin: 2rem 0;
@@ -173,14 +179,7 @@ export default function EditorPage({ params }: PageProps) {
         }
         .ProseMirror hr::after {
           content: 'Quebra de Página';
-          position: absolute;
-          right: 0;
-          top: -10px;
-          font-size: 10px;
-          color: #999;
-          background: #f0f0f0;
-          padding: 2px 5px;
-          border-radius: 4px;
+          position: absolute; right: 0; top: -10px; font-size: 10px; color: #999; background: #f0f0f0; padding: 2px 5px; border-radius: 4px;
         }
       `}</style>
     </div>
