@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import RichTextEditor from '@/components/DynamicRichTextEditor'; // Ou NativeRichTextEditor se preferir
+// IMPORTANTE: Importando o NativeRichTextEditor que agora aceita 'height'
+import NativeRichTextEditor from '@/components/NativeRichTextEditor'; 
 import { Question, QuestionContent, BloomTaxonomy } from '../types';
 
 type Props = {
@@ -23,7 +24,6 @@ const BLOOM_OPTIONS: { val: BloomTaxonomy, label: string, color: string }[] = [
 export default function QuestionEditor({ question, onUpdate, onRemove, isSurvey }: Props) {
   const [localQuestion, setLocalQuestion] = useState<Question>(question);
   
-  // Estado local para controlar se o Bloom está ativo ("o botão de check")
   const [useBloom, setUseBloom] = useState(!!question.metadata?.bloom_taxonomy);
 
   useEffect(() => {
@@ -34,14 +34,14 @@ export default function QuestionEditor({ question, onUpdate, onRemove, isSurvey 
     const updatedQuestion = { ...localQuestion };
     
     if (field.startsWith('content.')) {
+        // @ts-ignore
         const contentField = field.split('.')[1] as keyof QuestionContent;
         updatedQuestion.content = { ...updatedQuestion.content, [contentField]: value };
     } else if (field.startsWith('metadata.')) {
         const metaField = field.split('.')[1];
-        // Garante que metadata existe antes de atribuir
         updatedQuestion.metadata = { ...(updatedQuestion.metadata || {}), [metaField]: value };
     } else {
-        // @ts-ignore - Permite atualização dinâmica de campos raiz
+        // @ts-ignore
         updatedQuestion[field] = value;
     }
     
@@ -49,14 +49,11 @@ export default function QuestionEditor({ question, onUpdate, onRemove, isSurvey 
     onUpdate(updatedQuestion);
   };
 
-  // Função do "Botão de Check" para Taxonomia
   const toggleBloom = (enabled: boolean) => {
       setUseBloom(enabled);
       if (enabled) {
-          // Se ativou, define um valor padrão IMEDIATAMENTE para não ser vazio
           handleUpdate('metadata.bloom_taxonomy', 'lembrar');
       } else {
-          // Se desativou, define como NULL/Undefined para limpar
           handleUpdate('metadata.bloom_taxonomy', null);
       }
   };
@@ -64,7 +61,6 @@ export default function QuestionEditor({ question, onUpdate, onRemove, isSurvey 
   return (
     <div className="p-5 border rounded-xl bg-white dark:bg-gray-800 shadow-sm space-y-4 transition-all hover:border-royal-blue/30">
         
-        {/* CABEÇALHO DA QUESTÃO (Pontos, Tipo, Excluir) */}
         <div className="flex justify-between items-start border-b pb-3 dark:border-gray-700">
             <div className="flex items-center gap-3">
                  <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-md text-sm font-bold">
@@ -90,7 +86,6 @@ export default function QuestionEditor({ question, onUpdate, onRemove, isSurvey 
             </button>
         </div>
 
-        {/* --- CONTROLE DE TAXONOMIA DE BLOOM --- */}
         <div className="bg-gray-50 dark:bg-gray-700/30 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
             <div className="flex items-center justify-between mb-2">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -124,18 +119,16 @@ export default function QuestionEditor({ question, onUpdate, onRemove, isSurvey 
             )}
         </div>
       
-        {/* --- ENUNCIADO --- */}
         <div className="space-y-2">
             <label className="text-xs font-bold text-gray-400 uppercase">Enunciado</label>
-            <RichTextEditor
+            <NativeRichTextEditor
                 value={localQuestion.content.statement}
                 onChange={(value) => handleUpdate('content.statement', value)}
                 placeholder="Digite a pergunta..."
-                height={100} // Certifique-se que o RichTextEditor aceita essa prop ou a ignora
+                height={100} // Agora funciona pois a interface NativeEditorProps aceita 'height'
             />
         </div>
 
-        {/* --- ALTERNATIVAS (Apenas para Múltipla Escolha) --- */}
         {localQuestion.question_type === 'multiple_choice' && (
             <div className="space-y-2">
                 <div className="flex justify-between items-center">

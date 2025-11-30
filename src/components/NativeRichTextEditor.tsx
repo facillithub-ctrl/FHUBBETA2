@@ -5,13 +5,13 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEffect } from 'react';
 
-// Interface corrigida com 'height'
+// Exportando a interface para ser usada em outros lugares se necessário
 export interface NativeEditorProps {
   value: string;
   onChange: (content: string) => void;
   placeholder?: string;
   editable?: boolean;
-  height?: number; // Propriedade essencial para o QuestionEditor
+  height?: number; // Propriedade adicionada para corrigir o erro de build
 }
 
 const MenuBar = ({ editor }: { editor: any }) => {
@@ -87,6 +87,7 @@ export default function NativeRichTextEditor({
     editorProps: {
       attributes: {
         class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none text-gray-800 dark:text-gray-200 leading-relaxed',
+        // Aplica a altura mínima se a prop height for passada, senão usa 120px
         style: `min-height: ${height ? `${height}px` : '120px'}`
       },
     },
