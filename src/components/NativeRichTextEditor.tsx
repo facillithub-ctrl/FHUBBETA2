@@ -5,12 +5,13 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEffect } from 'react';
 
-interface NativeEditorProps {
+// Interface corrigida com 'height'
+export interface NativeEditorProps {
   value: string;
   onChange: (content: string) => void;
   placeholder?: string;
   editable?: boolean;
-  height?: number; // Adicionado para corrigir o erro de build
+  height?: number; // Propriedade essencial para o QuestionEditor
 }
 
 const MenuBar = ({ editor }: { editor: any }) => {
@@ -19,6 +20,7 @@ const MenuBar = ({ editor }: { editor: any }) => {
   return (
     <div className="flex gap-1 mb-2 pb-2 border-b border-gray-100 dark:border-gray-800 overflow-x-auto">
       <button
+        type="button"
         onClick={() => editor.chain().focus().toggleBold().run()}
         disabled={!editor.can().chain().focus().toggleBold().run()}
         className={`px-2 py-1 rounded text-sm font-medium transition-colors ${
@@ -30,6 +32,7 @@ const MenuBar = ({ editor }: { editor: any }) => {
         B
       </button>
       <button
+        type="button"
         onClick={() => editor.chain().focus().toggleItalic().run()}
         disabled={!editor.can().chain().focus().toggleItalic().run()}
         className={`px-2 py-1 rounded text-sm font-medium transition-colors ${
@@ -42,6 +45,7 @@ const MenuBar = ({ editor }: { editor: any }) => {
       </button>
       <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1 self-center" />
       <button
+        type="button"
         onClick={() => editor.chain().focus().toggleBulletList().run()}
         className={`px-2 py-1 rounded text-sm font-medium transition-colors ${
           editor.isActive('bulletList') 
@@ -52,6 +56,7 @@ const MenuBar = ({ editor }: { editor: any }) => {
         Lista
       </button>
       <button
+        type="button"
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
         className={`px-2 py-1 rounded text-sm font-medium transition-colors ${
           editor.isActive('orderedList') 
@@ -65,7 +70,13 @@ const MenuBar = ({ editor }: { editor: any }) => {
   );
 };
 
-export default function NativeRichTextEditor({ value, onChange, placeholder = "Começa a escrever...", editable = true, height }: NativeEditorProps) {
+export default function NativeRichTextEditor({ 
+  value, 
+  onChange, 
+  placeholder = "Começa a escrever...", 
+  editable = true, 
+  height 
+}: NativeEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -76,7 +87,7 @@ export default function NativeRichTextEditor({ value, onChange, placeholder = "C
     editorProps: {
       attributes: {
         class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none text-gray-800 dark:text-gray-200 leading-relaxed',
-        style: `min-height: ${height ? `${height}px` : '120px'}` // Usa a prop height ou default
+        style: `min-height: ${height ? `${height}px` : '120px'}`
       },
     },
     onUpdate: ({ editor }) => {
@@ -84,14 +95,12 @@ export default function NativeRichTextEditor({ value, onChange, placeholder = "C
     },
   });
 
-  // Atualiza o conteúdo se o valor externo mudar
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
       editor.commands.setContent(value);
     }
   }, [value, editor]);
 
-  // Atualiza o estado de edição (editable)
   useEffect(() => {
     if (editor) {
       editor.setEditable(editable);
