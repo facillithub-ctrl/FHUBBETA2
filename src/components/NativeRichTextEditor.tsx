@@ -3,63 +3,80 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import CharacterCount from '@tiptap/extension-character-count';
 import { useEffect } from 'react';
-import { cn } from '@/utils/utils';
-
-// Barra de ferramentas simples e flutuante ou fixa
-const MenuBar = ({ editor }: { editor: any }) => {
-  if (!editor) return null;
-
-  const buttons = [
-    { label: 'B', action: () => editor.chain().focus().toggleBold().run(), isActive: editor.isActive('bold'), title: 'Negrito' },
-    { label: 'I', action: () => editor.chain().focus().toggleItalic().run(), isActive: editor.isActive('italic'), title: 'Itálico' },
-    { label: 'H1', action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(), isActive: editor.isActive('heading', { level: 1 }), title: 'Título 1' },
-    { label: 'H2', action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(), isActive: editor.isActive('heading', { level: 2 }), title: 'Título 2' },
-    { label: 'Lista', action: () => editor.chain().focus().toggleBulletList().run(), isActive: editor.isActive('bulletList'), title: 'Lista' },
-  ];
-
-  return (
-    <div className="flex items-center gap-2 p-2 mb-2 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
-      {buttons.map((btn, idx) => (
-        <button
-          key={idx}
-          onClick={btn.action}
-          title={btn.title}
-          className={cn(
-            "px-3 py-1.5 rounded-md text-sm font-bold transition-colors",
-            btn.isActive 
-              ? "bg-gradient-to-r from-[#42047e] to-[#07f49e] text-white shadow-sm" 
-              : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-          )}
-        >
-          {btn.label}
-        </button>
-      ))}
-    </div>
-  );
-};
 
 interface NativeEditorProps {
   value: string;
   onChange: (content: string) => void;
   placeholder?: string;
   editable?: boolean;
+  height?: number; // Adicionado para corrigir o erro de build
 }
 
-export default function NativeRichTextEditor({ value, onChange, placeholder = "Começa a escrever...", editable = true }: NativeEditorProps) {
+const MenuBar = ({ editor }: { editor: any }) => {
+  if (!editor) return null;
+
+  return (
+    <div className="flex gap-1 mb-2 pb-2 border-b border-gray-100 dark:border-gray-800 overflow-x-auto">
+      <button
+        onClick={() => editor.chain().focus().toggleBold().run()}
+        disabled={!editor.can().chain().focus().toggleBold().run()}
+        className={`px-2 py-1 rounded text-sm font-medium transition-colors ${
+          editor.isActive('bold') 
+            ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' 
+            : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+        }`}
+      >
+        B
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleItalic().run()}
+        disabled={!editor.can().chain().focus().toggleItalic().run()}
+        className={`px-2 py-1 rounded text-sm font-medium transition-colors ${
+          editor.isActive('italic') 
+            ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' 
+            : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+        }`}
+      >
+        I
+      </button>
+      <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1 self-center" />
+      <button
+        onClick={() => editor.chain().focus().toggleBulletList().run()}
+        className={`px-2 py-1 rounded text-sm font-medium transition-colors ${
+          editor.isActive('bulletList') 
+            ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' 
+            : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+        }`}
+      >
+        Lista
+      </button>
+      <button
+        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        className={`px-2 py-1 rounded text-sm font-medium transition-colors ${
+          editor.isActive('orderedList') 
+            ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' 
+            : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+        }`}
+      >
+        1.2.3
+      </button>
+    </div>
+  );
+};
+
+export default function NativeRichTextEditor({ value, onChange, placeholder = "Começa a escrever...", editable = true, height }: NativeEditorProps) {
   const editor = useEditor({
-    immediatelyRender: false, // CORREÇÃO: Previne erro de hidratação no Next.js
     extensions: [
       StarterKit,
       Placeholder.configure({ placeholder }),
-      CharacterCount,
     ],
     content: value,
     editable: editable,
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[300px] p-4 text-gray-800 dark:text-gray-200 leading-relaxed',
+        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none text-gray-800 dark:text-gray-200 leading-relaxed',
+        style: `min-height: ${height ? `${height}px` : '120px'}` // Usa a prop height ou default
       },
     },
     onUpdate: ({ editor }) => {
@@ -67,19 +84,35 @@ export default function NativeRichTextEditor({ value, onChange, placeholder = "C
     },
   });
 
-  // Atualiza o conteúdo se o valor externo mudar (ex: restaurar histórico)
+  // Atualiza o conteúdo se o valor externo mudar
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
       editor.commands.setContent(value);
     }
   }, [value, editor]);
 
+  // Atualiza o estado de edição (editable)
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(editable);
+    }
+  }, [editable, editor]);
+
   return (
-    <div className="border border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-900 shadow-sm focus-within:ring-2 focus-within:ring-[#07f49e] transition-all">
-      {editable && <MenuBar editor={editor} />}
-      <EditorContent editor={editor} />
-      <div className="px-4 py-2 text-xs text-right text-gray-400 border-t dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-        {editor?.storage.characterCount.characters()} caracteres
+    <div className={`
+      flex flex-col border rounded-xl transition-all duration-200
+      ${editable 
+        ? 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500' 
+        : 'border-transparent bg-transparent p-0'
+      }
+    `}>
+      {editable && (
+        <div className="px-3 pt-2">
+          <MenuBar editor={editor} />
+        </div>
+      )}
+      <div className={editable ? "px-4 pb-4 pt-1" : ""}>
+        <EditorContent editor={editor} />
       </div>
     </div>
   );
