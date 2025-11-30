@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TextStyle from '@tiptap/extension-text-style';
@@ -9,69 +9,180 @@ import { Color } from '@tiptap/extension-color';
 import Highlight from '@tiptap/extension-highlight';
 import TextAlign from '@tiptap/extension-text-align';
 import Underline from '@tiptap/extension-underline';
-import { ShapeExtension } from '../extensions/ShapeExtension';
-import { Toolbar } from '../components/CreateToolbar';
-import { ArrowLeft, Share2, Save } from 'lucide-react';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import Link from 'next/link';
+import { ArrowLeft, Save, Cloud, CheckCircle2, Loader2 } from 'lucide-react';
 
-export default function EditorPage({ params }: { params: { id: string } }) {
+import { ResizableShapeExtension } from '../extensions/ResizableShape';
+import { ColumnExtension } from '../extensions/ColumnExtension';
+import { Toolbar } from '../components/CreateToolbar';
+import { getDocumentById, saveDocumentContent } from '../actions';
+import { PageSettings, PAGE_SIZES, PAGE_MARGINS } from '../types';
+
+interface PageProps { params: Promise<{ id: string }>; }
+
+export default function EditorPage({ params }: PageProps) {
+  const resolvedParams = React.use(params);
+  const { id } = resolvedParams;
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [docTitle, setDocTitle] = useState('Documento');
+  
+  const [pageSettings, setPageSettings] = useState<PageSettings>({
+    size: 'a4',
+    orientation: 'portrait',
+    margin: 'normal',
+    columns: 1
+  });
+
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const editor = useEditor({
     extensions: [
-      StarterKit,
-      TextStyle,
-      FontFamily,
-      Color,
-      Underline,
-      Highlight.configure({ multicolor: true }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      TextStyle, FontFamily, Color, Underline,
+      Highlight.configure({ multicolor: true }), // Habilita várias cores de realce
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      ShapeExtension,
+      TaskList, TaskItem.configure({ nested: true }),
+      ResizableShapeExtension,
+      ColumnExtension,
     ],
-    content: `
-      <h2>Documento ${params.id}</h2>
-      <p>Comece a criar seu mapa mental, resumo ou slide aqui. Use a barra acima para personalizar.</p>
-    `,
     editorProps: {
       attributes: {
-        class: 'prose prose-zinc max-w-none focus:outline-none min-h-[800px] p-8 bg-white shadow-sm mx-auto my-8 border border-zinc-200',
-        style: 'width: 210mm; min-height: 297mm;', // Formato A4
+        class: 'focus:outline-none prose prose-slate max-w-none min-h-full',
+        style: 'font-size: 16px; line-height: 1.5;',
       },
+    },
+    onUpdate: ({ editor }) => {
+      setIsSaving(true);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(async () => {
+        try { await saveDocumentContent(id, editor.getJSON()); } finally { setIsSaving(false); }
+      }, 2000);
     },
   });
 
+  useEffect(() => {
+    let mounted = true;
+    getDocumentById(id).then(doc => {
+      if (mounted && doc) {
+        setDocTitle(doc.title);
+        if (editor && editor.isEmpty && doc.content) editor.commands.setContent(doc.content);
+        setIsLoading(false);
+      }
+    });
+    return () => { mounted = false; };
+  }, [id, editor]);
+
+  // Função para adicionar "Página" (Quebra visual e de impressão)
+  const addPageBreak = () => {
+    if (!editor) return;
+    editor.chain().focus().setHorizontalRule().run();
+    // Em um cenário ideal com extensão 'Pages', seria insertPageBreak()
+  };
+
+  // Função para Imprimir
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Foca no editor ao clicar na página (mesmo na parte branca vazia)
+  const focusEditor = () => {
+    if (editor && !editor.isFocused) {
+      editor.chain().focus().run();
+    }
+  };
+
+  // Estilos da Página
+  const getPageStyle = () => {
+    const size = PAGE_SIZES[pageSettings.size];
+    const width = pageSettings.orientation === 'portrait' ? size.w : size.h;
+    const minHeight = pageSettings.orientation === 'portrait' ? size.h : size.w;
+    const padding = PAGE_MARGINS[pageSettings.margin];
+
+    return {
+      width, minHeight, padding,
+      columnCount: pageSettings.columns > 1 ? pageSettings.columns : 'auto',
+      columnGap: '2rem',
+    };
+  };
+
+  if (isLoading) return <div className="h-full flex items-center justify-center bg-[#F3F4F6]"><Loader2 className="animate-spin text-blue-600" /></div>;
+
   return (
-    <div className="flex flex-col h-screen bg-zinc-100 dark:bg-zinc-950">
+    <div className="flex flex-col h-full bg-[#E3E5E8] dark:bg-[#0C0C0E] overflow-hidden">
       
-      {/* Header de Navegação */}
-      <header className="h-14 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 shrink-0">
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard/applications/create" className="p-2 hover:bg-zinc-100 rounded-full transition">
-            <ArrowLeft size={20} className="text-zinc-600" />
-          </Link>
-          <div className="flex flex-col">
-            <h1 className="text-sm font-bold text-zinc-900 dark:text-white">Projeto de História - Resumo</h1>
-            <span className="text-[10px] text-zinc-500">Última edição há 2 min</span>
+      {/* Header */}
+      <header className="h-14 bg-white dark:bg-[#1a1b1e] border-b border-gray-200 dark:border-white/10 flex items-center justify-between px-4 shrink-0 z-50 print:hidden">
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard/applications/create" className="p-2 hover:bg-gray-100 rounded-lg text-gray-500"><ArrowLeft size={20} /></Link>
+          <div>
+            <h1 className="text-sm font-bold text-gray-800 dark:text-white leading-none">{docTitle}</h1>
+            <div className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1.5">
+               {isSaving ? <span className="text-blue-500 flex items-center gap-1"><Cloud size={10} /> Salvando...</span> : <span className="flex items-center gap-1"><CheckCircle2 size={10} className="text-emerald-500"/> Salvo</span>}
+            </div>
           </div>
         </div>
-        
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-700 bg-white border border-zinc-300 hover:bg-zinc-50 rounded-md transition">
-            <Save size={16} />
-            Salvar
-          </button>
-          <button className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition shadow-sm">
-            <Share2 size={16} />
-            Compartilhar
-          </button>
+           <button onClick={() => saveDocumentContent(id, editor?.getJSON())} className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-full shadow-sm transition active:scale-95">
+              <Save size={14} /> Salvar
+           </button>
         </div>
       </header>
 
-      {/* Barra de Ferramentas Fixa */}
-      <Toolbar editor={editor} />
-
-      {/* Área de Edição (Canvas com Scroll) */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700 flex justify-center py-8">
-        <EditorContent editor={editor} />
+      {/* Toolbar */}
+      <div className="print:hidden">
+        <Toolbar 
+          editor={editor} 
+          pageSettings={pageSettings} 
+          setPageSettings={setPageSettings} 
+          onAddPage={addPageBreak}
+          onPrint={handlePrint}
+        />
       </div>
+
+      {/* Canvas */}
+      <div className="flex-1 overflow-y-auto bg-[#E3E5E8] dark:bg-[#0C0C0E] relative scrollbar-thin scrollbar-thumb-gray-300 p-8 print:p-0 print:bg-white print:overflow-visible">
+        <div className="flex justify-center min-h-full pb-32 print:block print:pb-0">
+           {/* A Folha de Papel */}
+           <div 
+             className="bg-white dark:bg-[#151515] dark:text-gray-200 shadow-lg print:shadow-none transition-all duration-300 cursor-text"
+             style={getPageStyle()}
+             onClick={focusEditor} // Clicar na folha foca o editor
+           >
+             <EditorContent editor={editor} />
+           </div>
+        </div>
+      </div>
+
+      {/* CSS Global para Impressão e Page Breaks */}
+      <style jsx global>{`
+        @media print {
+          @page { margin: 0; size: auto; }
+          body { background: white; }
+          .print\\:hidden { display: none !important; }
+          .ProseMirror hr { page-break-after: always; border: 0; } 
+        }
+        /* Visualização da quebra de página no editor */
+        .ProseMirror hr {
+          border-top: 2px dashed #ccc;
+          margin: 2rem 0;
+          position: relative;
+        }
+        .ProseMirror hr::after {
+          content: 'Quebra de Página';
+          position: absolute;
+          right: 0;
+          top: -10px;
+          font-size: 10px;
+          color: #999;
+          background: #f0f0f0;
+          padding: 2px 5px;
+          border-radius: 4px;
+        }
+      `}</style>
     </div>
   );
 }
