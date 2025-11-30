@@ -28,10 +28,9 @@ export default function StudentCreateDashboard({ documents, userProfile }: Props
   const firstName = userProfile?.full_name?.split(' ')[0] || 'Estudante';
 
   return (
-    // CORREÇÃO: h-full e overflow-y-auto aqui garantem o scroll correto
     <div className="h-full overflow-y-auto bg-[#F8F9FA] dark:bg-[#09090B] p-6 md:p-8 space-y-6 animate-in fade-in duration-500 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
        
-       {/* HERO COMPACTO */}
+       {/* HERO */}
        <div className="relative rounded-2xl overflow-hidden bg-white dark:bg-[#1a1b1e] border border-gray-200 dark:border-white/5 p-6 shadow-sm">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-4">
@@ -78,50 +77,20 @@ export default function StudentCreateDashboard({ documents, userProfile }: Props
               <LearningGPS studentId={userProfile.id} />
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  {/* Lado Esquerdo: Ações Rápidas */}
+                  {/* Esquerda: Ações */}
                   <div className="lg:col-span-8 space-y-6">
                       <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
                           <Sparkles className="text-yellow-500" size={18} /> Iniciar Criação
                       </h3>
-                      
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <CreateCard 
-                            title="Documento de Texto" 
-                            desc="Resumos, anotações e trabalhos escolares."
-                            icon={FileText}
-                            color="text-blue-600"
-                            bg="bg-blue-50"
-                            href="/dashboard/applications/create/new?type=doc"
-                          />
-                          <CreateCard 
-                            title="Mapa Mental" 
-                            desc="Conecte ideias e organize seu raciocínio."
-                            icon={BrainCircuit}
-                            color="text-purple-600"
-                            bg="bg-purple-50"
-                            href="/dashboard/applications/create/new?type=mindmap"
-                          />
-                          <CreateCard 
-                            title="Slides" 
-                            desc="Apresentações visuais para seminários."
-                            icon={Presentation}
-                            color="text-orange-600"
-                            bg="bg-orange-50"
-                            href="/dashboard/applications/create/new?type=slides"
-                          />
-                          <CreateCard 
-                            title="Facillit AI" 
-                            desc="Gere conteúdo automaticamente com IA."
-                            icon={Sparkles}
-                            color="text-emerald-600"
-                            bg="bg-emerald-50"
-                            href="/dashboard/applications/create/ai"
-                            isSpecial
-                          />
+                          <CreateCard title="Documento de Texto" desc="Resumos e anotações." icon={FileText} color="text-blue-600" bg="bg-blue-50" href="/dashboard/applications/create/new?type=doc" />
+                          <CreateCard title="Mapa Mental" desc="Conecte ideias." icon={BrainCircuit} color="text-purple-600" bg="bg-purple-50" href="/dashboard/applications/create/new?type=mindmap" />
+                          <CreateCard title="Slides" desc="Apresentações visuais." icon={Presentation} color="text-orange-600" bg="bg-orange-50" href="/dashboard/applications/create/new?type=slides" />
+                          <CreateCard title="Facillit AI" desc="Gere conteúdo automático." icon={Sparkles} color="text-emerald-600" bg="bg-emerald-50" href="/dashboard/applications/create/ai" isSpecial />
                       </div>
                   </div>
 
-                  {/* Lado Direito: Recentes */}
+                  {/* Direita: Recentes */}
                   <div className="lg:col-span-4">
                        <div className="bg-white dark:bg-[#1a1b1e] rounded-xl border border-gray-200 dark:border-white/5 shadow-sm h-full flex flex-col min-h-[300px]">
                             <div className="p-5 border-b border-gray-100 dark:border-white/5">
@@ -129,7 +98,7 @@ export default function StudentCreateDashboard({ documents, userProfile }: Props
                                     <Clock className="text-blue-600" size={16} /> Recentes
                                 </h3>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-gray-200">
+                            <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
                                 {documents.length > 0 ? (
                                     documents.slice(0, 5).map(doc => (
                                         <Link key={doc.id} href={`/dashboard/applications/create/${doc.id}`} className="block group">
@@ -142,7 +111,7 @@ export default function StudentCreateDashboard({ documents, userProfile }: Props
                                                         {doc.title || 'Sem Título'}
                                                     </h4>
                                                     <p className="text-[10px] text-gray-400">
-                                                        Editado em {new Date(doc.updated_at).toLocaleDateString('pt-BR')}
+                                                        {new Date(doc.updated_at).toLocaleDateString('pt-BR')}
                                                     </p>
                                                 </div>
                                                 <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-600" />
