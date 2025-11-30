@@ -124,7 +124,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
   const safeStats = dashboardData?.stats || { simuladosFeitos: 0, mediaGeral: 0, taxaAcerto: 0, tempoMedio: 0, questionsAnsweredTotal: 0 };
   const allTests = [...(globalTests || []), ...(classTests || [])];
 
-  // Envolvendo em useCallback para usar no useEffect
   const handleInitiateTest = useCallback(async (testId: string) => {
       setIsLoading(true);
       try {
@@ -164,7 +163,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
       }
   };
 
-  // Envolvendo em useCallback
   const handleViewDetails = useCallback(async (testId: string) => {
       setIsLoading(true);
       const { data } = await getTestWithQuestions(testId);
@@ -181,27 +179,23 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
       window.location.reload();
   };
 
-  // --- EFEITO: ROTEAMENTO INTELIGENTE (GPS FIX) ---
   useEffect(() => {
       const action = searchParams.get('action');
       const testId = searchParams.get('testId');
       const subject = searchParams.get('subject');
 
-      // CASO 1: Iniciar Teste Imediatamente (GPS)
       if (action === 'start' && testId) {
           handleInitiateTest(testId);
       }
-      // CASO 2: Ver Detalhes (Pode ser explícito ou só ter o ID)
       else if (testId) {
           handleViewDetails(testId);
       }
-      // CASO 3: Filtro de Matéria
       else if (subject) {
           setActiveTab('browse');
           setFilterSubject(subject);
           addToast({ title: "Filtro Aplicado", message: `Exibindo apenas testes de ${subject}`, type: "info" });
       }
-  }, [searchParams, handleInitiateTest, handleViewDetails, addToast]); // Dependências adicionadas
+  }, [searchParams, handleInitiateTest, handleViewDetails, addToast]);
 
   const renderOverview = () => (
       <div className="animate-in slide-in-from-left duration-300 space-y-8">
