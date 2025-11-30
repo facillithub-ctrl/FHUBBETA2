@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from 'next/navigation';
 import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -124,7 +124,8 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
   const safeStats = dashboardData?.stats || { simuladosFeitos: 0, mediaGeral: 0, taxaAcerto: 0, tempoMedio: 0, questionsAnsweredTotal: 0 };
   const allTests = [...(globalTests || []), ...(classTests || [])];
 
-  const handleInitiateTest = async (testId: string) => {
+  // Envolvendo em useCallback para usar no useEffect
+  const handleInitiateTest = useCallback(async (testId: string) => {
       setIsLoading(true);
       try {
           const { data, error } = await getTestWithQuestions(testId);
@@ -143,7 +144,7 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
       } finally {
           setIsLoading(false);
       }
-  };
+  }, [addToast]);
 
   const handleStartTurbo = async () => {
       setIsLoading(true);
@@ -163,7 +164,8 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
       }
   };
 
-  const handleViewDetails = async (testId: string) => {
+  // Envolvendo em useCallback
+  const handleViewDetails = useCallback(async (testId: string) => {
       setIsLoading(true);
       const { data } = await getTestWithQuestions(testId);
       if (data) {
@@ -171,7 +173,7 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
           setView("detail");
       }
       setIsLoading(false);
-  };
+  }, []);
 
   const handleFinishAttempt = () => {
       setView("dashboard");
@@ -183,7 +185,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
   useEffect(() => {
       const action = searchParams.get('action');
       const testId = searchParams.get('testId');
-      const viewParam = searchParams.get('view');
       const subject = searchParams.get('subject');
 
       // CASO 1: Iniciar Teste Imediatamente (GPS)
@@ -200,7 +201,7 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
           setFilterSubject(subject);
           addToast({ title: "Filtro Aplicado", message: `Exibindo apenas testes de ${subject}`, type: "info" });
       }
-  }, [searchParams]);
+  }, [searchParams, handleInitiateTest, handleViewDetails, addToast]); // Dependências adicionadas
 
   const renderOverview = () => (
       <div className="animate-in slide-in-from-left duration-300 space-y-8">
@@ -266,7 +267,6 @@ export default function StudentTestDashboard({ dashboardData, globalTests, class
       </div>
   );
 
-  // ... (renderAnalytics, renderAIStudy e renderBrowse mantidos iguais)
   const renderAnalytics = () => {
     const bloomData = dashboardData?.bloomAnalysis || [];
     const errorData = dashboardData?.errorAnalysis || [];
