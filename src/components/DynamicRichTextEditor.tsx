@@ -5,7 +5,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import { useEffect } from 'react';
-import { cn } from '@/utils/utils'; // Certifica-te que este ficheiro existe em src/utils/utils.ts
+import { cn } from '@/utils/utils';
 
 // Barra de ferramentas simples
 const MenuBar = ({ editor }: { editor: any }) => {
@@ -48,7 +48,6 @@ interface RichTextEditorProps {
 
 export default function DynamicRichTextEditor({ value, onChange, placeholder = "Escreva aqui..." }: RichTextEditorProps) {
   const editor = useEditor({
-    immediatelyRender: false, // Essencial para evitar erro de hidratação
     extensions: [
       StarterKit,
       Placeholder.configure({ placeholder }),
@@ -77,4 +76,4 @@ export default function DynamicRichTextEditor({ value, onChange, placeholder = "
       <EditorContent editor={editor} />
     </div>
   );
-}
+} 
