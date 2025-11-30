@@ -24,7 +24,7 @@ export default async function UpdatesPage() {
                 Changelog & Novidades
             </span>
             
-            <h1 className="text-4xl md:text-6xl font-black mb-6 tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-purple via-purple-600 to-pink-500">
+            <h1 className="text-4xl md:text-6xl font-black mb-6 tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-brand-green">
                 O que há de novo?
             </h1>
             

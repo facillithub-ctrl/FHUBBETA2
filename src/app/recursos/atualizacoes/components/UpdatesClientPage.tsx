@@ -183,7 +183,7 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                             </div>
                         </div>
                         
-                        <h2 className="text-xl font-bold text-gray-900 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-brand-purple group-hover:to-pink-500 transition-all mb-3">
+                        <h2 className="text-xl font-bold text-gray-900 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-brand-purple group-hover:to-brand-green transition-all mb-3">
                             {post.title}
                         </h2>
                         
@@ -245,7 +245,7 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                                 <p className="text-gray-500 font-medium mb-4 uppercase tracking-widest text-xs">
                                     {new Date(selectedUpdate.publishedAt).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
                                 </p>
-                                <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-8 leading-tight tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-purple via-purple-600 to-pink-500">
+                                <h1 className="text-4xl md:text-5xl lg:text-6xl font-black mb-8 leading-tight tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-brand-green">
                                     {selectedUpdate.title}
                                 </h1>
                                 <p className="text-xl md:text-2xl text-gray-600 leading-relaxed font-light">
