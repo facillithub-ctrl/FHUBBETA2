@@ -1,3 +1,4 @@
+// src/app/recursos/atualizacoes/components/UpdatesFeedClient.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -5,10 +6,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { PortableText } from '@portabletext/react';
 import { urlFor } from '@/lib/sanity';
 import Image from 'next/image';
-import { BadgeCheck } from 'lucide-react'; // Ícone direto, sem componente extra
+import { BadgeCheck } from 'lucide-react';
 import type { ChangelogPost } from '../actions';
 
-// -- Estilos de Categorias --
+// -- Estilos das Categorias --
 const categoryColors: Record<string, string> = {
     'Feature': 'bg-purple-100 text-purple-700 border-purple-200',
     'Melhoria': 'bg-blue-100 text-blue-700 border-blue-200',
@@ -23,7 +24,7 @@ const portableTextComponents = {
         image: ({ value }: any) => {
             if (!value?.asset?._ref) return null;
             
-            // Classes baseadas na escolha do editor
+            // Classes baseadas na escolha do editor no Sanity
             let containerClass = "my-8 rounded-xl overflow-hidden relative shadow-md ";
             
             switch (value.displaySize) {
@@ -90,19 +91,23 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
     const router = useRouter();
     const searchParams = useSearchParams();
     
+    // Estado
     const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
     const [selectedUpdate, setSelectedUpdate] = useState<ChangelogPost | null>(null);
 
+    // 1. Extrair Categorias
     const categories = useMemo(() => {
         const unique = Array.from(new Set(initialUpdates.map(u => u.category).filter(Boolean)));
         return ['Todas', ...unique];
     }, [initialUpdates]);
 
+    // 2. Filtrar Lista
     const filteredUpdates = useMemo(() => {
         if (selectedCategory === 'Todas') return initialUpdates;
         return initialUpdates.filter(u => u.category === selectedCategory);
     }, [initialUpdates, selectedCategory]);
 
+    // 3. Deep Linking (URL -> Modal)
     useEffect(() => {
         const noteSlug = searchParams.get('nota');
         if (noteSlug) {
@@ -118,6 +123,7 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
         return () => { document.body.style.overflow = 'unset'; };
     }, [searchParams, initialUpdates]);
 
+    // Funções de Navegação
     const openNote = (post: ChangelogPost) => {
         router.push(`/recursos/atualizacoes?nota=${post.slug.current}`, { scroll: false });
     };
@@ -129,7 +135,7 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
     return (
         <div className="container mx-auto px-4 max-w-5xl min-h-screen">
             
-            {/* Filtros */}
+            {/* --- FILTROS --- */}
             <div className="flex flex-wrap justify-center gap-2 mb-12">
                 {categories.map((cat: any) => (
                     <button
@@ -146,7 +152,7 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                 ))}
             </div>
 
-            {/* Grid */}
+            {/* --- GRID DE CARDS --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
                 {filteredUpdates.map((post) => (
                     <div 
@@ -154,6 +160,7 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                         onClick={() => openNote(post)}
                         className="group bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col h-full"
                     >
+                        {/* Imagem de Capa */}
                         {post.coverImage && (
                             <div className="w-full h-48 mb-6 rounded-xl overflow-hidden relative shadow-md">
                                 <Image 
@@ -165,16 +172,19 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                             </div>
                         )}
 
+                        {/* Cabeçalho do Card */}
                         <div className="flex items-center justify-between mb-4">
                             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                                 {new Date(post.publishedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
                             </span>
                             <div className="flex gap-2">
+                                {/* Tags */}
                                 {post.tags?.slice(0, 2).map(tag => (
                                      <span key={tag} className="text-[10px] px-2 py-0.5 rounded bg-gray-100 text-gray-500 font-bold uppercase">
                                         {tag}
                                      </span>
                                 ))}
+                                {/* Categoria */}
                                 {post.category && (
                                     <span className={`text-[10px] px-2 py-0.5 rounded border font-bold uppercase ${categoryColors[post.category] || 'bg-gray-100 text-gray-600'}`}>
                                         {post.category}
@@ -183,6 +193,7 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                             </div>
                         </div>
                         
+                        {/* Título Gradient on Hover */}
                         <h2 className="text-xl font-bold text-gray-900 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-brand-purple group-hover:to-pink-500 transition-all mb-3">
                             {post.title}
                         </h2>
@@ -191,6 +202,7 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                             {post.summary}
                         </p>
 
+                        {/* Footer do Card (Autor) */}
                         <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-50">
                             {post.author?.image && (
                                 <div className="w-8 h-8 rounded-full overflow-hidden relative">
@@ -201,7 +213,6 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                                 <span className="text-xs font-medium text-gray-500">
                                     {post.author?.name || 'Time Facillit'}
                                 </span>
-                                {/* BadgeCheck Ícone (Lucide) */}
                                 {post.author?.isVerified && (
                                     <BadgeCheck className="w-4 h-4 text-brand-purple fill-purple-50" />
                                 )}
@@ -211,11 +222,11 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                 ))}
             </div>
 
-            {/* Modal Fullscreen */}
+            {/* --- MODAL FULLSCREEN --- */}
             {selectedUpdate && (
                 <div className="fixed inset-0 z-[100] bg-white flex flex-col animate-fade-in">
                     
-                    {/* Header Modal */}
+                    {/* Header do Modal */}
                     <div className="border-b border-gray-100 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 sticky top-0 z-20 px-6 py-4 flex items-center justify-between">
                          <button 
                             onClick={closeNote}
@@ -225,6 +236,7 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                         </button>
                         
                         <div className="flex gap-2">
+                             {/* Tags no Modal */}
                              {selectedUpdate.tags?.map(tag => (
                                 <span key={tag} className="text-xs px-3 py-1 rounded-full bg-gray-100 text-gray-600 font-bold border border-gray-200 hidden md:inline-block">
                                     #{tag}
@@ -238,9 +250,11 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                         </div>
                     </div>
 
+                    {/* Conteúdo com Scroll */}
                     <div className="flex-grow overflow-y-auto bg-white">
                         <div className="max-w-4xl mx-auto px-6 py-12 md:py-20 pb-40">
                             
+                            {/* Cabeçalho do Post */}
                             <div className="text-center max-w-2xl mx-auto mb-16">
                                 <p className="text-gray-500 font-medium mb-4 uppercase tracking-widest text-xs">
                                     {new Date(selectedUpdate.publishedAt).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -252,7 +266,7 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                                     {selectedUpdate.summary}
                                 </p>
 
-                                {/* Autor no Topo do Modal */}
+                                {/* Autor Grande */}
                                 {selectedUpdate.author && (
                                     <div className="flex items-center justify-center gap-3 mt-8">
                                         {selectedUpdate.author.image && (
@@ -285,7 +299,7 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                                 </div>
                             )}
 
-                            {/* Conteúdo Rico */}
+                            {/* Texto Rico */}
                             <div className="prose prose-lg prose-purple mx-auto">
                                 <PortableText 
                                     value={selectedUpdate.content} 
@@ -295,12 +309,13 @@ export default function UpdatesFeedClient({ initialUpdates }: { initialUpdates: 
                         </div>
                     </div>
 
+                    {/* Footer Fixo (CTA) */}
                     {selectedUpdate.actionUrl && (
                         <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-gray-100 p-6 md:p-8 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-30">
                             <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
                                 <div className="hidden md:block">
-                                    <p className="font-bold text-gray-900 text-lg">Pronto para testar?</p>
-                                    <p className="text-sm text-gray-500">Experimente essa novidade agora mesmo.</p>
+                                    <p className="font-bold text-gray-900 text-lg">Gostou da novidade?</p>
+                                    <p className="text-sm text-gray-500">Experimente agora mesmo na plataforma.</p>
                                 </div>
                                 <a 
                                     href={selectedUpdate.actionUrl}
