@@ -20,33 +20,37 @@ export default function CoverUploader({ userId, currentUrl, onUploadSuccess }: C
         const file = event.target.files?.[0];
         if (!file) return;
 
-        // Validação básica de tamanho (ex: 2MB)
+        // Limite de 2MB para não sobrecarregar
         if (file.size > 2 * 1024 * 1024) {
             addToast({ title: 'Arquivo muito grande', message: 'A capa deve ter no máximo 2MB.', type: 'error' });
             return;
         }
 
         setUploading(true);
+        // Caminho único para evitar cache aggressive
         const fileExt = file.name.split('.').pop();
-        const fileName = `${userId}-${Date.now()}.${fileExt}`;
+        const fileName = `${userId}-cover-${Date.now()}.${fileExt}`;
         const filePath = `${userId}/${fileName}`;
 
         try {
+            // Upload para o bucket 'covers'
             const { error: uploadError } = await supabase.storage
-                .from('covers') // Certifique-se que o bucket 'covers' existe
+                .from('covers')
                 .upload(filePath, file, { upsert: true });
 
             if (uploadError) throw uploadError;
 
+            // Pega a URL pública
             const { data: { publicUrl } } = supabase.storage
                 .from('covers')
                 .getPublicUrl(filePath);
 
             onUploadSuccess(publicUrl);
-            addToast({ title: 'Capa atualizada', message: 'Ficou ótima!', type: 'success' });
+            addToast({ title: 'Sucesso', message: 'Capa atualizada!', type: 'success' });
 
         } catch (error: any) {
-            addToast({ title: 'Erro no upload', message: error.message, type: 'error' });
+            console.error(error);
+            addToast({ title: 'Erro no upload', message: 'Verifique se a imagem é válida.', type: 'error' });
         } finally {
             setUploading(false);
         }
@@ -63,14 +67,16 @@ export default function CoverUploader({ userId, currentUrl, onUploadSuccess }: C
                 />
             ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                    <i className="fas fa-image text-3xl mb-2"></i>
+                    <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center mb-2">
+                        <i className="fas fa-image text-xl"></i>
+                    </div>
                     <span className="text-sm font-medium">Adicionar Capa</span>
                 </div>
             )}
 
-            {/* Overlay de Loading ou Ação */}
+            {/* Overlay de Ação */}
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                <label htmlFor="cover-upload" className="cursor-pointer text-white font-bold flex items-center gap-2">
+                <label htmlFor="cover-upload" className="cursor-pointer text-white font-bold flex items-center gap-2 bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm hover:bg-black/70 transition-colors">
                     <i className={`fas ${uploading ? 'fa-spinner fa-spin' : 'fa-camera'}`}></i>
                     {uploading ? 'Enviando...' : 'Trocar Capa'}
                 </label>

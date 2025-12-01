@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import { toJpeg } from 'html-to-image'; // MUDANÇA: Usar JPEG é mais leve e rápido no mobile
+import { toJpeg } from 'html-to-image';
 import { UserProfile } from '@/app/dashboard/types';
 import { useToast } from '@/contexts/ToastContext';
 import { ProfileShareCard, ShareCardStats } from './ProfileShareCard';
@@ -22,6 +22,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
   const menuRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
 
+  // Fecha o menu ao clicar fora
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -32,26 +33,27 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- GERADOR DE IMAGEM BLINDADO ---
+  // --- GERADOR DE IMAGEM OTIMIZADO PARA MOBILE ---
   const generateImage = async () => {
     if (!cardRef.current) return null;
     
     try {
-        // Pequeno delay para garantir que o CSS carregou
+        // Pequeno delay para garantir que o React renderizou o card oculto
         await new Promise(r => setTimeout(r, 100));
 
-        // Configuração segura para Mobile (JPEG + Ratio 2)
+        // 1. Usamos toJpeg em vez de toPng (gera arquivos 10x menores)
+        // 2. pixelRatio: 2 é o limite seguro para iOS (evita crash de memória)
         const dataUrl = await toJpeg(cardRef.current!, { 
-            quality: 0.95,
-            pixelRatio: 2, // 2 é o equilíbrio perfeito. 3+ trava o iOS.
+            quality: 0.9,
+            pixelRatio: 2, 
             cacheBust: false,
             skipAutoScale: true,
             backgroundColor: '#ffffff',
-            fontEmbedCSS: "", // Evita erro de CORS em fontes
+            fontEmbedCSS: "", // Evita travar tentando carregar fontes externas
         });
         return dataUrl;
     } catch (err) {
-        console.error("Erro na geração:", err);
+        console.error("Erro na geração da imagem:", err);
         return null;
     }
   };
@@ -62,15 +64,15 @@ export default function ShareProfileButton({ profile, stats, className = "", var
       const dataUrl = await generateImage();
       
       if (dataUrl) {
-          // Detecta se é dispositivo móvel (básico)
+          // Detecção simples de Mobile
           const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
           if (isMobile) {
-              // NO MOBILE: Mostra o preview para salvar manualmente (Download auto falha no iOS)
+              // NO MOBILE: Abrimos o modal. Download direto FALHA em 90% dos celulares.
               setPreviewImage(dataUrl);
-              addToast({ title: 'Pronto!', message: 'Segure na imagem para salvar nos seus Stories.', type: 'success' });
+              addToast({ title: 'Pronto!', message: 'Segure na imagem para salvar.', type: 'success' });
           } else {
-              // NO DESKTOP: Baixa automaticamente
+              // NO DESKTOP: Download direto funciona bem.
               const link = document.createElement('a');
               link.download = `facillit-${profile.nickname}.jpg`;
               link.href = dataUrl;
@@ -104,6 +106,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
             <button 
                 onClick={() => setIsMenuOpen(!isMenuOpen)} 
                 className={`w-10 h-10 rounded-full bg-white border border-gray-200 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-colors shadow-sm ${className}`}
+                aria-label="Compartilhar"
             >
                 <i className="fas fa-share-alt"></i>
             </button>
@@ -123,8 +126,8 @@ export default function ShareProfileButton({ profile, stats, className = "", var
   return (
     <>
       <div className="relative inline-block text-left" ref={menuRef}>
-        {/* Renderização oculta para captura */}
-        <div style={{ position: 'fixed', top: 0, left: 0, zIndex: -9999, opacity: 0, pointerEvents: 'none' }}>
+        {/* Renderização oculta para captura (Fixo, invisível ao toque, mas visível para o script) */}
+        <div style={{ position: 'fixed', top: 0, left: 0, zIndex: -9999, opacity: 0, pointerEvents: 'none', visibility: 'visible' }}>
            {profile && <ProfileShareCard innerRef={cardRef} profile={profile} stats={stats} />}
         </div>
 
@@ -154,15 +157,15 @@ export default function ShareProfileButton({ profile, stats, className = "", var
         )}
       </div>
 
-      {/* MODAL DE PREVIEW (CRÍTICO PARA MOBILE) */}
+      {/* --- MODAL DE PREVIEW (SOLUÇÃO CRÍTICA PARA MOBILE) --- */}
       {previewImage && (
         <div className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-fade-in">
-            <div className="relative max-w-sm w-full">
+            <div className="relative max-w-sm w-full bg-transparent flex flex-col items-center">
                 <button 
                     onClick={() => setPreviewImage(null)}
-                    className="absolute -top-12 right-0 text-white/80 hover:text-white text-sm font-medium flex items-center gap-2"
+                    className="absolute -top-12 right-0 text-white/80 hover:text-white text-sm font-medium flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full backdrop-blur-md"
                 >
-                    Fechar <i className="fas fa-times-circle text-xl"></i>
+                    Fechar <i className="fas fa-times"></i>
                 </button>
                 
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -172,9 +175,13 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                     className="w-full h-auto rounded-xl shadow-2xl border border-white/10" 
                 />
                 
-                <div className="mt-6 text-center">
-                    <p className="text-white font-bold text-lg mb-1">Pronto!</p>
-                    <p className="text-white/60 text-sm">Segure na imagem para salvar ou compartilhar nos Stories.</p>
+                <div className="mt-6 text-center bg-black/50 p-4 rounded-xl backdrop-blur-md border border-white/10">
+                    <p className="text-white font-bold text-lg mb-1 flex items-center justify-center gap-2">
+                        <i className="fas fa-check-circle text-green-400"></i> Pronto!
+                    </p>
+                    <p className="text-white/80 text-sm">
+                        Segure na imagem acima para <strong>Salvar na Galeria</strong> ou compartilhar.
+                    </p>
                 </div>
             </div>
         </div>

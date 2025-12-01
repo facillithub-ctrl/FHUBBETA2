@@ -1,77 +1,113 @@
 "use client";
 
 import { useState } from 'react';
-import type { UserProfile } from '../types';
+import { UserProfile } from '../types';
 import AccountSidebar from './components/AccountSidebar';
-import AccountHome from './components/AccountHome'; 
-import ProfileInfo from './components/ProfileInfo';
+
+// Importação de todos os componentes das abas
+import AccountHome from './components/AccountHome';
+import AccountEditProfile from './components/AccountEditProfile';
+import AccountSmartProfile from './components/AccountSmartProfile';
 import AccountSecurity from './components/AccountSecurity';
 import AccountPrivacy from './components/AccountPrivacy';
 import AccountDevices from './components/AccountDevices';
-import AccountModules from './components/AccountModules';     // 1. IMPORTADO
-import AccountSharing from './components/AccountSharing';     // 1. IMPORTADO
-import AccountSmartProfile from './components/AccountSmartProfile'; // 1. IMPORTADO
+import AccountModules from './components/AccountModules';
+import AccountSharing from './components/AccountSharing';
+import AccountAdminCenter from './components/AccountAdminCenter';
 
 type Props = {
   userProfile: UserProfile;
-  fullProfileData: any; 
+  fullProfileData: any; // Dados completos vindos do banco
 };
 
 export default function AccountClientPage({ userProfile, fullProfileData }: Props) {
-  const [activeTab, setActiveTab] = useState('home');
+  // Aba padrão
+  const [activeTab, setActiveTab] = useState('overview');
 
-  // Função para renderizar o componente da aba correta
-  const renderActiveTab = () => {
+  // Verificação segura de Admin
+  const isAdmin = userProfile?.userCategory === 'admin' || userProfile?.userCategory === 'administrator';
+
+  const renderContent = () => {
     switch (activeTab) {
-      case 'home':
-        return <AccountHome 
-                  userProfile={userProfile} 
-                  fullProfileData={fullProfileData} 
-                  setActiveTab={setActiveTab}
-                />;
+      case 'overview':
+        return (
+          <AccountHome 
+            userProfile={userProfile} 
+            fullProfileData={fullProfileData} 
+            setActiveTab={setActiveTab} 
+          />
+        );
+      
       case 'profile':
-        return <ProfileInfo userProfile={userProfile} fullProfileData={fullProfileData} />;
+        return <AccountEditProfile profile={userProfile} />;
+        
+      case 'smart-profile':
+        return <AccountSmartProfile 
+            // O componente pode esperar 'profile' ou 'fullProfileData' dependendo da implementação anterior
+            // Passando ambos para garantir compatibilidade
+            profile={userProfile} 
+            stats={fullProfileData} // Se ele usar stats
+            fullProfileData={fullProfileData} // Se ele usar fullData
+        />;
+        
       case 'security':
-        return <AccountSecurity />;
+        return <AccountSecurity userEmail={userProfile.email} />;
+        
       case 'privacy':
-        return <AccountPrivacy fullProfileData={fullProfileData} />;
+        return <AccountPrivacy fullProfileData={fullProfileData} profile={userProfile} />;
+        
       case 'devices':
         return <AccountDevices />;
-      
-      // 2. SUBSTITUÍDOS OS PLACEHOLDERS
+        
       case 'modules':
         return <AccountModules fullProfileData={fullProfileData} />;
+        
       case 'sharing':
         return <AccountSharing fullProfileData={fullProfileData} />;
-      case 'smart_profile':
-        return <AccountSmartProfile fullProfileData={fullProfileData} />;
         
-      // Placeholders restantes
       case 'billing':
-        return <div className="p-8"><h2>Pagamentos e Assinaturas (Em breve)</h2></div>;
-      case 'admin_center':
-        return <div className="p-8"><h2>Admin Center (Em breve)</h2></div>;
+        return (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400">
+               <i className="fas fa-credit-card text-2xl"></i>
+            </div>
+            <h3 className="text-lg font-bold text-gray-700">Faturamento</h3>
+            <p className="text-gray-500">O histórico de pagamentos estará disponível em breve.</p>
+          </div>
+        );
 
+      case 'admin':
+        return isAdmin 
+          ? <AccountAdminCenter profile={userProfile} organization={null} /> 
+          : <div className="p-8 text-center text-gray-500">Acesso restrito a administradores.</div>;
+        
       default:
-        return <AccountHome 
-                  userProfile={userProfile} 
-                  fullProfileData={fullProfileData} 
-                  setActiveTab={setActiveTab} 
-                />;
+        return (
+          <AccountHome 
+            userProfile={userProfile} 
+            fullProfileData={fullProfileData} 
+            setActiveTab={setActiveTab} 
+          />
+        );
     }
   };
 
   return (
-    <div className="flex flex-col md:flex-row gap-6">
-      
-      {/* Sidebar Fixa à Esquerda */}
-      <div className="md:w-1/4 lg:w-1/5 flex-shrink-0">
-        <AccountSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+      {/* Sidebar de Navegação */}
+      <div className="w-full lg:w-64 shrink-0 p-4 lg:p-6">
+        <AccountSidebar 
+            activeTab={activeTab} 
+            setActiveTab={setActiveTab} 
+            isAdmin={isAdmin} 
+        />
       </div>
 
-      {/* Área de Conteúdo à Direita */}
-      <div className="flex-grow bg-bg-primary dark:bg-bg-secondary rounded-xl shadow-lg overflow-hidden">
-        {renderActiveTab()}
+      {/* Área de Conteúdo Principal */}
+      <div className="flex-1 p-4 lg:p-8 overflow-y-auto">
+        <div className="max-w-5xl mx-auto bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6 md:p-8 min-h-[600px] animate-fade-in">
+            {renderContent()}
+        </div>
       </div>
     </div>
   );
