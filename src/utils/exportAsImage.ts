@@ -7,7 +7,7 @@ export async function preloadImage(url: string): Promise<string | null> {
 
     try {
         let fetchUrl = url;
-        // Redimensiona para economizar memória no iPhone, mas mantém qualidade (400px)
+        // Redimensiona para 400px (suficiente para o avatar no card, economiza RAM)
         if (url.startsWith('http') && !url.includes('wsrv.nl')) {
              fetchUrl = `${CORS_PROXY}${encodeURIComponent(url)}&w=400&h=400&output=png`;
         }
@@ -49,15 +49,21 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
     try {
         await document.fonts.ready;
         await waitForImages(element);
-        await new Promise(r => setTimeout(r, 500));
+        // Delay para garantir que o renderizador processe o gradiente CSS
+        await new Promise(r => setTimeout(r, 300));
 
         const dataUrl = await toPng(element, {
             quality: 1.0,
-            pixelRatio: 2, // 540px * 2 = 1080px (Full HD)
+            pixelRatio: 3, // ALTA RESOLUÇÃO (Para nitidez máxima no mobile)
             cacheBust: true,
             skipAutoScale: true,
-            backgroundColor: '#ffffff', // Garante opacidade total
+            backgroundColor: '#ffffff', // Garante fundo sólido, previne "cinzas"
             fontEmbedCSS: "", 
+            style: {
+                // Força o elemento a se comportar bem durante a captura
+                transform: 'scale(1)',
+                transformOrigin: 'top left'
+            },
             filter: (node) => {
                 if (node.tagName === 'LINK') return false;
                 if (node.tagName === 'I') return false; 
