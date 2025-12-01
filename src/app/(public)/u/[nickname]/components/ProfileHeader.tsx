@@ -8,7 +8,7 @@ export default function ProfileHeader({ currentUser }: { currentUser: any }) {
         {/* Logo reduzida para o perfil */}
         <Link href="/" className="flex items-center gap-2 group">
            <div className="relative w-8 h-8 transition-transform group-hover:scale-110">
-             <Image src="/assets/images/LOGO/png/isologo.png" fill alt="Facillit" className="object-contain" />
+             <Image src="/assets/images/LOGO/logotipo/logo preta (1).png" fill alt="Facillit" className="object-contain" />
            </div>
            <span className="font-bold text-lg tracking-tight text-gray-900 dark:text-white hidden sm:block">
              Facillit<span className="text-royal-blue">Hub</span> <span className="text-xs text-gray-400 font-normal bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full ml-1">Profile</span>
