@@ -1,5 +1,7 @@
 "use client";
 
+import Image from 'next/image';
+
 interface AccountSidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -10,8 +12,8 @@ export default function AccountSidebar({ activeTab, setActiveTab, isAdmin }: Acc
   
   const menuItems = [
     { id: 'overview', label: 'Visão Geral', icon: 'fas fa-home' },
-    { id: 'profile', label: 'Editar Perfil', icon: 'fas fa-user-edit' }, // Nova aba de edição
-    { id: 'smart-profile', label: 'Perfil Inteligente', icon: 'fas fa-id-card' }, // Aba antiga restaurada
+    { id: 'profile', label: 'Editar Perfil', icon: 'fas fa-user-edit' }, 
+    { id: 'smart-profile', label: 'Perfil Inteligente', icon: 'fas fa-id-card' }, 
     { id: 'security', label: 'Segurança', icon: 'fas fa-shield-alt' },
     { id: 'privacy', label: 'Privacidade', icon: 'fas fa-user-secret' },
     { id: 'devices', label: 'Dispositivos', icon: 'fas fa-mobile-alt' },
@@ -26,11 +28,21 @@ export default function AccountSidebar({ activeTab, setActiveTab, isAdmin }: Acc
 
   return (
     <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 h-full sticky top-6">
-      <div className="mb-6 px-2 flex items-center gap-2 text-brand-purple">
-         <div className="w-8 h-8 rounded-lg bg-brand-purple/10 flex items-center justify-center">
-            <i className="fas fa-cog text-brand-purple"></i>
+      
+      {/* HEADER DA SIDEBAR COM LOGO ACCOUNT */}
+      <div className="mb-8 px-2 flex items-center gap-3">
+         <div className="relative w-10 h-10 shrink-0">
+            <Image 
+                src="/assets/images/accont.svg"
+                alt="Facillit Account"
+                fill
+                className="object-contain"
+            />
          </div>
-         <h2 className="font-bold text-lg text-gray-800 dark:text-white">Minha Conta</h2>
+         <div>
+            <h2 className="font-bold text-lg text-gray-800 dark:text-white leading-tight">Minha Conta</h2>
+            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Facillit Hub</span>
+         </div>
       </div>
       
       <nav className="space-y-1">

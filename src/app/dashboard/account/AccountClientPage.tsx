@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { UserProfile } from '../types';
 import AccountSidebar from './components/AccountSidebar';
 
-// Importação de todos os componentes das abas
+// Importação dos componentes das abas
 import AccountHome from './components/AccountHome';
 import AccountEditProfile from './components/AccountEditProfile';
 import AccountSmartProfile from './components/AccountSmartProfile';
@@ -42,13 +42,9 @@ export default function AccountClientPage({ userProfile, fullProfileData }: Prop
         return <AccountEditProfile profile={userProfile} />;
         
       case 'smart-profile':
-        return <AccountSmartProfile 
-            // O componente pode esperar 'profile' ou 'fullProfileData' dependendo da implementação anterior
-            // Passando ambos para garantir compatibilidade
-            profile={userProfile} 
-            stats={fullProfileData} // Se ele usar stats
-            fullProfileData={fullProfileData} // Se ele usar fullData
-        />;
+        // CORREÇÃO DO ERRO DE BUILD:
+        // O componente AccountSmartProfile só aceita 'fullProfileData' na definição atual.
+        return <AccountSmartProfile fullProfileData={fullProfileData} />;
         
       case 'security':
         return <AccountSecurity userEmail={userProfile.email} />;
