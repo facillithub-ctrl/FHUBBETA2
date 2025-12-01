@@ -3,6 +3,7 @@
 import { UserProfile } from '@/app/dashboard/types';
 import { RefObject } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { VerificationBadge } from '@/components/VerificationBadge'; // Importação do componente real
 
 export interface ShareCardStats {
     followers: number;
@@ -27,16 +28,16 @@ export const ProfileShareCard = ({ profile, stats, innerRef }: ProfileShareCardP
             className="w-[400px] h-[700px] bg-white border-[16px] border-gray-50 flex flex-col items-center relative overflow-hidden font-sans box-border"
             style={{ backgroundColor: '#ffffff' }}
         >
-            {/* Elementos Decorativos de Fundo (Muito sutis dentro da moldura) */}
+            {/* Elementos Decorativos de Fundo */}
             <div className="absolute top-[-80px] right-[-80px] w-[300px] h-[300px] bg-brand-purple/5 rounded-full blur-[50px] pointer-events-none"></div>
             <div className="absolute bottom-[-40px] left-[-40px] w-[250px] h-[250px] bg-green-500/5 rounded-full blur-[50px] pointer-events-none"></div>
 
-            {/* 1. HEADER: Logo Facillit Account (AUMENTADA) */}
+            {/* 1. HEADER: Logo Facillit Account */}
             <div className="w-full flex justify-center pt-8 mb-6 relative z-10">
                 <img 
                     src="/assets/images/accont.svg" 
                     alt="Facillit Account" 
-                    className="h-14 object-contain" // Aumentado para h-14
+                    className="h-14 object-contain"
                     crossOrigin="anonymous"
                 />
             </div>
@@ -46,9 +47,10 @@ export const ProfileShareCard = ({ profile, stats, innerRef }: ProfileShareCardP
                 <div className="absolute -inset-[4px] rounded-full bg-gradient-to-tr from-brand-purple to-brand-green"></div>
                 <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden shadow-sm relative z-10 bg-white">
                      {profile.avatar_url ? (
+                        /* Correção do Erro de Tipo: Garantimos que src seja string */
                         <img
-                            src={profile.avatar_url}
-                            alt={profile.nickname}
+                            src={profile.avatar_url || ""}
+                            alt={profile.nickname || "Avatar do usuário"}
                             className="w-full h-full object-cover"
                             crossOrigin="anonymous"
                         />
@@ -62,13 +64,15 @@ export const ProfileShareCard = ({ profile, stats, innerRef }: ProfileShareCardP
 
             {/* 3. IDENTIDADE */}
             <div className="text-center z-10 mb-4 w-full px-4">
-                <div className="flex items-center justify-center gap-1.5 mb-1">
+                <div className="flex items-center justify-center gap-2 mb-1">
                     <h1 className="font-bold text-2xl text-gray-900 leading-tight">
                         {profile.full_name}
                     </h1>
-                    {profile.verification_badge && (
-                        <i className="fas fa-check-circle text-blue-500 text-sm" title="Verificado"></i>
-                    )}
+                    
+                    {/* CORREÇÃO: Usando o componente VerificationBadge real para mostrar a cor correta */}
+                    <div className="flex items-center">
+                        <VerificationBadge badge={profile.verification_badge} size="12px" />
+                    </div>
                 </div>
                 
                 <p className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-purple to-brand-green">

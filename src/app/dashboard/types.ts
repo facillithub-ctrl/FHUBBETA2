@@ -47,10 +47,11 @@ export type UserProfile = {
   cover_image_url?: string | null;
   
   // --- Campos Novos (snake_case do Banco de Dados) ---
-  full_name?: string | null; // Mapeado frequentemente do fullName
+  full_name?: string | null;
   avatar_url?: string | null;
   is_verified?: boolean;
   user_category?: string | null;
+  created_at?: string; // <--- ADICIONADO: Corrige o erro de build
   
   // --- Gamificação (Perfil) ---
   level?: number;
@@ -63,11 +64,10 @@ export type UserProfile = {
   organization_id: string | null;
   target_exam: string | null;
   active_modules: string[] | null;
-  verification_badge: string | null; // as vezes boolean, as vezes string (depende da implementação antiga)
+  verification_badge: string | null;
   has_completed_onboarding?: boolean;
 
   // --- Campos Injetados (Perfil Público / Estatísticas) ---
-  // Estes campos são calculados no server side (actions.ts) e injetados no objeto
   stats_simulados?: number;
   stats_media?: number | null;
   stats_games?: number;
@@ -112,7 +112,7 @@ export type EssayPrompt = {
   publication_date?: string | null;
   deadline?: string | null;
   cover_image_source?: string | null;
-  difficulty?: number | null; // smallint no banco
+  difficulty?: number | null; 
   tags?: string[] | null;
   class_id?: string | null;
 };
