@@ -27,25 +27,22 @@ export default function AccountSidebar({ activeTab, setActiveTab, isAdmin }: Acc
   }
 
   return (
-    <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 h-full sticky top-6">
+    <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-4 h-full sticky top-6 flex flex-col">
       
-      {/* HEADER DA SIDEBAR COM LOGO ACCOUNT */}
-      <div className="mb-8 px-2 flex items-center gap-3">
-         <div className="relative w-10 h-10 shrink-0">
+      {/* HEADER: APENAS LOGO GRANDE E CENTRALIZADA */}
+      <div className="mb-10 mt-4 flex items-center justify-center w-full">
+         <div className="relative w-28 h-28 shrink-0 transition-transform hover:scale-105 duration-300">
             <Image 
                 src="/assets/images/accont.svg"
                 alt="Facillit Account"
                 fill
-                className="object-contain"
+                className="object-contain drop-shadow-md"
+                priority
             />
-         </div>
-         <div>
-            <h2 className="font-bold text-lg text-gray-800 dark:text-white leading-tight">Minha Conta</h2>
-            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Facillit Hub</span>
          </div>
       </div>
       
-      <nav className="space-y-1">
+      <nav className="space-y-1 flex-1">
         {menuItems.map((item) => (
           <button
             key={item.id}

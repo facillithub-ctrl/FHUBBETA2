@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { UserProfile } from '../types';
 import AccountSidebar from './components/AccountSidebar';
 
-// Importação de todos os componentes das abas
+// Importação dos componentes das abas
 import AccountHome from './components/AccountHome';
 import AccountEditProfile from './components/AccountEditProfile';
 import AccountSmartProfile from './components/AccountSmartProfile';
@@ -24,7 +24,7 @@ export default function AccountClientPage({ userProfile, fullProfileData }: Prop
   // Aba padrão
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Verificação segura de Admin (com Optional Chaining para evitar undefined)
+  // Verificação segura de Admin
   const isAdmin = userProfile?.userCategory === 'admin' || userProfile?.userCategory === 'administrator';
 
   const renderContent = () => {
@@ -42,15 +42,14 @@ export default function AccountClientPage({ userProfile, fullProfileData }: Prop
         return <AccountEditProfile profile={userProfile} />;
         
       case 'smart-profile':
-        // CORREÇÃO: Passando apenas fullProfileData, conforme a definição do componente
         return <AccountSmartProfile fullProfileData={fullProfileData} />;
         
       case 'security':
-        // CORREÇÃO: Removida a prop userEmail={userProfile.email} que causava o erro de build
         return <AccountSecurity />;
         
       case 'privacy':
-        return <AccountPrivacy fullProfileData={fullProfileData} profile={userProfile} />;
+        // CORREÇÃO: Removido 'profile={userProfile}' que causava o erro de build
+        return <AccountPrivacy fullProfileData={fullProfileData} />;
         
       case 'devices':
         return <AccountDevices />;
@@ -71,11 +70,6 @@ export default function AccountClientPage({ userProfile, fullProfileData }: Prop
             <p className="text-gray-500">O histórico de pagamentos estará disponível em breve.</p>
           </div>
         );
-
-      case 'admin':
-        return isAdmin 
-          ? <AccountAdminCenter profile={userProfile} organization={null} /> 
-          : <div className="p-8 text-center text-gray-500">Acesso restrito a administradores.</div>;
         
       default:
         return (
