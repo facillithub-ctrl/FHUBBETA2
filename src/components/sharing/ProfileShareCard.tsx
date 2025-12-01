@@ -10,6 +10,8 @@ export interface ShareCardStats {
     following: number;
 }
 
+export type CardTheme = 'light' | 'dark';
+
 interface ProfileShareCardProps {
     profile: UserProfile;
     stats: ShareCardStats;
@@ -17,6 +19,7 @@ interface ProfileShareCardProps {
     avatarOverride?: string | null;
     logoOverride?: string | null;
     isExporting?: boolean;
+    theme?: CardTheme;
     showAvatar?: boolean;
 }
 
@@ -24,14 +27,15 @@ const BRAND = {
     purple: '#42047e',
     green: '#07f49e',
     dark: '#0f0f11',
+    light: '#ffffff',
     gradient: 'linear-gradient(135deg, #42047e 0%, #07f49e 100%)'
 };
 
 const VerifiedBadge = () => (
-    <div className="flex items-center justify-center w-6 h-6 rounded-full ml-2 relative z-10" 
-         style={{ background: BRAND.gradient }}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59L9 16.17Z" fill="white"/>
+    <div className="flex items-center justify-center w-8 h-8 ml-2">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z" fill={BRAND.green} />
+            <path d="M7.5 12L10.5 15L16.5 9" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
     </div>
 );
@@ -51,134 +55,136 @@ export const ProfileShareCard = ({
     const safeAvatar = avatarOverride || (isExporting ? null : profile.avatar_url);
     const safeLogo = logoOverride || (isExporting ? null : "/assets/images/accont.svg");
 
+    // Formata a data de criação (ou usa o ano atual como fallback)
+    const memberSinceYear = profile.created_at 
+        ? new Date(profile.created_at).getFullYear() 
+        : new Date().getFullYear();
+
     return (
         <div
             ref={innerRef}
-            // Base: 540x960 (9:16). Fundo Branco Puro para nitidez máxima.
             className="w-[540px] h-[960px] flex flex-col items-center relative overflow-hidden font-sans box-border bg-white"
         >
-            {/* DECORAÇÃO DE FUNDO (Clean & Sharp) */}
-            <div className="absolute inset-0 z-0 pointer-events-none">
-                {/* Formas vetoriais simples - Sem Blur complexo */}
-                <svg className="absolute top-0 right-0 w-[400px] h-[400px] opacity-[0.03]" viewBox="0 0 100 100">
-                    <circle cx="100" cy="0" r="80" fill={BRAND.green} />
-                </svg>
-                <svg className="absolute bottom-0 left-0 w-[500px] h-[500px] opacity-[0.04]" viewBox="0 0 100 100">
-                    <circle cx="0" cy="100" r="80" fill={BRAND.purple} />
-                </svg>
-            </div>
+            {/* LINHA SUPERIOR (Marca da Cor) */}
+            <div className="w-full h-3" style={{ background: BRAND.gradient }}></div>
 
-            {/* CONTEÚDO */}
-            <div className="relative z-10 flex flex-col items-center w-full h-full pt-20 pb-16 px-10">
+            {/* CONTEÚDO PRINCIPAL */}
+            <div className="flex-1 flex flex-col items-center w-full px-12 pt-14 pb-12">
                 
-                {/* 1. HEADER LOGO */}
-                <div className="w-full flex justify-center mb-12">
+                {/* 1. LOGO EM EVIDÊNCIA */}
+                <div className="mb-10 w-full flex justify-center">
                     {safeLogo ? (
                         <img 
                             src={safeLogo} 
                             alt="Facillit" 
-                            className="h-16 object-contain"
+                            className="h-20 object-contain" // Tamanho aumentado (80px)
                             {...(!safeLogo.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
                         />
                     ) : (
-                        <span className="text-3xl font-bold tracking-widest text-[#42047e] opacity-90">
+                        <span className="text-4xl font-black tracking-tighter" style={{ color: BRAND.purple }}>
                             FACILLIT
                         </span>
                     )}
                 </div>
 
-                {/* 2. AVATAR (Super Nítido) */}
+                {/* 2. TAG OFICIAL */}
+                <div className="mb-6 px-5 py-1.5 rounded-full border-2 border-[#f3f4f6]">
+                    <span className="text-xs font-bold tracking-[0.2em] uppercase text-gray-400">
+                        Perfil Oficial
+                    </span>
+                </div>
+
+                {/* 3. NOME GIGANTE */}
+                <div className="text-center w-full mb-2">
+                    <h1 className="text-[4rem] font-[900] leading-[0.9] tracking-tight text-[#0f0f11] mb-1">
+                        {profile.full_name}
+                    </h1>
+                    <div className="flex items-center justify-center gap-2">
+                        <p className="text-3xl font-bold" style={{ color: BRAND.purple }}>
+                            @{profile.nickname}
+                        </p>
+                        {profile.verification_badge && <VerifiedBadge />}
+                    </div>
+                </div>
+
+                {/* 4. AVATAR (Limpo e Geométrico) */}
                 {showAvatar && (
-                    <div className="relative mb-10">
-                        {/* Anel de Gradiente Sólido (Sem box-shadow difuso) */}
-                        <div className="p-[4px] rounded-full" style={{ background: BRAND.gradient }}>
-                            <div className="rounded-full border-[6px] border-white bg-white">
-                                <div className="w-56 h-56 rounded-full overflow-hidden relative bg-gray-50 border border-gray-100">
-                                    {safeAvatar ? (
-                                        <img
-                                            src={safeAvatar}
-                                            alt="Avatar"
-                                            className="w-full h-full object-cover"
-                                            {...(!safeAvatar.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-gray-300">
-                                            <svg className="w-24 h-24" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                                            </svg>
-                                        </div>
-                                    )}
-                                </div>
+                    <div className="relative my-8">
+                        {/* Anel de destaque com as cores da marca */}
+                        <div className="p-[6px] rounded-[48px] bg-white shadow-[0_10px_40px_-10px_rgba(66,4,126,0.2)]">
+                            <div className="rounded-[42px] overflow-hidden w-56 h-56 relative border-4 border-white">
+                                {safeAvatar ? (
+                                    <img
+                                        src={safeAvatar}
+                                        alt="Avatar"
+                                        className="w-full h-full object-cover"
+                                        {...(!safeAvatar.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-300">
+                                        <svg className="w-24 h-24" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* Ano de Membro (Badge Flutuante) */}
+                            <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-[#0f0f11] text-white px-4 py-1.5 rounded-full shadow-lg border-2 border-white whitespace-nowrap">
+                                <span className="text-xs font-bold tracking-widest uppercase">
+                                    Membro desde {memberSinceYear}
+                                </span>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* 3. NOME */}
-                <div className="text-center w-full mb-12">
-                    <div className="flex items-center justify-center gap-3 mb-4">
-                        <h1 className="text-[3.2rem] font-[800] tracking-tight leading-none text-[#0f0f11]">
-                            {profile.full_name}
-                        </h1>
-                        {profile.verification_badge && profile.verification_badge !== 'none' && (
-                            <VerifiedBadge />
-                        )}
-                    </div>
-                    
-                    <div className="inline-block">
-                        <p className="text-2xl font-bold bg-clip-text text-transparent" 
-                           style={{ backgroundImage: BRAND.gradient }}>
-                            @{profile.nickname}
+                {/* 5. BIO */}
+                {profile.bio && (
+                    <div className="w-full text-center mb-8 px-4">
+                        <p className="text-xl font-medium text-gray-500 leading-snug line-clamp-3">
+                            {profile.bio}
                         </p>
                     </div>
+                )}
+
+                {/* 6. MÉTRICAS (Minimalista Vertical) */}
+                <div className="flex w-full justify-center gap-12 mb-auto mt-2">
+                    <div className="text-center">
+                        <span className="block text-4xl font-[900] text-[#0f0f11]">{stats.followers}</span>
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Seguidores</span>
+                    </div>
+                    <div className="w-px h-12 bg-gray-200"></div>
+                    <div className="text-center">
+                        <span className="block text-4xl font-[900] text-[#0f0f11]">{stats.following}</span>
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Seguindo</span>
+                    </div>
                 </div>
 
-                {/* 4. MÉTRICAS (Card Sólido) */}
-                <div className="flex items-center justify-center gap-6 w-full mb-auto px-4">
-                    <div className="flex-1 rounded-2xl p-6 flex flex-col items-center bg-[#f8f9fa] border border-[#e5e7eb]">
-                        <span className="text-4xl font-[900] leading-none mb-2 text-[#0f0f11]">
-                            {stats.followers}
-                        </span>
-                        <span className="text-sm font-bold uppercase tracking-widest text-[#6b7280]">
-                            Seguidores
-                        </span>
+                {/* 7. FOOTER LINK */}
+                <div className="w-full mt-8 bg-[#f8f9fa] rounded-3xl p-2 flex items-center justify-between shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-4 pl-6">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: BRAND.green }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f0f11" strokeWidth="2.5">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                            </svg>
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Visitar Perfil</span>
+                            <span className="text-lg font-bold text-[#0f0f11]">facillithub.com</span>
+                        </div>
                     </div>
                     
-                    <div className="flex-1 rounded-2xl p-6 flex flex-col items-center bg-[#f8f9fa] border border-[#e5e7eb]">
-                        <span className="text-4xl font-[900] leading-none mb-2 text-[#0f0f11]">
-                            {stats.following}
-                        </span>
-                        <span className="text-sm font-bold uppercase tracking-widest text-[#6b7280]">
-                            Seguindo
-                        </span>
-                    </div>
-                </div>
-
-                {/* 5. FOOTER (Link Visual) */}
-                <div className="w-full mt-10 mb-4 rounded-[28px] overflow-hidden border border-[#f3f4f6] shadow-[0_4px_20px_rgba(0,0,0,0.03)] bg-white relative">
-                    {/* Barra Lateral */}
-                    <div className="absolute left-0 top-0 bottom-0 w-2" style={{ background: BRAND.gradient }}></div>
-
-                    <div className="py-8 px-8 pl-10 flex flex-row items-center justify-between">
-                        <div className="flex flex-col items-start gap-1">
-                            <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#42047e]">
-                                PERFIL OFICIAL
-                            </span>
-                            <span className="text-xl font-bold text-[#0f0f11]">
-                                facillithub.com
-                            </span>
-                        </div>
-                        
-                        {/* Ícone QR Simples e Nítido */}
-                        <div className="p-1 bg-white border border-gray-100 rounded-lg">
-                             <QRCodeSVG 
-                                value={profileUrl} 
-                                size={70}
-                                fgColor="#000000" 
-                                bgColor="#ffffff"
-                                level={"M"}
-                            />
-                        </div>
+                    {/* QR Code Limpo */}
+                    <div className="bg-white p-1.5 rounded-2xl border border-gray-200">
+                        <QRCodeSVG 
+                            value={profileUrl} 
+                            size={60}
+                            fgColor="#000000" 
+                            bgColor="#ffffff"
+                            level={"M"}
+                        />
                     </div>
                 </div>
 

@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { UserProfile } from '@/app/dashboard/types';
-import { ProfileShareCard, ShareCardStats } from './ProfileShareCard';
+import { ProfileShareCard, ShareCardStats, CardTheme } from './ProfileShareCard';
 import { useProfileShare } from '@/features/share'; 
 
 interface ShareProfileButtonProps {
@@ -67,7 +67,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     <>
       <div className="relative inline-block text-left" ref={menuRef}>
         
-        {/* RENDERIZADOR (Fora da tela) */}
+        {/* Renderizador Off-Screen (Sempre Branco e Nítido) */}
         <div style={{ 
             position: 'fixed', 
             left: '200vw', 
@@ -86,6 +86,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                    avatarOverride={safeAvatarUrl ?? null}
                    logoOverride={safeLogoUrl ?? null} 
                    isExporting={true}
+                   theme="light" // Forçamos Light para máxima nitidez
                    showAvatar={showAvatar}
                 />
             )}
@@ -93,7 +94,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
 
         {renderTriggerButton()}
 
-        {/* MENU SIMPLIFICADO */}
+        {/* MENU */}
         {isMenuOpen && (
           <div className="absolute right-0 bottom-full mb-3 w-72 rounded-2xl shadow-xl bg-white border border-gray-100 z-40 animate-fade-in-up origin-bottom-right p-4">
               
@@ -104,9 +105,9 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                   </button>
               </div>
 
-              {/* Toggle Avatar */}
+              {/* Avatar Toggle */}
               <div className="flex items-center justify-between mb-5 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-xs font-bold text-gray-700">Mostrar Foto</span>
+                  <span className="text-xs font-bold text-gray-700">Incluir Foto</span>
                   <button 
                     onClick={() => setShowAvatar(!showAvatar)}
                     className={`w-11 h-6 rounded-full transition-colors relative ${showAvatar ? 'bg-[#07f49e]' : 'bg-gray-300'}`}
@@ -132,21 +133,21 @@ export default function ShareProfileButton({ profile, stats, className = "", var
 
       {/* POPUP DE VISUALIZAÇÃO */}
       {previewUrl && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-fade-in bg-[#1a1a1c]/95 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-fade-in bg-black/90 backdrop-blur-md">
             
-            {/* Botão Voltar */}
-            <button 
-                onClick={clearPreview}
-                className="absolute top-6 right-6 flex items-center gap-2 text-white/70 hover:text-white transition-colors bg-white/10 px-4 py-2 rounded-full backdrop-blur-md z-50 font-medium text-sm"
-            >
-                <i className="fas fa-arrow-left"></i>
-                <span>Voltar</span>
-            </button>
-
-            <div className="w-full max-w-5xl h-full flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16">
+            <div className="relative w-full max-w-5xl h-full flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16">
                 
+                {/* Botão Voltar (Estilo App) */}
+                <button 
+                    onClick={clearPreview}
+                    className="absolute top-4 left-4 md:top-0 md:left-0 md:right-auto md:-top-12 flex items-center gap-2 text-white/80 hover:text-white transition-colors bg-white/10 px-5 py-2.5 rounded-full backdrop-blur-md z-50 font-bold text-sm border border-white/5"
+                >
+                    <i className="fas fa-chevron-left"></i>
+                    <span>Voltar</span>
+                </button>
+
                 {/* IMAGEM PREVIEW */}
-                <div className="relative h-[65vh] md:h-[85vh] w-auto aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl border border-white/5 bg-[#0f0f11] flex-shrink-0 mt-8 md:mt-0">
+                <div className="relative h-[65vh] md:h-[85vh] w-auto aspect-[9/16] rounded-3xl overflow-hidden shadow-2xl bg-white flex-shrink-0 mt-12 md:mt-0 ring-8 ring-white/10">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                         src={previewUrl} 
@@ -156,30 +157,30 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                 </div>
 
                 {/* AÇÕES */}
-                <div className="flex flex-col items-center md:items-start gap-5 w-full max-w-xs animate-slide-up text-center md:text-left">
+                <div className="flex flex-col items-center md:items-start gap-6 w-full max-w-xs animate-slide-up text-center md:text-left">
                     <div>
-                        <h2 className="text-3xl font-bold text-white mb-2">Pronto! ✨</h2>
-                        <p className="text-gray-400 text-sm leading-relaxed">
-                            O card foi gerado com qualidade máxima.
+                        <h2 className="text-3xl font-extrabold text-white mb-2">Está pronto! 🚀</h2>
+                        <p className="text-gray-400 text-sm leading-relaxed font-medium">
+                            Partilhe este card nos seus stories e identifique a <span className="text-[#07f49e]">@facillit</span>.
                         </p>
                     </div>
 
                     <div className="flex flex-col w-full gap-3">
                         <button
                             onClick={handleShare}
-                            className="w-full py-4 bg-[#07f49e] hover:bg-[#05dcb6] text-[#0f0f11] rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(7,244,158,0.2)] transition-all active:scale-95"
+                            className="w-full py-4 bg-[#07f49e] hover:bg-[#05dcb6] text-[#0f0f11] rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-[0_0_30px_rgba(7,244,158,0.3)] transition-all active:scale-95"
                         >
-                            <i className="fas fa-share-nodes"></i> 
+                            <i className="fas fa-share"></i> 
                             <span>Partilhar</span>
                         </button>
 
                         <a 
                             href={previewUrl}
                             download={`facillit-${profile.nickname}.png`}
-                            className="w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 border border-white/10 transition-all"
+                            className="w-full py-4 bg-[#1a1a1c] hover:bg-[#252529] text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 border border-white/5 transition-all active:scale-95"
                         >
-                            <i className="fas fa-download"></i>
-                            <span>Salvar na Galeria</span>
+                            <i className="fas fa-download text-gray-400"></i>
+                            <span>Guardar</span>
                         </a>
                     </div>
                 </div>

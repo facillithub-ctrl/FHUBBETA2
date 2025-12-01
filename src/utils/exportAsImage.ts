@@ -46,7 +46,7 @@ async function waitForImages(element: HTMLElement): Promise<void> {
     if (promises.length > 0) await Promise.all(promises);
 }
 
-export async function generateImageBlob(element: HTMLElement, fileName: string): Promise<File | null> {
+export async function generateImageBlob(element: HTMLElement, fileName: string, bgColor: string = '#ffffff'): Promise<File | null> {
     if (!element) return null;
 
     try {
@@ -56,10 +56,10 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
 
         const dataUrl = await toPng(element, {
             quality: 1.0,
-            pixelRatio: 3, // Ultra Sharp
+            pixelRatio: 3, 
             cacheBust: true,
             skipAutoScale: true,
-            backgroundColor: '#ffffff', // Branco Sólido = Zero Manchas
+            backgroundColor: bgColor,
             fontEmbedCSS: "", 
             style: {
                 transform: 'scale(1)',

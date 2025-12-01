@@ -28,7 +28,8 @@ export const useProfileShare = (profileName: string, avatarUrl?: string | null) 
 
         try {
             const fileName = `facillit-${profileName.replace(/[^a-z0-9]/gi, '_')}`;
-            const file = await generateImageBlob(elementRef, fileName);
+            // Sempre branco para esta versão clean
+            const file = await generateImageBlob(elementRef, fileName, '#ffffff');
             
             if (file) {
                 setPreviewFile(file);
