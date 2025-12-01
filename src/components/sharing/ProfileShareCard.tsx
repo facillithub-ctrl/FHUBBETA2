@@ -31,10 +31,11 @@ const StarBadgeSVG = ({ color }: { color: string }) => (
 );
 
 export const ProfileShareCard = ({ profile, stats, innerRef }: ProfileShareCardProps) => {
+    // URL para o QR Code
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://facillithub.com';
     const profileUrl = `${baseUrl}/u/${profile.nickname}`;
 
-    // Lógica para determinar qual ícone e cor mostrar (Baseado no seu badgeDetails)
+    // Lógica para determinar qual ícone e cor mostrar
     const renderBadge = () => {
         const badge = profile.verification_badge;
         
@@ -49,8 +50,9 @@ export const ProfileShareCard = ({ profile, stats, innerRef }: ProfileShareCardP
             return <StarBadgeSVG color="#ef4444" />; // text-red-500
         }
         
-        // Suporte legado para booleans (assume blue padrão)
-        if (badge === 'true' || badge === true) {
+        // CORREÇÃO: Removemos '|| badge === true' para evitar o erro de Type mismatch.
+        // Se o valor for a string 'true', assumimos azul (padrão legado).
+        if (badge === 'true') {
             return <CheckBadgeSVG color="#3b82f6" />;
         }
 
@@ -83,7 +85,7 @@ export const ProfileShareCard = ({ profile, stats, innerRef }: ProfileShareCardP
                 <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden shadow-sm relative z-10 bg-white">
                      {profile.avatar_url ? (
                         <img
-                            src={profile.avatar_url}
+                            src={profile.avatar_url || ""}
                             alt={profile.nickname || "Avatar"}
                             className="w-full h-full object-cover"
                             crossOrigin="anonymous"
