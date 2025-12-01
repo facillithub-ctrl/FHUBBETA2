@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { UserProfile } from '../types';
 import AccountSidebar from './components/AccountSidebar';
 
-// Importação dos componentes das abas
+// Importação de todos os componentes das abas
 import AccountHome from './components/AccountHome';
 import AccountEditProfile from './components/AccountEditProfile';
 import AccountSmartProfile from './components/AccountSmartProfile';
@@ -24,7 +24,7 @@ export default function AccountClientPage({ userProfile, fullProfileData }: Prop
   // Aba padrão
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Verificação segura de Admin
+  // Verificação segura de Admin (com Optional Chaining para evitar undefined)
   const isAdmin = userProfile?.userCategory === 'admin' || userProfile?.userCategory === 'administrator';
 
   const renderContent = () => {
@@ -42,12 +42,12 @@ export default function AccountClientPage({ userProfile, fullProfileData }: Prop
         return <AccountEditProfile profile={userProfile} />;
         
       case 'smart-profile':
-        // CORREÇÃO DO ERRO DE BUILD:
-        // O componente AccountSmartProfile só aceita 'fullProfileData' na definição atual.
+        // CORREÇÃO: Passando apenas fullProfileData, conforme a definição do componente
         return <AccountSmartProfile fullProfileData={fullProfileData} />;
         
       case 'security':
-        return <AccountSecurity userEmail={userProfile.email} />;
+        // CORREÇÃO: Removida a prop userEmail={userProfile.email} que causava o erro de build
+        return <AccountSecurity />;
         
       case 'privacy':
         return <AccountPrivacy fullProfileData={fullProfileData} profile={userProfile} />;
@@ -64,10 +64,10 @@ export default function AccountClientPage({ userProfile, fullProfileData }: Prop
       case 'billing':
         return (
           <div className="flex flex-col items-center justify-center h-64 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-gray-400">
+            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4 text-gray-400">
                <i className="fas fa-credit-card text-2xl"></i>
             </div>
-            <h3 className="text-lg font-bold text-gray-700">Faturamento</h3>
+            <h3 className="text-lg font-bold text-gray-700 dark:text-white">Faturamento</h3>
             <p className="text-gray-500">O histórico de pagamentos estará disponível em breve.</p>
           </div>
         );

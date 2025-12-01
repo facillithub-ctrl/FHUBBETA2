@@ -12,8 +12,8 @@ export default function AccountSidebar({ activeTab, setActiveTab, isAdmin }: Acc
   
   const menuItems = [
     { id: 'overview', label: 'Visão Geral', icon: 'fas fa-home' },
-    { id: 'profile', label: 'Editar Perfil', icon: 'fas fa-user-edit' }, 
-    { id: 'smart-profile', label: 'Perfil Inteligente', icon: 'fas fa-id-card' }, 
+    { id: 'profile', label: 'Editar Perfil', icon: 'fas fa-user-edit' },
+    { id: 'smart-profile', label: 'Perfil Inteligente', icon: 'fas fa-id-card' },
     { id: 'security', label: 'Segurança', icon: 'fas fa-shield-alt' },
     { id: 'privacy', label: 'Privacidade', icon: 'fas fa-user-secret' },
     { id: 'devices', label: 'Dispositivos', icon: 'fas fa-mobile-alt' },
