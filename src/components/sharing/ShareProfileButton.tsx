@@ -31,24 +31,22 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- 1. GERADOR OTIMIZADO (COM TIMEOUT) ---
+  // --- GERADOR DE IMAGEM ---
   const generateImageBlob = async () => {
     if (!cardRef.current) return null;
     
-    // Promessa com Timeout para não travar o celular
+    // Promessa com Timeout para evitar travamento eterno
     const generatePromise = new Promise<Blob | null>(async (resolve, reject) => {
         try {
-            // Pequeno delay para garantir renderização
-            await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 100)); // Delay para renderização
 
             const dataUrl = await toPng(cardRef.current!, { 
                 cacheBust: false,
-                pixelRatio: 2, // CORREÇÃO: 2 é o padrão Retina. 3 ou 4 trava iPhones/Androids modestos.
+                pixelRatio: 2, // 2.0 é o ideal para mobile (boa qualidade e não estoura memória)
                 quality: 0.95,
                 skipAutoScale: true,
                 backgroundColor: '#ffffff',
                 fontEmbedCSS: "", 
-                // Filtro para garantir que não tente renderizar scripts ou links externos
                 filter: (node) => {
                    const element = node as HTMLElement;
                    return !(element.tagName === 'I' && element.classList?.contains('fa-spinner')) &&
@@ -57,7 +55,6 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                 }
             });
 
-            // Método mais rápido e nativo para converter em Blob
             const res = await fetch(dataUrl);
             const blob = await res.blob();
             resolve(blob);
@@ -67,7 +64,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
         }
     });
 
-    // Race condition: Se demorar mais de 8s, aborta.
+    // Timeout de 8 segundos
     const timeoutPromise = new Promise<null>((_, reject) => 
         setTimeout(() => reject(new Error("Timeout")), 8000)
     );
@@ -75,16 +72,20 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     return Promise.race([generatePromise, timeoutPromise]);
   };
 
-  // --- 2. LÓGICA DE DOWNLOAD (Compatível com iOS/Android) ---
-  const performDownload = (blob: Blob) => {
-      try {
+  // --- LÓGICA DE DOWNLOAD ---
+  const handleDownload = async () => {
+    setIsGenerating(true);
+    try {
+      const blob = await generateImageBlob();
+      
+      if (blob) {
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.download = `facillit-${profile.nickname}.png`;
           link.href = url;
           link.style.display = 'none';
           
-          // Essencial para Firefox Android e alguns iOS
+          // Anexa ao corpo para garantir funcionamento em iOS/Firefox
           document.body.appendChild(link);
           link.click();
           
@@ -94,62 +95,17 @@ export default function ShareProfileButton({ profile, stats, className = "", var
               URL.revokeObjectURL(url);
           }, 100);
 
-          addToast({ title: 'Sucesso', message: 'Imagem salva em Downloads/Galeria.', type: 'success' });
-      } catch (e) {
-          console.error("Erro no download forçado", e);
-          addToast({ title: 'Erro', message: 'Erro ao salvar. Tente segurar na imagem.', type: 'error' });
-      }
-  };
-
-  // Ação: Compartilhamento Nativo (Stories)
-  const handleNativeShare = async () => {
-    setIsGenerating(true);
-    try {
-      const blob = await generateImageBlob();
-      if (!blob) throw new Error("Falha na geração");
-
-      const file = new File([blob], `perfil-${profile.nickname}.png`, { type: 'image/png' });
-
-      // Verifica suporte a compartilhamento de arquivos
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-            await navigator.share({
-                files: [file],
-                title: `Perfil Facillit - @${profile.nickname}`,
-            });
-        } catch (shareError: any) {
-            // Se o usuário cancelar ou fechar a janela, não é erro crítico
-            if (shareError.name !== 'AbortError') {
-                performDownload(blob); // Fallback: tenta baixar se o share falhar
-            }
-        }
+          addToast({ title: 'Sucesso', message: 'Imagem baixada.', type: 'success' });
       } else {
-        // Se o navegador não suporta share nativo, baixa direto
-        performDownload(blob);
+          throw new Error("Falha na geração");
       }
     } catch (error: any) {
       console.error(error);
       if (error.message === "Timeout") {
-          addToast({ title: 'Demorou muito', message: 'Tente novamente ou use a opção Baixar Imagem.', type: 'error' });
+          addToast({ title: 'Erro de Tempo', message: 'A imagem demorou muito para ser gerada.', type: 'error' });
       } else {
-          addToast({ title: 'Erro', message: 'Não foi possível gerar a imagem.', type: 'error' });
+          addToast({ title: 'Erro', message: 'Não foi possível baixar a imagem.', type: 'error' });
       }
-    } finally {
-      setIsGenerating(false);
-      setIsMenuOpen(false);
-    }
-  };
-
-  // Ação: Baixar Imagem (Manual)
-  const handleDownload = async () => {
-    setIsGenerating(true);
-    try {
-      const blob = await generateImageBlob();
-      if (blob) {
-          performDownload(blob);
-      }
-    } catch (error) {
-      addToast({ title: 'Erro', message: 'Erro ao baixar imagem.', type: 'error' });
     } finally {
       setIsGenerating(false);
       setIsMenuOpen(false);
@@ -159,7 +115,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
   const handleCopyLink = () => {
     const url = `${window.location.origin}/u/${profile.nickname}`;
     navigator.clipboard.writeText(url);
-    addToast({ title: 'Link Copiado', message: 'Cole onde quiser!', type: 'success' });
+    addToast({ title: 'Copiado!', message: 'Link do perfil copiado.', type: 'success' });
     setIsMenuOpen(false);
   };
 
@@ -176,7 +132,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
             <button 
                 onClick={() => setIsMenuOpen(!isMenuOpen)} 
                 className={`w-10 h-10 rounded-full bg-white border border-gray-200 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-colors shadow-sm ${className}`}
-                title="Opções de Compartilhamento"
+                title="Compartilhar"
             >
                 <i className="fas fa-share-alt"></i>
             </button>
@@ -215,36 +171,21 @@ export default function ShareProfileButton({ profile, stats, className = "", var
             
             <div className="p-2 space-y-1">
                 
-                {/* Opção 1: Stories / Nativo */}
-                <button 
-                    onClick={handleNativeShare}
-                    disabled={isGenerating}
-                    className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-brand-purple transition-colors flex items-center gap-3 disabled:opacity-50"
-                >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex items-center justify-center text-white shadow-sm shrink-0">
-                        {isGenerating ? <i className="fas fa-spinner fa-spin text-xs"></i> : <i className="fab fa-instagram"></i>}
-                    </div>
-                    <div>
-                        <span className="block">{isGenerating ? 'Gerando...' : 'Postar / Stories'}</span>
-                        <span className="text-[10px] text-gray-400 font-normal">Abrir app nativo</span>
-                    </div>
-                </button>
-
-                {/* Opção 2: Baixar */}
+                {/* Opção 1: Baixar Imagem */}
                 <button 
                     onClick={handleDownload}
                     disabled={isGenerating}
                     className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-brand-purple transition-colors flex items-center gap-3 disabled:opacity-50"
                 >
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 shrink-0">
-                        <i className="fas fa-download"></i>
+                    <div className="w-8 h-8 rounded-full bg-brand-purple/10 flex items-center justify-center text-brand-purple shrink-0">
+                        {isGenerating ? <i className="fas fa-spinner fa-spin text-xs"></i> : <i className="fas fa-download"></i>}
                     </div>
-                    <span>Baixar Imagem</span>
+                    <span>{isGenerating ? 'Gerando...' : 'Baixar Imagem'}</span>
                 </button>
 
                 <div className="h-px bg-gray-100 my-1 mx-2"></div>
 
-                {/* Opção 3: WhatsApp */}
+                {/* Opção 2: WhatsApp */}
                 <button 
                     onClick={handleWhatsApp}
                     className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-green-600 transition-colors flex items-center gap-3"
@@ -255,7 +196,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                     <span>Enviar no WhatsApp</span>
                 </button>
 
-                {/* Opção 4: Copiar Link */}
+                {/* Opção 3: Copiar Link */}
                 <button 
                     onClick={handleCopyLink}
                     className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-brand-purple transition-colors flex items-center gap-3"

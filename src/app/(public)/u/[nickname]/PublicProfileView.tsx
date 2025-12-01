@@ -78,7 +78,7 @@ export default function PublicProfileView({
                 priority
             />
         ) : (
-            <div className="w-full h-full bg-gradient-to-br from-brand-purple via-[#6366f1] to-royal-blue relative overflow-hidden">
+            <div className="w-full h-full bg-brand-gradient relative overflow-hidden">
                 <div className="absolute inset-0 opacity-20 bg-[url('/assets/images/pattern-grid.svg')] mix-blend-overlay"></div>
                 <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
             </div>
