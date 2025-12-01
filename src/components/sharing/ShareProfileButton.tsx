@@ -13,14 +13,26 @@ interface ShareProfileButtonProps {
   variant?: 'primary' | 'secondary' | 'icon';
 }
 
+// Helper robusto para converter DataURL em Blob (funciona melhor em mobile antigo)
+const dataURItoBlob = (dataURI: string) => {
+  const byteString = atob(dataURI.split(',')[1]);
+  const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([ab], { type: mimeString });
+};
+
 export default function ShareProfileButton({ profile, stats, className = "", variant = 'primary' }: ShareProfileButtonProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null); // Referência para fechar ao clicar fora
+  const menuRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
 
-  // Fecha o menu se clicar fora dele
+  // Fecha menu ao clicar fora
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -31,17 +43,17 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- FUNÇÃO GERADORA DE IMAGEM (Reutilizável) ---
+  // --- 1. GERADOR OTIMIZADO PARA MOBILE ---
   const generateImageBlob = async () => {
     if (!cardRef.current) return null;
     
-    // Pequeno delay para garantir renderização
+    // Pequeno delay para garantir renderização de fontes e estilos
     await new Promise(resolve => setTimeout(resolve, 200));
 
     const dataUrl = await toPng(cardRef.current, { 
         cacheBust: false,
-        pixelRatio: 4, 
-        quality: 1.0,
+        pixelRatio: 3, // CORREÇÃO: Reduzido de 4 para 3. Evita crash de memória em iOS/Android.
+        quality: 0.95,
         skipAutoScale: true,
         backgroundColor: '#ffffff',
         fontEmbedCSS: "", 
@@ -52,52 +64,74 @@ export default function ShareProfileButton({ profile, stats, className = "", var
         }
     });
 
-    const res = await fetch(dataUrl);
-    return await res.blob();
+    return dataURItoBlob(dataUrl);
   };
 
-  // 1. Ação: Compartilhamento Nativo (Stories / Mobile)
+  // --- 2. LÓGICA DE DOWNLOAD ROBUSTA ---
+  // Extraída para ser usada tanto no botão "Baixar" quanto como fallback do Share
+  const performDownload = (blob: Blob) => {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `facillit-${profile.nickname}.png`;
+      link.href = url;
+      
+      // CORREÇÃO CRÍTICA PARA MOBILE:
+      // O link precisa estar no DOM para funcionar em alguns navegadores
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      URL.revokeObjectURL(url);
+      addToast({ title: 'Imagem Salva', message: 'Verifique sua galeria ou downloads.', type: 'success' });
+  };
+
+  // Ação: Compartilhamento Nativo (Stories)
   const handleNativeShare = async () => {
     setIsGenerating(true);
     try {
       const blob = await generateImageBlob();
-      if (!blob) throw new Error("Falha ao gerar");
+      if (!blob) throw new Error("Falha ao gerar blob");
 
       const file = new File([blob], `perfil-${profile.nickname}.png`, { type: 'image/png' });
 
+      // Tenta abrir o menu nativo
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: `Perfil Facillit - @${profile.nickname}`,
-          text: `Confira meu perfil no Facillit Hub!`,
-        });
+        try {
+            await navigator.share({
+                files: [file],
+                title: `Perfil Facillit - @${profile.nickname}`,
+                text: `Confira meu perfil no Facillit Hub!`,
+            });
+        } catch (shareError: any) {
+            // Se o usuário cancelar, não faz nada. Se for erro real, tenta baixar.
+            if (shareError.name !== 'AbortError') {
+                console.warn("Erro no share nativo, tentando download...", shareError);
+                performDownload(blob); 
+            }
+        }
       } else {
-        addToast({ title: 'Indisponível', message: 'Seu navegador não suporta compartilhamento direto. Tente baixar.', type: 'info' });
+        // Fallback automático se o navegador não suportar share de arquivos
+        performDownload(blob);
       }
     } catch (error) {
       console.error(error);
-      addToast({ title: 'Erro', message: 'Erro ao gerar imagem.', type: 'error' });
+      addToast({ title: 'Erro', message: 'Não foi possível gerar a imagem.', type: 'error' });
     } finally {
       setIsGenerating(false);
       setIsMenuOpen(false);
     }
   };
 
-  // 2. Ação: Baixar Imagem (Desktop)
+  // Ação: Baixar Imagem (Manual)
   const handleDownload = async () => {
     setIsGenerating(true);
     try {
       const blob = await generateImageBlob();
-      if (!blob) throw new Error("Falha ao gerar");
-      
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.download = `facillit-perfil-${profile.nickname}.png`;
-      link.href = url;
-      link.click();
-      
-      URL.revokeObjectURL(url);
-      addToast({ title: 'Download Concluído', message: 'Imagem salva no seu dispositivo.', type: 'success' });
+      if (blob) {
+          performDownload(blob);
+      } else {
+          throw new Error("Blob vazio");
+      }
     } catch (error) {
       addToast({ title: 'Erro', message: 'Erro ao baixar imagem.', type: 'error' });
     } finally {
@@ -106,15 +140,13 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     }
   };
 
-  // 3. Ação: Copiar Link
   const handleCopyLink = () => {
     const url = `${window.location.origin}/u/${profile.nickname}`;
     navigator.clipboard.writeText(url);
-    addToast({ title: 'Link Copiado', message: 'Link do perfil copiado para a área de transferência.', type: 'success' });
+    addToast({ title: 'Link Copiado', message: 'Cole onde quiser!', type: 'success' });
     setIsMenuOpen(false);
   };
 
-  // 4. Ação: WhatsApp (Texto)
   const handleWhatsApp = () => {
     const url = `${window.location.origin}/u/${profile.nickname}`;
     const text = `Dá uma olhada no meu perfil de estudos no Facillit Hub! 🚀 \n${url}`;
@@ -157,10 +189,8 @@ export default function ShareProfileButton({ profile, stats, className = "", var
          {profile && <ProfileShareCard innerRef={cardRef} profile={profile} stats={stats} />}
       </div>
 
-      {/* Botão Principal */}
       {renderButtonContent()}
 
-      {/* --- MENU DROPDOWN / POPOVER --- */}
       {isMenuOpen && (
         <div className="absolute right-0 bottom-full mb-2 w-64 rounded-xl shadow-2xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50 transform origin-bottom-right transition-all animate-fade-in-up">
             <div className="p-3 border-b border-gray-100">
