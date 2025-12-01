@@ -1,9 +1,37 @@
 // Define as roles de usuário
 export type UserRole = 'student' | 'teacher' | 'professor' | 'admin' | 'administrator' | 'diretor';
 
+// --- Sub-tipos para Perfil ---
+export type SocialLinks = {
+  instagram?: string;
+  linkedin?: string;
+  github?: string;
+  twitter?: string;
+  website?: string;
+};
+
+export type PrivacySettings = {
+  is_public: boolean;       // O perfil existe publicamente?
+  show_full_name: boolean;  // Mostrar nome real (true) ou nickname (false)
+  show_school: boolean;     // Mostrar instituição
+  show_stats: boolean;      // Mostrar estatísticas gerais
+  show_grades: boolean;     // Mostrar médias/notas
+  show_essays: boolean;     // Mostrar lista das últimas redações
+  show_badges: boolean;     // Mostrar gamificação
+};
+
+export type RecentEssay = {
+  title: string;
+  created_at: string;
+  final_grade: number | null;
+};
+
+// --- Perfil de Usuário Principal ---
 export type UserProfile = {
   id: string;
   email?: string; 
+  
+  // Campos Legados / CamelCase (Mantidos para compatibilidade)
   fullName: string | null;
   nickname: string | null;
   avatarUrl: string | null;
@@ -11,32 +39,40 @@ export type UserProfile = {
   pronoun: string | null;
   birthDate: string | null;
   schoolName: string | null;
+  
+  // Dados de Perfil
   bio?: string | null;
   social_links?: SocialLinks | null;
   privacy_settings?: PrivacySettings | null;
   cover_image_url?: string | null;
   
-  
-  // --- Campos Novos (snake_case) ---
-  full_name?: string | null;
+  // --- Campos Novos (snake_case do Banco de Dados) ---
+  full_name?: string | null; // Mapeado frequentemente do fullName
   avatar_url?: string | null;
   is_verified?: boolean;
   user_category?: string | null;
   
-  
-  // --- Gamificação (Novo Test 2.0) ---
+  // --- Gamificação (Perfil) ---
   level?: number;
   current_xp?: number;
   next_level_xp?: number;
   streak_days?: number;
   badges?: string[];
 
-  // --- Campos Comuns / Híbridos ---
+  // --- Campos Institucionais / Híbridos ---
   organization_id: string | null;
   target_exam: string | null;
   active_modules: string[] | null;
-  verification_badge: string | null;
+  verification_badge: string | null; // as vezes boolean, as vezes string (depende da implementação antiga)
   has_completed_onboarding?: boolean;
+
+  // --- Campos Injetados (Perfil Público / Estatísticas) ---
+  // Estes campos são calculados no server side (actions.ts) e injetados no objeto
+  stats_simulados?: number;
+  stats_media?: number | null;
+  stats_games?: number;
+  stats_classes?: number;
+  recent_essays?: RecentEssay[];
 };
 
 // --- Tipos Pedagógicos Avançados ---
@@ -67,7 +103,7 @@ export type EssayPrompt = {
   motivational_text_1?: string | null;
   motivational_text_2?: string | null;
   
-  // Texto Motivador 3 (Imagem) - Adicionado para corrigir o erro
+  // Texto Motivador 3 (Imagem)
   motivational_text_3_image_url?: string | null;
   motivational_text_3_description?: string | null;
   motivational_text_3_image_source?: string | null;
@@ -122,6 +158,7 @@ export type TestWithQuestions = {
   subject?: string | null;
 };
 
+// --- Dashboards e Analytics ---
 export type StudentDashboardData = {
   stats: {
     simuladosFeitos: number;
@@ -156,7 +193,6 @@ export type StudentCampaign = {
     }[];
 };
 
-// --- Insights e Analytics ---
 export type AIInsight = {
   id: string;
   type: 'strength' | 'weakness' | 'habit';
@@ -194,22 +230,4 @@ export type Update = {
   version: string | null;
   module_slug: string | null;
   category: 'Nova Funcionalidade' | 'Melhoria' | 'Correção' | null;
-};
-
-export type SocialLinks = {
-  instagram?: string;
-  linkedin?: string;
-  github?: string;
-  twitter?: string; // ou X
-  website?: string;
-};
-
-export type PrivacySettings = {
-  is_public: boolean;       // O perfil existe publicamente?
-  show_full_name: boolean;  // Mostrar nome real (true) ou nickname (false)
-  show_school: boolean;     // Mostrar instituição
-  show_stats: boolean;      // Mostrar estatísticas gerais (dias de ofensiva, total escrito)
-  show_grades: boolean;     // ⚠️ (Novo) Mostrar médias/notas
-  show_essays: boolean;     // ⚠️ (Novo) Mostrar lista das últimas redações
-  show_badges: boolean;     // Mostrar gamificação
 };
