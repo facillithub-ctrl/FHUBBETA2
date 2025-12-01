@@ -6,28 +6,21 @@ export const useProfileShare = (profileName: string, avatarUrl?: string | null) 
     const [isGenerating, setIsGenerating] = useState(false);
     const [previewFile, setPreviewFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    
-    // Estados para as versões Base64 (Seguras) das imagens
     const [safeAvatarUrl, setSafeAvatarUrl] = useState<string | null>(null);
     const [safeLogoUrl, setSafeLogoUrl] = useState<string | null>(null);
 
     const { addToast } = useToast();
 
-    // 1. Preparação: Converte TUDO para Base64
     const prepareEnvironment = useCallback(async () => {
-        // Converte Avatar
         if (avatarUrl) {
             const avatarBase64 = await preloadImage(avatarUrl);
-            setSafeAvatarUrl(avatarBase64); // Se falhar, fica null (usa placeholder)
+            setSafeAvatarUrl(avatarBase64); 
         }
-
-        // Converte Logo Local (para garantir que o QR Code e o Header não travem)
+        // Converte o logo local para garantir
         const logoBase64 = await preloadImage('/assets/images/accont.svg');
         setSafeLogoUrl(logoBase64);
-
     }, [avatarUrl]);
 
-    // 2. Gerar Imagem
     const handleGenerate = useCallback(async (elementRef: HTMLElement | null) => {
         if (!elementRef) return;
 
@@ -52,7 +45,6 @@ export const useProfileShare = (profileName: string, avatarUrl?: string | null) 
         }
     }, [profileName, addToast]);
 
-    // 3. Compartilhar
     const handleShare = useCallback(async () => {
         if (!previewFile) return;
         
@@ -63,7 +55,7 @@ export const useProfileShare = (profileName: string, avatarUrl?: string | null) 
         );
 
         if (success) {
-            addToast({ title: 'Sucesso', message: 'Iniciando...', type: 'success' });
+            addToast({ title: 'Sucesso', message: 'Abrindo...', type: 'success' });
         } else {
             addToast({ title: 'Atenção', message: 'Salve a imagem manualmente.', type: 'info' });
         }
@@ -79,7 +71,7 @@ export const useProfileShare = (profileName: string, avatarUrl?: string | null) 
         isGenerating,
         previewUrl,
         safeAvatarUrl,
-        safeLogoUrl, // Novo export
+        safeLogoUrl,
         prepareEnvironment,
         handleGenerate,
         handleShare,

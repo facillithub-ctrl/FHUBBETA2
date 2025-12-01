@@ -19,7 +19,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     isGenerating, 
     previewUrl, 
     safeAvatarUrl,
-    safeLogoUrl, // <--- Conectado aqui
+    safeLogoUrl, 
     prepareEnvironment,
     handleGenerate, 
     handleShare, 
@@ -37,7 +37,6 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Preload ao abrir o menu
   useEffect(() => {
       if (isMenuOpen) prepareEnvironment();
   }, [isMenuOpen, prepareEnvironment]);
@@ -68,8 +67,17 @@ export default function ShareProfileButton({ profile, stats, className = "", var
       <div className="relative inline-block text-left" ref={menuRef}>
         
         {/* --- CARD OCULTO (MODO EXPORTAÇÃO) --- */}
-        {/* left: 200vw = fora da tela, mas visível para o renderizador */}
-        <div style={{ position: 'fixed', left: '200vw', top: 0, zIndex: -50 }}>
+        {/* Usamos left: 200vw para garantir que ele seja renderizado fora da tela com dimensões FIXAS */}
+        <div style={{ 
+            position: 'fixed', 
+            left: '200vw', 
+            top: 0, 
+            zIndex: -50,
+            width: '400px', 
+            minWidth: '400px',
+            height: '700px',
+            overflow: 'hidden'
+        }}>
            {profile && (
                <ProfileShareCard 
                    innerRef={cardRef} 
@@ -77,7 +85,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                    stats={stats} 
                    avatarOverride={safeAvatarUrl ?? null}
                    logoOverride={safeLogoUrl ?? null} 
-                   isExporting={true} // Ativa o modo simplificado
+                   isExporting={true} // Ativa o modo de exportação limpo
                 />
             )}
         </div>
@@ -100,7 +108,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                       ) : (
                           <i className="fas fa-image w-5 text-center"></i>
                       )}
-                      <span>{isGenerating ? 'Criando PNG...' : 'Baixar Imagem'}</span>
+                      <span>{isGenerating ? 'Criando Card...' : 'Baixar Imagem'}</span>
                   </button>
 
                   <button 
@@ -149,7 +157,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                         <i className="fas fa-share-nodes"></i> Enviar / Postar
                     </button>
                     <p className="text-white/50 text-xs text-center px-4">
-                        Se não funcionar, segure na imagem para salvar na galeria.
+                        Se o botão não funcionar, pressione a imagem para salvar.
                     </p>
                 </div>
             </div>
