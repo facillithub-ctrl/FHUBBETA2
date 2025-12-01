@@ -43,13 +43,24 @@ export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride, isE
         return null;
     };
 
+    // Lógica Segura:
+    // 1. Prioriza Base64 (avatarOverride)
+    // 2. Se falhar e estiver exportando, usa NULL (Placeholder)
+    // 3. Só usa URL externa se estiver na tela (visualização normal)
+    const safeAvatarSource = avatarOverride 
+        ? avatarOverride 
+        : (isExporting ? null : profile.avatar_url);
+
+    // Detecta se é Base64 para remover crossOrigin (Evita bug no Safari)
+    const isBase64 = safeAvatarSource?.startsWith('data:');
+
     return (
         <div
             ref={innerRef}
             className="w-[400px] h-[700px] bg-white border-[16px] border-gray-50 flex flex-col items-center relative overflow-hidden font-sans box-border"
             style={{ backgroundColor: '#ffffff' }}
         >
-            {/* Fundo Otimizado */}
+            {/* Fundo leve para exportação (CSS puro, sem blur pesado) */}
             {isExporting ? (
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-50/30 via-white to-green-50/30 z-0 pointer-events-none"></div>
             ) : (
@@ -59,29 +70,36 @@ export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride, isE
                 </>
             )}
 
-            {/* Logo - Mantido (geralmente SVG local não dá problema, mas se der, removeremos também) */}
+            {/* Logo Local */}
             <div className="w-full flex justify-center pt-8 mb-6 relative z-10">
                 <img 
                     src="/assets/images/accont.svg" 
                     alt="Facillit Account" 
                     className="h-14 object-contain"
-                    crossOrigin="anonymous" 
+                    // Remova crossOrigin de assets locais se der erro, mas geralmente ok
                 />
             </div>
 
-            {/* AVATAR - MODO DE TESTE (SEMPRE PLACEHOLDER) */}
+            {/* AVATAR */}
             <div className="relative mb-6 z-10">
                 <div className="absolute -inset-[4px] rounded-full bg-gradient-to-tr from-brand-purple to-brand-green"></div>
                 <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden shadow-sm relative z-10 bg-white">
-                    {/* TESTE DE DIAGNÓSTICO:
-                        Removemos a tag <img> condicional e forçamos o ícone SVG.
-                        Isso garante que NENHUMA requisição de imagem externa será feita na área do avatar.
-                    */}
-                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                        <svg className="w-12 h-12 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                        </svg>
-                    </div>
+                     {safeAvatarSource ? (
+                        <img
+                            src={safeAvatarSource}
+                            alt="Avatar"
+                            className="w-full h-full object-cover"
+                            // TRUQUE DE MESTRE: Se for Base64, NÃO use crossOrigin. Se for URL, use.
+                            {...(!isBase64 ? { crossOrigin: "anonymous" } : {})}
+                        />
+                    ) : (
+                        // Placeholder
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                            <svg className="w-12 h-12 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                    )}
                 </div>
             </div>
 

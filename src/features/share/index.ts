@@ -10,26 +10,23 @@ export const useProfileShare = (profileName: string, avatarUrl?: string | null) 
 
     const { addToast } = useToast();
 
-    // 1. Preload (chamado ao abrir menu)
+    // 1. Converte avatar para Base64 assim que possível
     const prepareEnvironment = useCallback(async () => {
         if (avatarUrl) {
-            // Tenta criar URL segura. Se falhar, retorna null e o componente usa o ícone cinza.
-            const url = await preloadImage(avatarUrl);
-            setSafeAvatarUrl(url);
+            const base64 = await preloadImage(avatarUrl);
+            setSafeAvatarUrl(base64); // Se falhar, é null
         }
     }, [avatarUrl]);
 
-    // 2. Gerar (chamado pelo botão)
+    // 2. Gera a imagem
     const handleGenerate = useCallback(async (elementRef: HTMLElement | null) => {
         if (!elementRef) return;
 
         setIsGenerating(true);
-        setPreviewFile(null); // Limpa anterior
+        setPreviewFile(null);
 
         try {
-            // Nome do arquivo
             const fileName = `facillit-${profileName.replace(/[^a-z0-9]/gi, '_')}`;
-            
             const file = await generateImageBlob(elementRef, fileName);
             
             if (file) {
@@ -46,7 +43,7 @@ export const useProfileShare = (profileName: string, avatarUrl?: string | null) 
         }
     }, [profileName, addToast]);
 
-    // 3. Compartilhar (chamado no modal)
+    // 3. Compartilha
     const handleShare = useCallback(async () => {
         if (!previewFile) return;
         
@@ -57,7 +54,7 @@ export const useProfileShare = (profileName: string, avatarUrl?: string | null) 
         );
 
         if (success) {
-            addToast({ title: 'Sucesso', message: 'Compartilhamento iniciado.', type: 'success' });
+            addToast({ title: 'Sucesso', message: 'Iniciando...', type: 'success' });
         } else {
             addToast({ title: 'Atenção', message: 'Salve a imagem manualmente.', type: 'info' });
         }

@@ -1,28 +1,29 @@
 import { toPng } from 'html-to-image';
 
-// Pré-carregador robusto
+// Converte URL para Base64 (Data URI)
+// Isso incorpora a imagem no código, eliminando erros de CORS na exportação
 export async function preloadImage(url: string): Promise<string | null> {
     if (!url) return null;
+    
     return new Promise((resolve) => {
         const img = new Image();
+        // Importante: permite baixar do Supabase se o bucket for público
         img.crossOrigin = 'anonymous'; 
         img.src = url;
         
         img.onload = () => {
-            // Técnica do Canvas Intermediário para garantir "limpeza" do buffer
             const canvas = document.createElement('canvas');
             canvas.width = img.width;
             canvas.height = img.height;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                ctx.drawImage(img, 0, 0);
                 try {
-                    canvas.toBlob((blob) => {
-                        if (blob) resolve(URL.createObjectURL(blob));
-                        else resolve(null);
-                    });
+                    ctx.drawImage(img, 0, 0);
+                    // Retorna string Base64 (data:image/png;base64...)
+                    const dataURL = canvas.toDataURL('image/png');
+                    resolve(dataURL);
                 } catch (e) {
-                    console.warn("Avatar: Bloqueio de CORS detectado.", e);
+                    console.warn("CORS bloqueou a conversão para Base64. Usando placeholder.", e);
                     resolve(null);
                 }
             } else {
@@ -31,10 +32,23 @@ export async function preloadImage(url: string): Promise<string | null> {
         };
 
         img.onerror = () => {
-            console.warn("Avatar: Falha ao carregar imagem.", url);
+            console.warn("Falha ao baixar imagem para converter.", url);
             resolve(null);
         };
     });
+}
+
+// Garante que todas as imagens no DOM carregaram
+async function waitForImages(element: HTMLElement): Promise<void> {
+    const images = element.querySelectorAll('img');
+    const promises = Array.from(images).map((img) => {
+        if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+        });
+    });
+    if (promises.length > 0) await Promise.all(promises);
 }
 
 export async function generateImageBlob(element: HTMLElement, fileName: string): Promise<File | null> {
@@ -42,8 +56,10 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
 
     try {
         await document.fonts.ready;
-        // Pequeno delay para garantir estabilidade do DOM off-screen
-        await new Promise(r => setTimeout(r, 200));
+        await waitForImages(element);
+        
+        // Delay crítico para iOS
+        await new Promise(r => setTimeout(r, 300));
 
         const dataUrl = await toPng(element, {
             quality: 1.0,
@@ -51,9 +67,9 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
             cacheBust: true,
             skipAutoScale: true,
             backgroundColor: '#ffffff',
-            fontEmbedCSS: "", // Vital para evitar crash de fontes
+            fontEmbedCSS: "", 
+            // Filtra tags de link externas que quebram o Safari
             filter: (node) => {
-                // Filtra tags que costumam quebrar a exportação no Safari
                 if (node.tagName === 'LINK' && (node as HTMLLinkElement).rel === 'stylesheet') return false;
                 return true;
             }
@@ -65,14 +81,14 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
         return new File([blob], `${fileName}.png`, { type: 'image/png' });
 
     } catch (error: any) {
-        console.error("Erro interno html-to-image:", error);
+        console.error("Erro no html-to-image:", error);
         
-        // Se o erro for um Evento de DOM (como o erro de imagem), transformamos em texto legível
-        if (error.target && error.type === 'error') {
-             throw new Error("Bloqueio de segurança na imagem do card. Usando placeholder.");
+        // Se for erro de evento, é 99% certeza que é uma imagem rebelde
+        if (error?.type === 'error') {
+             throw new Error("Uma imagem foi bloqueada pelo navegador.");
         }
         
-        throw new Error(error.message || "Falha na renderização do Card.");
+        throw new Error(error.message || "Falha ao gerar imagem.");
     }
 }
 
@@ -81,16 +97,13 @@ export async function shareNativeFile(file: File, title: string, text: string): 
     
     const shareData = { files: [file], title, text };
     
-    if (navigator.canShare && !navigator.canShare(shareData)) {
-        return false;
-    }
+    if (navigator.canShare && !navigator.canShare(shareData)) return false;
 
     try {
         await navigator.share(shareData);
         return true;
     } catch (err: any) {
         if (err.name === 'AbortError') return true;
-        console.error("Erro no Share:", err);
         return false;
     }
 }
