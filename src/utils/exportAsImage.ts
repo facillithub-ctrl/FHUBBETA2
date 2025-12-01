@@ -1,53 +1,47 @@
 import { toPng } from 'html-to-image';
 
-// Proxy que adiciona CORS e REDIMENSIONA a imagem (Vital para Mobile)
+// Proxy essencial para evitar bloqueio CORS no Safari iOS
 const CORS_PROXY = "https://wsrv.nl/?url=";
 
 export async function preloadImage(url: string): Promise<string | null> {
     if (!url) return null;
 
     try {
-        // 1. Construir URL Otimizada
-        // Adicionamos &w=200&h=200 para garantir que o iPhone não baixe uma imagem 4K
+        // 1. Construir URL Otimizada (Resize + Proxy)
         let fetchUrl = url;
-        if (url.startsWith('http')) {
-             fetchUrl = `${CORS_PROXY}${encodeURIComponent(url)}&w=200&h=200&output=png`;
+        if (url.startsWith('http') && !url.includes('wsrv.nl')) {
+             // Redimensiona para 300x300 (ideal para o card) e força PNG
+             fetchUrl = `${CORS_PROXY}${encodeURIComponent(url)}&w=300&h=300&output=png`;
         }
 
-        // 2. Download Direto (Fetch)
-        // Isso é mais leve que criar um elemento <img> e desenhar em <canvas>
+        // 2. Fetch direto (Mais leve que Canvas)
         const response = await fetch(fetchUrl, {
             mode: 'cors',
             cache: 'no-cache'
         });
 
-        if (!response.ok) throw new Error('Falha no proxy');
+        if (!response.ok) throw new Error('Falha no proxy de imagem');
 
         const blob = await response.blob();
 
-        // 3. Converter Blob para Base64
+        // 3. Converter para Base64
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => {
                 const base64 = reader.result as string;
-                // Validação extra: Se o base64 for muito curto, falhou
-                if (base64 && base64.length > 100) {
-                    resolve(base64);
-                } else {
-                    resolve(null);
-                }
+                if (base64 && base64.length > 100) resolve(base64);
+                else resolve(null);
             };
             reader.onerror = () => resolve(null);
             reader.readAsDataURL(blob);
         });
 
     } catch (e) {
-        console.warn("Avatar: Falha no download otimizado:", e);
+        console.warn("Avatar: Falha no carregamento otimizado:", e);
         return null;
     }
 }
 
-// Garante que o DOM está estável
 async function waitForImages(element: HTMLElement): Promise<void> {
     const images = element.querySelectorAll('img');
     const promises = Array.from(images).map((img) => {
@@ -67,20 +61,19 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
         await document.fonts.ready;
         await waitForImages(element);
         
-        // Delay para o Safari iOS renderizar o layout
+        // Delay para Safari renderizar layout (shadows/gradients)
         await new Promise(r => setTimeout(r, 500));
 
         const dataUrl = await toPng(element, {
-            quality: 1.0, // PNG usa 1.0
-            pixelRatio: 2, // 2x é nítido e seguro para mobile
+            quality: 1.0,
+            pixelRatio: 2, 
             cacheBust: true,
             skipAutoScale: true,
-            backgroundColor: '#ffffff',
+            backgroundColor: '#ffffff', // Garante fundo branco sólido no PNG final
             fontEmbedCSS: "", 
             filter: (node) => {
-                // Filtra tags que o Safari odeia
                 if (node.tagName === 'LINK') return false;
-                if (node.tagName === 'I') return false; // FontAwesome antigo
+                if (node.tagName === 'I') return false; 
                 return true;
             }
         });
@@ -91,26 +84,23 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
         return new File([blob], `${fileName}.png`, { type: 'image/png' });
 
     } catch (error: any) {
-        console.error("Erro no html-to-image:", error);
+        console.error("Erro html-to-image:", error);
         if (error?.type === 'error') {
-             throw new Error("Erro de imagem. Otimização falhou.");
+             throw new Error("Erro ao processar imagem do card.");
         }
-        throw new Error(error.message || "Falha ao gerar imagem.");
+        throw new Error(error.message || "Falha na geração.");
     }
 }
 
 export async function shareNativeFile(file: File, title: string, text: string): Promise<boolean> {
     if (typeof navigator === 'undefined' || !navigator.share || !navigator.canShare) return false;
-    
     const shareData = { files: [file], title, text };
-    
     if (navigator.canShare && !navigator.canShare(shareData)) return false;
 
     try {
         await navigator.share(shareData);
         return true;
     } catch (err: any) {
-        // Se o usuário cancelar, não é erro
         if (err.name === 'AbortError') return true;
         return false;
     }

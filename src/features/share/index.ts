@@ -16,7 +16,6 @@ export const useProfileShare = (profileName: string, avatarUrl?: string | null) 
             const avatarBase64 = await preloadImage(avatarUrl);
             setSafeAvatarUrl(avatarBase64); 
         }
-        // Converte o logo local
         const logoBase64 = await preloadImage('/assets/images/accont.svg');
         setSafeLogoUrl(logoBase64);
     }, [avatarUrl]);

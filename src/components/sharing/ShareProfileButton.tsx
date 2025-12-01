@@ -66,7 +66,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     <>
       <div className="relative inline-block text-left" ref={menuRef}>
         
-        {/* --- CARD OCULTO (MODO EXPORTAÇÃO) --- */}
+        {/* --- CARD OCULTO (Renderizado com dimensões fixas) --- */}
         <div style={{ 
             position: 'fixed', 
             left: '200vw', 
@@ -74,7 +74,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
             zIndex: -50,
             width: '400px', 
             minWidth: '400px',
-            height: '700px',
+            height: '711px', // 9:16 ratio exato
             overflow: 'hidden'
         }}>
            {profile && (
@@ -156,7 +156,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                         <i className="fas fa-share-nodes"></i> Enviar / Postar
                     </button>
                     <p className="text-white/50 text-xs text-center px-4">
-                        Se o botão não funcionar, pressione a imagem para salvar.
+                        Se não funcionar, pressione a imagem para salvar.
                     </p>
                 </div>
             </div>
