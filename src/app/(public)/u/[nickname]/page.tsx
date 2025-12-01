@@ -69,7 +69,10 @@ export default async function PublicProfilePage({ params }: Props) {
   const privacy = profile.privacy_settings || {};
 
   // Tela de Bloqueio (Privado)
-  if (!privacy.is_public && !isOwner) {
+  // AJUSTE: O perfil é PÚBLICO por padrão. Só bloqueia se is_public for explicitamente false.
+  const isProfilePrivate = privacy.is_public === false;
+
+  if (isProfilePrivate && !isOwner) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
         <ProfileHeader currentUser={currentUserProfile} />

@@ -8,15 +8,19 @@ export async function getPublicProfile(nickname: string) {
   const supabase = await createClient();
 
   // 1. Buscar dados base do perfil
+  // USAMOS .ilike() EM VEZ DE .eq() PARA IGNORAR MAIÚSCULAS/MINÚSCULAS
   const { data: profile, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('nickname', nickname)
-    .single();
+    .ilike('nickname', nickname) 
+    .maybeSingle(); // maybeSingle evita erro se não encontrar, retornando null
 
+  // Se der erro no banco ou não achar o perfil, retorna null (gera 404 na page)
   if (error || !profile) return null;
 
   // 2. Executar consultas estatísticas em paralelo (Performance)
+  // O uso de Promise.allSettled ou verificações de erro individuais impedem que o perfil quebre
+  // caso o usuário não tenha permissão para ver as redações (RLS), retornando stats zerados.
   const [
     essaysResult, 
     testsResult, 
@@ -33,7 +37,7 @@ export async function getPublicProfile(nickname: string) {
         )
       `)
       .eq('student_id', profile.id)
-      .not('submitted_at', 'is', null) // Apenas enviadas
+      .not('submitted_at', 'is', null) 
       .order('submitted_at', { ascending: false })
       .limit(3),
 
@@ -44,7 +48,7 @@ export async function getPublicProfile(nickname: string) {
       .eq('student_id', profile.id)
       .eq('status', 'completed'),
 
-    // C: Todas as notas para calcular Média Geral (Otimizado)
+    // C: Todas as notas para calcular Média Geral
     supabase
       .from('essay_corrections')
       .select('final_grade, essays!inner(student_id)')
@@ -68,14 +72,14 @@ export async function getPublicProfile(nickname: string) {
   return {
     ...profile,
     stats_simulados: testsResult.count || 0,
-    stats_media: averageGrade > 0 ? averageGrade : null, // Se 0, manda null para mostrar "-"
-    stats_games: 0, // Placeholder (Futuro)
-    stats_classes: 0, // Placeholder (Futuro)
+    stats_media: averageGrade > 0 ? averageGrade : null,
+    stats_games: 0, 
+    stats_classes: 0, 
     recent_essays: recentEssays
   };
 }
 
-// --- AÇÃO DE SEGUIR (Existente) ---
+// --- AÇÃO DE SEGUIR (Mantida igual) ---
 export async function toggleFollow(targetUserId: string, currentPath: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
