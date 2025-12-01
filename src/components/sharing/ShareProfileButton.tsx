@@ -13,18 +13,6 @@ interface ShareProfileButtonProps {
   variant?: 'primary' | 'secondary' | 'icon';
 }
 
-// Helper robusto para converter DataURL em Blob (funciona melhor em mobile antigo)
-const dataURItoBlob = (dataURI: string) => {
-  const byteString = atob(dataURI.split(',')[1]);
-  const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-  const ab = new ArrayBuffer(byteString.length);
-  const ia = new Uint8Array(ab);
-  for (let i = 0; i < byteString.length; i++) {
-    ia[i] = byteString.charCodeAt(i);
-  }
-  return new Blob([ab], { type: mimeString });
-};
-
 export default function ShareProfileButton({ profile, stats, className = "", variant = 'primary' }: ShareProfileButtonProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -43,46 +31,74 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // --- 1. GERADOR OTIMIZADO PARA MOBILE ---
+  // --- 1. GERADOR OTIMIZADO (COM TIMEOUT) ---
   const generateImageBlob = async () => {
     if (!cardRef.current) return null;
     
-    // Pequeno delay para garantir renderização de fontes e estilos
-    await new Promise(resolve => setTimeout(resolve, 200));
+    // Promessa com Timeout para não travar o celular
+    const generatePromise = new Promise<Blob | null>(async (resolve, reject) => {
+        try {
+            // Pequeno delay para garantir renderização
+            await new Promise(r => setTimeout(r, 100));
 
-    const dataUrl = await toPng(cardRef.current, { 
-        cacheBust: false,
-        pixelRatio: 3, // CORREÇÃO: Reduzido de 4 para 3. Evita crash de memória em iOS/Android.
-        quality: 0.95,
-        skipAutoScale: true,
-        backgroundColor: '#ffffff',
-        fontEmbedCSS: "", 
-        filter: (node) => {
-           const element = node as HTMLElement;
-           return !(element.tagName === 'I' && element.classList?.contains('fa-spinner')) &&
-                  element.tagName !== 'LINK'; 
+            const dataUrl = await toPng(cardRef.current!, { 
+                cacheBust: false,
+                pixelRatio: 2, // CORREÇÃO: 2 é o padrão Retina. 3 ou 4 trava iPhones/Androids modestos.
+                quality: 0.95,
+                skipAutoScale: true,
+                backgroundColor: '#ffffff',
+                fontEmbedCSS: "", 
+                // Filtro para garantir que não tente renderizar scripts ou links externos
+                filter: (node) => {
+                   const element = node as HTMLElement;
+                   return !(element.tagName === 'I' && element.classList?.contains('fa-spinner')) &&
+                          element.tagName !== 'LINK' && 
+                          element.tagName !== 'SCRIPT'; 
+                }
+            });
+
+            // Método mais rápido e nativo para converter em Blob
+            const res = await fetch(dataUrl);
+            const blob = await res.blob();
+            resolve(blob);
+
+        } catch (err) {
+            reject(err);
         }
     });
 
-    return dataURItoBlob(dataUrl);
+    // Race condition: Se demorar mais de 8s, aborta.
+    const timeoutPromise = new Promise<null>((_, reject) => 
+        setTimeout(() => reject(new Error("Timeout")), 8000)
+    );
+
+    return Promise.race([generatePromise, timeoutPromise]);
   };
 
-  // --- 2. LÓGICA DE DOWNLOAD ROBUSTA ---
-  // Extraída para ser usada tanto no botão "Baixar" quanto como fallback do Share
+  // --- 2. LÓGICA DE DOWNLOAD (Compatível com iOS/Android) ---
   const performDownload = (blob: Blob) => {
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.download = `facillit-${profile.nickname}.png`;
-      link.href = url;
-      
-      // CORREÇÃO CRÍTICA PARA MOBILE:
-      // O link precisa estar no DOM para funcionar em alguns navegadores
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      URL.revokeObjectURL(url);
-      addToast({ title: 'Imagem Salva', message: 'Verifique sua galeria ou downloads.', type: 'success' });
+      try {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = `facillit-${profile.nickname}.png`;
+          link.href = url;
+          link.style.display = 'none';
+          
+          // Essencial para Firefox Android e alguns iOS
+          document.body.appendChild(link);
+          link.click();
+          
+          // Limpeza
+          setTimeout(() => {
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+          }, 100);
+
+          addToast({ title: 'Sucesso', message: 'Imagem salva em Downloads/Galeria.', type: 'success' });
+      } catch (e) {
+          console.error("Erro no download forçado", e);
+          addToast({ title: 'Erro', message: 'Erro ao salvar. Tente segurar na imagem.', type: 'error' });
+      }
   };
 
   // Ação: Compartilhamento Nativo (Stories)
@@ -90,32 +106,34 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     setIsGenerating(true);
     try {
       const blob = await generateImageBlob();
-      if (!blob) throw new Error("Falha ao gerar blob");
+      if (!blob) throw new Error("Falha na geração");
 
       const file = new File([blob], `perfil-${profile.nickname}.png`, { type: 'image/png' });
 
-      // Tenta abrir o menu nativo
+      // Verifica suporte a compartilhamento de arquivos
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
             await navigator.share({
                 files: [file],
                 title: `Perfil Facillit - @${profile.nickname}`,
-                text: `Confira meu perfil no Facillit Hub!`,
             });
         } catch (shareError: any) {
-            // Se o usuário cancelar, não faz nada. Se for erro real, tenta baixar.
+            // Se o usuário cancelar ou fechar a janela, não é erro crítico
             if (shareError.name !== 'AbortError') {
-                console.warn("Erro no share nativo, tentando download...", shareError);
-                performDownload(blob); 
+                performDownload(blob); // Fallback: tenta baixar se o share falhar
             }
         }
       } else {
-        // Fallback automático se o navegador não suportar share de arquivos
+        // Se o navegador não suporta share nativo, baixa direto
         performDownload(blob);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      addToast({ title: 'Erro', message: 'Não foi possível gerar a imagem.', type: 'error' });
+      if (error.message === "Timeout") {
+          addToast({ title: 'Demorou muito', message: 'Tente novamente ou use a opção Baixar Imagem.', type: 'error' });
+      } else {
+          addToast({ title: 'Erro', message: 'Não foi possível gerar a imagem.', type: 'error' });
+      }
     } finally {
       setIsGenerating(false);
       setIsMenuOpen(false);
@@ -129,8 +147,6 @@ export default function ShareProfileButton({ profile, stats, className = "", var
       const blob = await generateImageBlob();
       if (blob) {
           performDownload(blob);
-      } else {
-          throw new Error("Blob vazio");
       }
     } catch (error) {
       addToast({ title: 'Erro', message: 'Erro ao baixar imagem.', type: 'error' });
@@ -184,7 +200,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
 
   return (
     <div className="relative inline-block text-left" ref={menuRef}>
-      {/* Oculto visualmente mas presente para o print */}
+      {/* Oculto visualmente mas presente na árvore DOM para o print */}
       <div style={{ position: 'fixed', top: 0, left: 0, zIndex: -9999, opacity: 0, pointerEvents: 'none' }}>
          {profile && <ProfileShareCard innerRef={cardRef} profile={profile} stats={stats} />}
       </div>
@@ -203,13 +219,13 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                 <button 
                     onClick={handleNativeShare}
                     disabled={isGenerating}
-                    className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-brand-purple transition-colors flex items-center gap-3"
+                    className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-brand-purple transition-colors flex items-center gap-3 disabled:opacity-50"
                 >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 flex items-center justify-center text-white shadow-sm shrink-0">
                         {isGenerating ? <i className="fas fa-spinner fa-spin text-xs"></i> : <i className="fab fa-instagram"></i>}
                     </div>
                     <div>
-                        <span className="block">Postar / Stories</span>
+                        <span className="block">{isGenerating ? 'Gerando...' : 'Postar / Stories'}</span>
                         <span className="text-[10px] text-gray-400 font-normal">Abrir app nativo</span>
                     </div>
                 </button>
@@ -218,10 +234,10 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                 <button 
                     onClick={handleDownload}
                     disabled={isGenerating}
-                    className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-brand-purple transition-colors flex items-center gap-3"
+                    className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-brand-purple transition-colors flex items-center gap-3 disabled:opacity-50"
                 >
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600">
-                        {isGenerating ? <i className="fas fa-spinner fa-spin text-xs"></i> : <i className="fas fa-download"></i>}
+                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 shrink-0">
+                        <i className="fas fa-download"></i>
                     </div>
                     <span>Baixar Imagem</span>
                 </button>
@@ -233,7 +249,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                     onClick={handleWhatsApp}
                     className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-green-600 transition-colors flex items-center gap-3"
                 >
-                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 shrink-0">
                         <i className="fab fa-whatsapp"></i>
                     </div>
                     <span>Enviar no WhatsApp</span>
@@ -244,7 +260,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                     onClick={handleCopyLink}
                     className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-brand-purple transition-colors flex items-center gap-3"
                 >
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 shrink-0">
                         <i className="fas fa-link"></i>
                     </div>
                     <span>Copiar Link</span>
