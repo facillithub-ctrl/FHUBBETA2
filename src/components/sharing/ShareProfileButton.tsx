@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { UserProfile } from '@/app/dashboard/types';
-import { ProfileShareCard, ShareCardStats } from './ProfileShareCard';
+import { ProfileShareCard, ShareCardStats, CardTheme } from './ProfileShareCard';
 import { useProfileShare } from '@/features/share'; 
 
 interface ShareProfileButtonProps {
@@ -15,6 +15,10 @@ interface ShareProfileButtonProps {
 export default function ShareProfileButton({ profile, stats, className = "", variant = 'primary' }: ShareProfileButtonProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
+  // Estados de Personalização
+  const [theme, setTheme] = useState<CardTheme>('gradient');
+  const [showAvatar, setShowAvatar] = useState(true);
+
   const { 
     isGenerating, 
     previewUrl, 
@@ -66,7 +70,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     <>
       <div className="relative inline-block text-left" ref={menuRef}>
         
-        {/* --- CARD OCULTO (Renderizado com dimensões fixas) --- */}
+        {/* --- CARD OCULTO --- */}
         <div style={{ 
             position: 'fixed', 
             left: '200vw', 
@@ -74,7 +78,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
             zIndex: -50,
             width: '400px', 
             minWidth: '400px',
-            height: '711px', // 9:16 ratio exato
+            height: '711px',
             overflow: 'hidden'
         }}>
            {profile && (
@@ -84,30 +88,60 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                    stats={stats} 
                    avatarOverride={safeAvatarUrl ?? null}
                    logoOverride={safeLogoUrl ?? null} 
-                   isExporting={true} 
+                   isExporting={true}
+                   theme={theme}
+                   showAvatar={showAvatar}
                 />
             )}
         </div>
 
         {renderTriggerButton()}
 
+        {/* --- MENU DE OPÇÕES --- */}
         {isMenuOpen && (
-          <div className="absolute right-0 bottom-full mb-2 w-64 rounded-xl shadow-xl bg-white border border-gray-100 z-40 animate-fade-in-up origin-bottom-right">
-              <div className="p-2 space-y-1">
+          <div className="absolute right-0 bottom-full mb-3 w-72 rounded-2xl shadow-2xl bg-white border border-gray-100 z-40 animate-fade-in-up origin-bottom-right p-3">
+              
+              {/* Seletor de Tema */}
+              <div className="flex gap-2 mb-3 bg-gray-50 p-1 rounded-xl">
+                  {['gradient', 'light', 'dark'].map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setTheme(t as CardTheme)}
+                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
+                            theme === t 
+                            ? 'bg-white shadow text-brand-purple' 
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        {t === 'gradient' ? 'Modern' : t === 'light' ? 'Clean' : 'Dark'}
+                      </button>
+                  ))}
+              </div>
+
+              {/* Toggle Avatar */}
+              <div className="flex items-center justify-between px-2 mb-3">
+                  <span className="text-xs font-medium text-gray-600">Mostrar Avatar</span>
+                  <button 
+                    onClick={() => setShowAvatar(!showAvatar)}
+                    className={`w-10 h-5 rounded-full transition-colors relative ${showAvatar ? 'bg-brand-purple' : 'bg-gray-200'}`}
+                  >
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${showAvatar ? 'left-6' : 'left-1'}`}></div>
+                  </button>
+              </div>
+
+              <hr className="border-gray-100 my-2" />
+
+              <div className="space-y-1">
                   <button 
                       onClick={() => {
                           if (cardRef.current) handleGenerate(cardRef.current);
                           setIsMenuOpen(false);
                       }}
                       disabled={isGenerating}
-                      className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-brand-purple/5 hover:text-brand-purple flex items-center gap-3 transition-colors disabled:opacity-50"
+                      className="w-full text-left px-3 py-3 rounded-xl text-sm font-bold text-white bg-brand-purple hover:bg-brand-purple/90 flex items-center justify-center gap-2 transition-all active:scale-95"
                   >
-                      {isGenerating ? (
-                          <i className="fas fa-spinner fa-spin w-5 text-center text-brand-purple"></i>
-                      ) : (
-                          <i className="fas fa-image w-5 text-center"></i>
-                      )}
-                      <span>{isGenerating ? 'Criando Card...' : 'Baixar Imagem'}</span>
+                      {isGenerating ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-image"></i>}
+                      <span>{isGenerating ? 'Criando...' : 'Gerar Imagem'}</span>
                   </button>
 
                   <button 
@@ -115,9 +149,9 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                         navigator.clipboard.writeText(`${window.location.origin}/u/${profile.nickname}`);
                         setIsMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-brand-purple/5 hover:text-brand-purple flex items-center gap-3 transition-colors"
+                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors"
                   >
-                      <i className="fas fa-link w-5 text-center"></i>
+                      <i className="fas fa-link"></i>
                       <span>Copiar Link</span>
                   </button>
               </div>
@@ -125,38 +159,42 @@ export default function ShareProfileButton({ profile, stats, className = "", var
         )}
       </div>
 
-      {/* --- PREVIEW MODAL --- */}
+      {/* --- PREVIEW MODAL MELHORADO --- */}
       {previewUrl && (
-        <div className="fixed inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
-            <div className="w-full max-w-sm flex flex-col gap-5">
-                <div className="flex justify-between items-center text-white px-2">
-                    <h3 className="font-bold text-lg">Card Gerado!</h3>
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-fade-in">
+            <div className="w-full max-w-sm flex flex-col gap-6 animate-fade-in-up">
+                
+                <div className="flex justify-between items-center text-white/90 px-1">
+                    <h3 className="font-bold text-xl">Seu Card</h3>
                     <button 
                         onClick={clearPreview}
-                        className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white"
+                        className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white"
                     >
                         <i className="fas fa-times"></i>
                     </button>
                 </div>
 
-                <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900">
+                {/* Container da Imagem com Sombra e Borda */}
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/20">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                         src={previewUrl} 
                         alt="Preview" 
-                        className="w-full h-auto object-contain block" 
+                        className="w-full h-auto object-contain block bg-white" 
                     />
                 </div>
 
                 <div className="flex flex-col gap-3">
                     <button
                         onClick={handleShare}
-                        className="w-full py-4 bg-brand-green hover:bg-green-500 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95"
+                        className="w-full py-4 bg-white text-black hover:bg-gray-100 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-transform active:scale-95"
                     >
-                        <i className="fas fa-share-nodes"></i> Enviar / Postar
+                        <i className="fas fa-share-nodes"></i> 
+                        <span>Partilhar / Baixar</span>
                     </button>
-                    <p className="text-white/50 text-xs text-center px-4">
-                        Se não funcionar, pressione a imagem para salvar.
+                    
+                    <p className="text-white/40 text-xs text-center">
+                        Se o menu não abrir, segure na imagem para salvar.
                     </p>
                 </div>
             </div>

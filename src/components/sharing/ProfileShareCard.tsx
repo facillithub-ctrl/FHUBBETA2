@@ -10,17 +10,20 @@ export interface ShareCardStats {
     following: number;
 }
 
+export type CardTheme = 'light' | 'dark' | 'gradient';
+
 interface ProfileShareCardProps {
     profile: UserProfile;
     stats: ShareCardStats;
     innerRef: RefObject<HTMLDivElement>;
     avatarOverride?: string | null;
     logoOverride?: string | null;
-    isExporting?: boolean; 
+    isExporting?: boolean;
+    theme?: CardTheme; // NOVO
+    showAvatar?: boolean; // NOVO
 }
 
 const VerifiedBadge = ({ type }: { type: string | boolean }) => {
-    // Azul Premium ou Vermelho Exclusivo
     const color = type === 'red' ? '#ef4444' : '#2563EB'; 
     const Icon = type === 'red' ? (
         <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="white"/>
@@ -28,169 +31,208 @@ const VerifiedBadge = ({ type }: { type: string | boolean }) => {
         <path d="M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59L9 16.17Z" fill="white"/>
     );
 
+    // Tamanho reduzido para 18px (mais discreto)
     return (
-        <div className="flex items-center justify-center w-[22px] h-[22px] rounded-full shadow-sm ml-1.5 ring-2 ring-white" style={{ backgroundColor: color }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <div className="flex items-center justify-center w-[18px] h-[18px] rounded-full shadow-sm ml-1.5 ring-2 ring-white/50" style={{ backgroundColor: color }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 {Icon}
             </svg>
         </div>
     );
 };
 
-export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride, logoOverride, isExporting = false }: ProfileShareCardProps) => {
+export const ProfileShareCard = ({ 
+    profile, 
+    stats, 
+    innerRef, 
+    avatarOverride, 
+    logoOverride, 
+    isExporting = false,
+    theme = 'gradient',
+    showAvatar = true
+}: ProfileShareCardProps) => {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://facillithub.com';
     const profileUrl = `${baseUrl}/u/${profile.nickname}`;
 
-    // Fontes de imagem seguras (Base64)
     const safeAvatar = avatarOverride || (isExporting ? null : profile.avatar_url);
     const safeLogo = logoOverride || (isExporting ? null : "/assets/images/accont.svg");
+
+    // Configurações de Cores baseadas no Tema
+    const getThemeStyles = () => {
+        switch (theme) {
+            case 'dark':
+                return {
+                    bg: 'bg-[#0f1115]',
+                    textPrimary: 'text-white',
+                    textSecondary: 'text-gray-400',
+                    cardBg: 'bg-white/5 border-white/10',
+                    qrBg: 'bg-white',
+                    qrFg: '#000000'
+                };
+            case 'light':
+                return {
+                    bg: 'bg-white',
+                    textPrimary: 'text-gray-900',
+                    textSecondary: 'text-gray-500',
+                    cardBg: 'bg-gray-50 border-gray-100',
+                    qrBg: 'transparent',
+                    qrFg: '#1f2937'
+                };
+            case 'gradient':
+            default:
+                return {
+                    bg: 'bg-white', // Base branca, o gradiente vai por cima
+                    textPrimary: 'text-[#0E0E0F]',
+                    textSecondary: 'text-gray-500',
+                    cardBg: 'bg-white/40 border-white/60 backdrop-blur-md',
+                    qrBg: 'transparent',
+                    qrFg: '#1f2937'
+                };
+        }
+    };
+
+    const styles = getThemeStyles();
 
     return (
         <div
             ref={innerRef}
-            // Estrutura Base: 9:16 Ratio (400x711 aprox), Bordas Arredondadas
-            className="w-[400px] h-[711px] flex flex-col items-center relative overflow-hidden font-sans box-border bg-white"
+            className={`w-[400px] h-[711px] flex flex-col items-center relative overflow-hidden font-sans box-border ${styles.bg}`}
         >
-            {/* --- FUNDO PREMIUM (GRADIENTES SUAVES) --- */}
-            <div 
-                className="absolute inset-0 z-0"
-                style={{
-                    background: `
-                        radial-gradient(circle at 0% 0%, #E9ECFF 0%, transparent 50%),
-                        radial-gradient(circle at 100% 0%, #E4FFF8 0%, transparent 50%),
-                        radial-gradient(circle at 100% 100%, #F2E6FF 0%, transparent 50%),
-                        radial-gradient(circle at 0% 100%, #E4FFFA 0%, transparent 50%),
-                        linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)
-                    `
-                }}
-            />
+            {/* --- FUNDOS --- */}
             
-            {/* Textura de Ruído (Opcional - via CSS simples para não travar export) */}
-            <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" 
-                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}>
-            </div>
+            {/* 1. Dark Mode Texture */}
+            {theme === 'dark' && (
+                <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-800 via-[#0f1115] to-black opacity-80"></div>
+            )}
 
-            {/* --- CONTEÚDO PRINCIPAL --- */}
-            <div className="relative z-10 flex flex-col items-center w-full h-full pt-10 pb-0">
+            {/* 2. Premium Gradient (Mesh) */}
+            {theme === 'gradient' && (
+                <div 
+                    className="absolute inset-0 z-0"
+                    style={{
+                        background: `
+                            radial-gradient(circle at 0% 0%, rgba(168, 85, 247, 0.15) 0px, transparent 50%),
+                            radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.15) 0px, transparent 50%),
+                            radial-gradient(circle at 100% 100%, rgba(168, 85, 247, 0.1) 0px, transparent 50%),
+                            radial-gradient(circle at 0% 100%, rgba(34, 197, 94, 0.1) 0px, transparent 50%),
+                            linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%)
+                        `
+                    }}
+                />
+            )}
+
+            {/* --- CONTEÚDO --- */}
+            <div className="relative z-10 flex flex-col items-center w-full h-full px-8 pt-14 pb-10">
                 
-                {/* 1. HEADER */}
-                <div className="flex flex-col items-center gap-2 mb-8 w-full px-8">
+                {/* HEADER: LOGO MAIOR */}
+                <div className="flex flex-col items-center gap-3 mb-10 w-full">
                     {safeLogo ? (
                         <img 
                             src={safeLogo} 
                             alt="Facillit" 
-                            className="h-8 object-contain opacity-90 drop-shadow-sm"
+                            // Aumentado para h-10 (40px) ou h-12 (48px) conforme pedido
+                            className={`h-11 object-contain transition-all ${theme === 'dark' ? 'brightness-0 invert opacity-90' : 'opacity-90'}`}
                             {...(!safeLogo.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
                         />
                     ) : (
-                        <span className="text-lg font-bold text-gray-400 tracking-widest">FACILLIT</span>
+                        <span className={`text-xl font-bold tracking-widest ${styles.textSecondary}`}>FACILLIT</span>
                     )}
-                    <span className="text-[10px] font-medium tracking-[0.2em] text-gray-400 uppercase opacity-80">
-                        Perfil Oficial
-                    </span>
                 </div>
 
-                {/* 2. AVATAR (Elemento de Destaque) */}
-                <div className="relative mb-6 group">
-                    {/* Glow de fundo */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-gradient-to-tr from-brand-purple/20 to-brand-green/20 rounded-full blur-2xl opacity-60"></div>
-                    
-                    <div className="relative p-1 rounded-full bg-gradient-to-tr from-[#8B5CF6] via-[#EC4899] to-[#10B981] shadow-2xl shadow-purple-900/10">
-                        <div className="p-[3px] bg-white rounded-full">
-                            <div className="w-36 h-36 rounded-full overflow-hidden bg-gray-50 relative">
-                                {safeAvatar ? (
-                                    <img
-                                        src={safeAvatar}
-                                        alt="Avatar"
-                                        className="w-full h-full object-cover"
-                                        {...(!safeAvatar.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
-                                    />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-300">
-                                        <svg className="w-14 h-14" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                                        </svg>
-                                    </div>
-                                )}
+                {/* AVATAR (Condicional) */}
+                {showAvatar && (
+                    <div className="relative mb-8 group">
+                        {theme === 'gradient' && (
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-gradient-to-tr from-brand-purple/20 to-brand-green/20 rounded-full blur-2xl opacity-60"></div>
+                        )}
+                        
+                        <div className={`relative p-1 rounded-full ${theme === 'dark' ? 'bg-gradient-to-tr from-gray-700 to-gray-600' : 'bg-gradient-to-tr from-[#8B5CF6] via-[#EC4899] to-[#10B981]'} shadow-2xl`}>
+                            <div className={`p-[3px] rounded-full ${theme === 'dark' ? 'bg-[#0f1115]' : 'bg-white'}`}>
+                                <div className={`w-36 h-36 rounded-full overflow-hidden relative ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                                    {safeAvatar ? (
+                                        <img
+                                            src={safeAvatar}
+                                            alt="Avatar"
+                                            className="w-full h-full object-cover"
+                                            {...(!safeAvatar.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
+                                        />
+                                    ) : (
+                                        <div className={`w-full h-full flex items-center justify-center ${styles.textSecondary}`}>
+                                            <svg className="w-14 h-14" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                )}
 
-                {/* 3. NOME E USERNAME */}
-                <div className="text-center mb-8 px-4 w-full">
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                        <h1 className="text-[2.1rem] font-[800] text-[#0E0E0F] tracking-tight leading-tight">
+                {/* NOME E USERNAME */}
+                <div className={`text-center ${showAvatar ? 'mb-8' : 'mb-16 mt-8'} w-full`}>
+                    <div className="flex items-center justify-center gap-1 mb-2">
+                        <h1 className={`text-[2.2rem] font-[800] tracking-tight leading-none ${styles.textPrimary}`}>
                             {profile.full_name}
                         </h1>
                         {profile.verification_badge && profile.verification_badge !== 'none' && (
                             <VerifiedBadge type={profile.verification_badge as string} />
                         )}
                     </div>
-                    <div className="inline-block px-3 py-1 bg-white/50 backdrop-blur-sm rounded-full border border-white/60 shadow-sm">
-                        <p className="text-base font-medium bg-clip-text text-transparent bg-gradient-to-r from-brand-purple to-brand-green">
+                    <div className={`inline-block px-4 py-1.5 rounded-full border ${styles.cardBg} shadow-sm`}>
+                        <p className="text-lg font-medium bg-clip-text text-transparent bg-gradient-to-r from-brand-purple to-brand-green">
                             @{profile.nickname}
                         </p>
                     </div>
                 </div>
 
-                {/* 4. MÉTRICAS (Glass Cards) */}
-                <div className="flex items-center justify-center gap-4 w-full px-8 mb-auto">
-                    {/* Card Seguidores */}
-                    <div className="flex-1 bg-white/40 backdrop-blur-md border border-white/60 rounded-2xl p-4 flex flex-col items-center shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
-                        <span className="text-2xl font-[800] text-gray-800 leading-none mb-1">
+                {/* MÉTRICAS */}
+                <div className="flex items-center justify-center gap-4 w-full px-4 mb-auto">
+                    <div className={`flex-1 ${styles.cardBg} border rounded-2xl p-5 flex flex-col items-center shadow-sm`}>
+                        <span className={`text-2xl font-[800] leading-none mb-1 ${styles.textPrimary}`}>
                             {stats.followers}
                         </span>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${styles.textSecondary}`}>
                             Seguidores
                         </span>
                     </div>
                     
-                    {/* Card Seguindo */}
-                    <div className="flex-1 bg-white/40 backdrop-blur-md border border-white/60 rounded-2xl p-4 flex flex-col items-center shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
-                        <span className="text-2xl font-[800] text-gray-800 leading-none mb-1">
+                    <div className={`flex-1 ${styles.cardBg} border rounded-2xl p-5 flex flex-col items-center shadow-sm`}>
+                        <span className={`text-2xl font-[800] leading-none mb-1 ${styles.textPrimary}`}>
                             {stats.following}
                         </span>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${styles.textSecondary}`}>
                             Seguindo
                         </span>
                     </div>
                 </div>
 
-                {/* 5. QR CODE SECTION (Apple Wallet Style) */}
-                <div className="w-full mt-6 relative">
-                    <div className="bg-white rounded-t-[32px] pt-1 px-1 shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.08)]">
-                        {/* Faixa de Gradiente no Topo */}
-                        <div className="h-1.5 w-full bg-gradient-to-r from-brand-purple via-pink-400 to-brand-green rounded-t-[28px] opacity-80 mb-6 mx-auto w-[40px]"></div>
+                {/* QR CODE CARD */}
+                <div className="w-full mt-8 relative">
+                    <div className={`${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100'} border rounded-t-[32px] pt-1 px-1 shadow-2xl`}>
+                        {/* Faixa de Gradiente */}
+                        <div className="h-1.5 w-[60px] bg-gradient-to-r from-brand-purple via-pink-400 to-brand-green rounded-full opacity-90 mb-6 mx-auto mt-3"></div>
                         
                         <div className="px-8 pb-10 flex flex-row items-center justify-between">
-                            <div className="flex flex-col items-start gap-1.5">
-                                <p className="text-[10px] font-bold text-brand-purple uppercase tracking-widest bg-purple-50 px-2 py-0.5 rounded">
+                            <div className="flex flex-col items-start gap-1">
+                                <p className={`text-[10px] font-bold uppercase tracking-widest ${styles.textSecondary}`}>
                                     Conectar
                                 </p>
-                                <p className="text-sm font-semibold text-gray-600">
-                                    Escaneie para ver<br/>o perfil completo.
+                                <p className={`text-sm font-semibold ${styles.textPrimary}`}>
+                                    Escaneie para visitar
                                 </p>
-                                <p className="text-xs text-gray-400 mt-1 font-mono">
+                                <p className={`text-xs mt-1 font-mono opacity-60 ${styles.textSecondary}`}>
                                     facillithub.com
                                 </p>
                             </div>
 
-                            <div className="p-2 bg-white border border-gray-100 rounded-xl shadow-inner">
+                            <div className={`p-2 rounded-xl border ${theme === 'dark' ? 'bg-white' : 'bg-white border-gray-100'} shadow-inner`}>
                                 <QRCodeSVG 
                                     value={profileUrl} 
-                                    size={90}
-                                    fgColor="#111827" 
-                                    bgColor="#ffffff"
+                                    size={80}
+                                    fgColor={styles.qrFg}
+                                    bgColor={styles.qrBg}
                                     level={"M"}
-                                    imageSettings={safeLogo ? {
-                                        src: safeLogo,
-                                        x: undefined,
-                                        y: undefined,
-                                        height: 20,
-                                        width: 20,
-                                        excavate: true,
-                                    } : undefined}
                                 />
                             </div>
                         </div>
