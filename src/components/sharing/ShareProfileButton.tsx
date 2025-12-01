@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
-import { toJpeg } from 'html-to-image';
+import { useRef, useState } from 'react';
 import { UserProfile } from '@/app/dashboard/types';
-import { useToast } from '@/contexts/ToastContext';
 import { ProfileShareCard, ShareCardStats } from './ProfileShareCard';
+import { useProfileShare } from '@/features/share'; 
 
 interface ShareProfileButtonProps {
   profile: UserProfile;
@@ -15,123 +14,26 @@ interface ShareProfileButtonProps {
 
 export default function ShareProfileButton({ profile, stats, className = "", variant = 'primary' }: ShareProfileButtonProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   
-  // Estados para o novo fluxo
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [shareFile, setShareFile] = useState<File | null>(null);
-  const [errorLog, setErrorLog] = useState<string>(""); // Log visível para debug
+  // Hook customizado com toda a lógica
+  const { 
+    isGenerating, 
+    previewUrl, 
+    handleGenerate, 
+    handleShare, 
+    clearPreview 
+ } = useProfileShare(profile.nickname || "");
 
   const cardRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const { addToast } = useToast();
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Função auxiliar de log
-  const logError = (msg: string, err?: any) => {
-      const fullMsg = `${msg} ${err ? JSON.stringify(err, Object.getOwnPropertyNames(err)) : ''}`;
-      console.error(fullMsg);
-      setErrorLog(prev => prev + "\n- " + msg);
-      addToast({ title: 'Erro', message: msg, type: 'error' });
-  };
-
-  const generateImage = async () => {
-    if (!cardRef.current) return null;
-    
-    try {
-        // Delay crucial para renderização
-        await new Promise(r => setTimeout(r, 100));
-
-        const dataUrl = await toJpeg(cardRef.current!, { 
-            quality: 0.9,
-            pixelRatio: 1.5, // 1.5 é o "sweet spot" para performance mobile
-            cacheBust: true,
-            skipAutoScale: true,
-            backgroundColor: '#ffffff',
-            fontEmbedCSS: "", // Evita travar tentando buscar fontes
-        });
-
-        if (!dataUrl || dataUrl.length < 100) throw new Error("Imagem gerada vazia");
-        return dataUrl;
-
-    } catch (err: any) {
-        logError("Falha na renderização (html-to-image)", err);
-        return null;
-    }
-  };
-
-  // PASSO 1: Apenas gera a imagem e prepara o arquivo
-  const handlePreparePreview = async () => {
-    setErrorLog(""); // Limpa logs anteriores
-    setIsGenerating(true);
-    
-    try {
-      const dataUrl = await generateImage();
-      
-      if (dataUrl) {
-          // Converte para File imediatamente para deixar pronto na memória
-          const res = await fetch(dataUrl);
-          const blob = await res.blob();
-          const file = new File([blob], `facillit-${profile.nickname}.jpg`, { type: 'image/jpeg' });
-
-          setShareFile(file);
-          setPreviewUrl(dataUrl); // Isso abre o Modal
-          setIsMenuOpen(false); // Fecha o menu pequeno
-      }
-    } catch (error: any) {
-      logError("Erro ao preparar imagem", error);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  // PASSO 2: Compartilha o arquivo JÁ PRONTO (Clique instantâneo = Sucesso)
-  const handleShareAction = async () => {
-      if (!shareFile) return;
-
-      // Verifica suporte do navegador
-      if (!navigator.share) {
-          logError("Seu navegador não suporta compartilhamento nativo. Salve a imagem manualmente.");
-          return;
-      }
-
-      if (navigator.canShare && !navigator.canShare({ files: [shareFile] })) {
-          logError("O navegador bloqueou este tipo de arquivo.");
-          return;
-      }
-
-      try {
-          await navigator.share({
-              files: [shareFile],
-              title: 'Meu Perfil Facillit',
-              text: `Confira meu perfil: ${window.location.origin}/u/${profile.nickname}`,
-          });
-          addToast({ title: 'Sucesso!', message: 'Compartilhado.', type: 'success' });
-      } catch (err: any) {
-          if (err.name !== 'AbortError') {
-             logError("Falha ao abrir menu de compartilhar", err);
-          }
+  const onGenerateClick = () => {
+      if (cardRef.current) {
+          handleGenerate(cardRef.current);
+          setIsMenuOpen(false);
       }
   };
 
-  const handleCopyLink = () => {
-    const url = `${window.location.origin}/u/${profile.nickname}`;
-    navigator.clipboard.writeText(url);
-    addToast({ title: 'Copiado!', message: 'Link copiado.', type: 'success' });
-    setIsMenuOpen(false);
-  };
-
-  // Renderização condicional do botão principal
-  const renderButtonContent = () => {
+  const renderTriggerButton = () => {
     if (variant === 'icon') {
         return (
             <button 
@@ -150,33 +52,41 @@ export default function ShareProfileButton({ profile, stats, className = "", var
         <i className="fas fa-share-alt"></i> Compartilhar
       </button>
     );
-  }
+  };
 
   return (
     <>
-      <div className="relative inline-block text-left" ref={menuRef}>
-        {/* Elemento Invisível para Captura */}
-        <div style={{ position: 'fixed', top: 0, left: 0, zIndex: -9999, opacity: 0, pointerEvents: 'none', visibility: 'visible' }}>
+      {/* 1. O Card Invisível (Fixo na tela, fora da visão, mas renderizável) */}
+      <div style={{ position: 'fixed', top: 0, left: 0, zIndex: -9999, opacity: 0, pointerEvents: 'none' }}>
            {profile && <ProfileShareCard innerRef={cardRef} profile={profile} stats={stats} />}
-        </div>
+      </div>
 
-        {renderButtonContent()}
+      <div className="relative inline-block text-left">
+        {renderTriggerButton()}
 
+        {/* 2. Menu Dropdown */}
         {isMenuOpen && (
-          <div className="absolute right-0 bottom-full mb-2 w-64 rounded-xl shadow-xl bg-white border border-gray-100 z-50 animate-fade-in-up origin-bottom-right">
+          <div className="absolute right-0 bottom-full mb-2 w-64 rounded-xl shadow-xl bg-white border border-gray-100 z-40 animate-fade-in-up origin-bottom-right">
               <div className="p-2 space-y-1">
                   <button 
-                      onClick={handlePreparePreview}
+                      onClick={onGenerateClick}
                       disabled={isGenerating}
                       className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-brand-purple/5 hover:text-brand-purple flex items-center gap-3 transition-colors"
                   >
-                      <i className={`fas ${isGenerating ? 'fa-spinner fa-spin' : 'fa-image'} w-5 text-center`}></i>
-                      <span>{isGenerating ? 'Gerando...' : 'Gerar Imagem'}</span>
+                      {isGenerating ? (
+                          <i className="fas fa-spinner fa-spin w-5 text-center text-brand-purple"></i>
+                      ) : (
+                          <i className="fas fa-image w-5 text-center"></i>
+                      )}
+                      <span>{isGenerating ? 'Criando Card...' : 'Gerar Imagem'}</span>
                   </button>
-
+                  
                   <button 
-                      onClick={handleCopyLink}
-                      className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-brand-purple/5 hover:text-brand-purple flex items-center gap-3 transition-colors"
+                    onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/u/${profile.nickname}`);
+                        setIsMenuOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-brand-purple/5 hover:text-brand-purple flex items-center gap-3 transition-colors"
                   >
                       <i className="fas fa-link w-5 text-center"></i>
                       <span>Copiar Link</span>
@@ -186,50 +96,45 @@ export default function ShareProfileButton({ profile, stats, className = "", var
         )}
       </div>
 
-      {/* --- MODAL DE PREVIEW E COMPARTILHAMENTO --- */}
+      {/* 3. O Modal de Preview (CRÍTICO: Fundo escuro e Botão de Ação) */}
       {previewUrl && (
-        <div className="fixed inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-4 animate-fade-in overflow-y-auto backdrop-blur-sm">
-            
-            <div className="w-full max-w-sm flex flex-col gap-4 relative">
-                {/* Botão Fechar */}
-                <button 
-                    onClick={() => { setPreviewUrl(null); setShareFile(null); setErrorLog(""); }}
-                    className="absolute -top-12 right-0 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center text-white hover:bg-white/20"
-                >
-                    <i className="fas fa-times"></i>
-                </button>
+        <div className="fixed inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
+            <div className="w-full max-w-sm flex flex-col gap-5">
+                
+                {/* Header do Modal */}
+                <div className="flex justify-between items-center text-white px-2">
+                    <h3 className="font-bold text-lg">Seu Card está pronto!</h3>
+                    <button 
+                        onClick={clearPreview}
+                        className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white"
+                    >
+                        <i className="fas fa-times"></i>
+                    </button>
+                </div>
 
-                {/* Área da Imagem */}
-                <div className="bg-white/5 p-2 rounded-2xl border border-white/10 shadow-2xl">
+                {/* A Imagem Gerada */}
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                         src={previewUrl} 
-                        alt="Preview" 
-                        className="w-full h-auto rounded-xl block" 
+                        alt="Preview do Card" 
+                        className="w-full h-auto object-contain block" 
                     />
                 </div>
 
-                {/* Controles de Ação */}
-                <div className="flex flex-col gap-3 mt-2">
+                {/* Ações */}
+                <div className="flex flex-col gap-3">
+                    {/* O clique aqui dispara o navigator.share instantaneamente */}
                     <button
-                        onClick={handleShareAction}
-                        className="w-full py-4 bg-green-500 hover:bg-green-600 active:scale-95 transition-all text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
+                        onClick={handleShare}
+                        className="w-full py-4 bg-brand-green hover:bg-green-500 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95"
                     >
-                        <i className="fas fa-share-nodes text-xl"></i> 
-                        Enviar / Postar
+                        <i className="fas fa-share-nodes"></i> Compartilhar Agora
                     </button>
                     
-                    <p className="text-white/40 text-xs text-center px-4">
-                        Se o botão acima não funcionar, segure na imagem para salvar na galeria.
+                    <p className="text-white/50 text-xs text-center px-4">
+                        Dica: Se preferir, segure na imagem acima para salvar na galeria do seu celular.
                     </p>
-
-                    {/* Área de Erros Visível (Debug) */}
-                    {errorLog && (
-                        <div className="mt-4 p-3 bg-red-900/50 rounded-lg border border-red-500/30">
-                            <p className="text-red-200 text-xs font-mono font-bold mb-1">Log de Erros:</p>
-                            <pre className="text-[10px] text-red-300 whitespace-pre-wrap">{errorLog}</pre>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
