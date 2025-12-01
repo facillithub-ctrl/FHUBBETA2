@@ -19,6 +19,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     isGenerating, 
     previewUrl, 
     safeAvatarUrl,
+    safeLogoUrl, // <--- Conectado aqui
     prepareEnvironment,
     handleGenerate, 
     handleShare, 
@@ -36,7 +37,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Preload ao abrir
+  // Preload ao abrir o menu
   useEffect(() => {
       if (isMenuOpen) prepareEnvironment();
   }, [isMenuOpen, prepareEnvironment]);
@@ -66,16 +67,17 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     <>
       <div className="relative inline-block text-left" ref={menuRef}>
         
-        {/* --- CARD OCULTO (Renderização Off-Screen) --- */}
-        {/* left: 200vw garante que está fora da tela, mas visível para a engine de renderização */}
+        {/* --- CARD OCULTO (MODO EXPORTAÇÃO) --- */}
+        {/* left: 200vw = fora da tela, mas visível para o renderizador */}
         <div style={{ position: 'fixed', left: '200vw', top: 0, zIndex: -50 }}>
            {profile && (
                <ProfileShareCard 
                    innerRef={cardRef} 
                    profile={profile} 
                    stats={stats} 
-                   avatarOverride={safeAvatarUrl ?? null} 
-                   isExporting={true} // Ativa o modo leve (sem blur)
+                   avatarOverride={safeAvatarUrl ?? null}
+                   logoOverride={safeLogoUrl ?? null} 
+                   isExporting={true} // Ativa o modo simplificado
                 />
             )}
         </div>
@@ -131,7 +133,6 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                 </div>
 
                 <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900">
-                    {/* Exibe o PNG gerado */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                         src={previewUrl} 

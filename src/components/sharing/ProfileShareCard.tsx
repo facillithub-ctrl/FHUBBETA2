@@ -15,6 +15,7 @@ interface ProfileShareCardProps {
     stats: ShareCardStats;
     innerRef: RefObject<HTMLDivElement>;
     avatarOverride?: string | null;
+    logoOverride?: string | null; // <--- NOVO: Override para o logo
     isExporting?: boolean; 
 }
 
@@ -30,7 +31,7 @@ const StarBadgeSVG = ({ color }: { color: string }) => (
     </svg>
 );
 
-export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride, isExporting = false }: ProfileShareCardProps) => {
+export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride, logoOverride, isExporting = false }: ProfileShareCardProps) => {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://facillithub.com';
     const profileUrl = `${baseUrl}/u/${profile.nickname}`;
 
@@ -43,16 +44,10 @@ export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride, isE
         return null;
     };
 
-    // Lógica Segura:
-    // 1. Prioriza Base64 (avatarOverride)
-    // 2. Se falhar e estiver exportando, usa NULL (Placeholder)
-    // 3. Só usa URL externa se estiver na tela (visualização normal)
-    const safeAvatarSource = avatarOverride 
-        ? avatarOverride 
-        : (isExporting ? null : profile.avatar_url);
-
-    // Detecta se é Base64 para remover crossOrigin (Evita bug no Safari)
-    const isBase64 = safeAvatarSource?.startsWith('data:');
+    // Fontes de imagem seguras (Base64)
+    // Se estiver exportando e não tiver a versão segura, usa NULL para forçar fallback e evitar trava
+    const safeAvatar = avatarOverride || (isExporting ? null : profile.avatar_url);
+    const safeLogo = logoOverride || (isExporting ? null : "/assets/images/accont.svg");
 
     return (
         <div
@@ -60,7 +55,7 @@ export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride, isE
             className="w-[400px] h-[700px] bg-white border-[16px] border-gray-50 flex flex-col items-center relative overflow-hidden font-sans box-border"
             style={{ backgroundColor: '#ffffff' }}
         >
-            {/* Fundo leve para exportação (CSS puro, sem blur pesado) */}
+            {/* FUNDO: No modo exportação, usamos gradiente CSS puro. Sem blurs pesados. */}
             {isExporting ? (
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-50/30 via-white to-green-50/30 z-0 pointer-events-none"></div>
             ) : (
@@ -70,30 +65,35 @@ export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride, isE
                 </>
             )}
 
-            {/* Logo Local */}
+            {/* HEADER LOGO */}
             <div className="w-full flex justify-center pt-8 mb-6 relative z-10">
-                <img 
-                    src="/assets/images/accont.svg" 
-                    alt="Facillit Account" 
-                    className="h-14 object-contain"
-                    // Remova crossOrigin de assets locais se der erro, mas geralmente ok
-                />
+                {safeLogo ? (
+                    <img 
+                        src={safeLogo} 
+                        alt="Logo" 
+                        className="h-14 object-contain"
+                        // Remove crossOrigin se for Base64 (data:) para evitar bug do Safari
+                        {...(!safeLogo.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
+                    />
+                ) : (
+                    // Fallback texto se o logo falhar (improvável)
+                    <div className="h-14 flex items-center font-bold text-gray-400">FACILLIT</div>
+                )}
             </div>
 
             {/* AVATAR */}
             <div className="relative mb-6 z-10">
                 <div className="absolute -inset-[4px] rounded-full bg-gradient-to-tr from-brand-purple to-brand-green"></div>
                 <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden shadow-sm relative z-10 bg-white">
-                     {safeAvatarSource ? (
+                     {safeAvatar ? (
                         <img
-                            src={safeAvatarSource}
+                            src={safeAvatar}
                             alt="Avatar"
                             className="w-full h-full object-cover"
-                            // TRUQUE DE MESTRE: Se for Base64, NÃO use crossOrigin. Se for URL, use.
-                            {...(!isBase64 ? { crossOrigin: "anonymous" } : {})}
+                            {...(!safeAvatar.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
                         />
                     ) : (
-                        // Placeholder
+                        // Placeholder SVG (Seguro, não trava)
                         <div className="w-full h-full flex items-center justify-center bg-gray-100">
                             <svg className="w-12 h-12 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
@@ -113,7 +113,6 @@ export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride, isE
                         {renderBadge()}
                     </div>
                 </div>
-                
                 <p className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-purple to-brand-green">
                     @{profile.nickname}
                 </p>
@@ -141,7 +140,7 @@ export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride, isE
                 </div>
             </div>
 
-            {/* QR CODE */}
+            {/* QR CODE - Com Logo Base64 */}
             <div className="z-10 mb-8 flex flex-col items-center gap-3">
                 <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
                     <QRCodeSVG 
@@ -150,14 +149,14 @@ export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride, isE
                         fgColor="#1f2937" 
                         bgColor="#ffffff"
                         level={"M"}
-                        imageSettings={{
-                            src: "/assets/images/accont.svg",
+                        imageSettings={safeLogo ? {
+                            src: safeLogo,
                             x: undefined,
                             y: undefined,
                             height: 18,
                             width: 18,
                             excavate: true,
-                        }}
+                        } : undefined}
                     />
                 </div>
                 <p className="text-gray-400 text-[10px] font-medium tracking-wide">

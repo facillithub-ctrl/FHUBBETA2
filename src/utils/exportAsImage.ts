@@ -1,13 +1,13 @@
 import { toPng } from 'html-to-image';
 
-// Converte URL para Base64 (Data URI)
-// Isso incorpora a imagem no código, eliminando erros de CORS na exportação
+// Converte URL (remota ou local) para Base64 (Data URI)
 export async function preloadImage(url: string): Promise<string | null> {
     if (!url) return null;
     
     return new Promise((resolve) => {
         const img = new Image();
-        // Importante: permite baixar do Supabase se o bucket for público
+        // crossOrigin 'anonymous' é necessário para imagens externas (Supabase/S3)
+        // Para locais, não faz mal, mas ajuda se o asset for servido via CDN
         img.crossOrigin = 'anonymous'; 
         img.src = url;
         
@@ -19,11 +19,11 @@ export async function preloadImage(url: string): Promise<string | null> {
             if (ctx) {
                 try {
                     ctx.drawImage(img, 0, 0);
-                    // Retorna string Base64 (data:image/png;base64...)
+                    // Retorna a string Base64 (data:image/png;base64...)
                     const dataURL = canvas.toDataURL('image/png');
                     resolve(dataURL);
                 } catch (e) {
-                    console.warn("CORS bloqueou a conversão para Base64. Usando placeholder.", e);
+                    console.warn("CORS bloqueou a conversão para Base64:", url, e);
                     resolve(null);
                 }
             } else {
@@ -32,13 +32,13 @@ export async function preloadImage(url: string): Promise<string | null> {
         };
 
         img.onerror = () => {
-            console.warn("Falha ao baixar imagem para converter.", url);
+            console.warn("Falha ao carregar imagem para conversão:", url);
             resolve(null);
         };
     });
 }
 
-// Garante que todas as imagens no DOM carregaram
+// Garante que todas as imagens no DOM carregaram antes da captura
 async function waitForImages(element: HTMLElement): Promise<void> {
     const images = element.querySelectorAll('img');
     const promises = Array.from(images).map((img) => {
@@ -58,19 +58,22 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
         await document.fonts.ready;
         await waitForImages(element);
         
-        // Delay crítico para iOS
+        // Delay crítico para o Safari processar o layout
         await new Promise(r => setTimeout(r, 300));
 
         const dataUrl = await toPng(element, {
             quality: 1.0,
-            pixelRatio: 2, 
+            pixelRatio: 2, // 2x é o ideal para mobile
             cacheBust: true,
             skipAutoScale: true,
             backgroundColor: '#ffffff',
-            fontEmbedCSS: "", 
-            // Filtra tags de link externas que quebram o Safari
+            fontEmbedCSS: "", // Evita crash de fontes externas
+            // Filtra tags problemáticas
             filter: (node) => {
-                if (node.tagName === 'LINK' && (node as HTMLLinkElement).rel === 'stylesheet') return false;
+                // Remove qualquer tag <link> (fontes externas/CSS)
+                if (node.tagName === 'LINK') return false;
+                // Remove ícones do FontAwesome se existirem dentro do card
+                if (node.tagName === 'I' && (node as HTMLElement).className?.includes('fa-')) return false;
                 return true;
             }
         });
@@ -82,12 +85,9 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
 
     } catch (error: any) {
         console.error("Erro no html-to-image:", error);
-        
-        // Se for erro de evento, é 99% certeza que é uma imagem rebelde
         if (error?.type === 'error') {
-             throw new Error("Uma imagem foi bloqueada pelo navegador.");
+             throw new Error("O navegador bloqueou uma imagem (CORS).");
         }
-        
         throw new Error(error.message || "Falha ao gerar imagem.");
     }
 }
