@@ -65,13 +65,13 @@ export const ProfileShareCard = ({
             ref={innerRef}
             className="w-[540px] h-[960px] flex flex-col items-center relative overflow-hidden font-sans box-border bg-white"
         >
-            {/* LINHA DECORATIVA SUPERIOR */}
-            <div className="w-full h-4" style={{ background: BRAND.gradient }}></div>
+            {/* 1. BARRA DE GRADIENTE (De volta!) */}
+            <div className="w-full h-5" style={{ background: BRAND.gradient }}></div>
 
             {/* CONTEÚDO PRINCIPAL */}
-            <div className="flex-1 flex flex-col items-center w-full px-10 pt-12 pb-10">
+            <div className="flex-1 flex flex-col items-center w-full px-10 pt-10 pb-10">
                 
-                {/* 1. LOGO */}
+                {/* 2. LOGO (Com bom destaque) */}
                 <div className="mb-8 w-full flex justify-center">
                     {safeLogo ? (
                         <img 
@@ -87,31 +87,32 @@ export const ProfileShareCard = ({
                     )}
                 </div>
 
-                {/* 2. TAG OFICIAL (Borda sólida, sem sombra) */}
-                <div className="mb-6 px-6 py-2 rounded-full border-2 border-gray-100 bg-gray-50">
-                    <span className="text-xs font-bold tracking-[0.2em] uppercase text-gray-400">
+                {/* TAG OFICIAL */}
+                <div className="mb-4 px-6 py-2 rounded-full border border-gray-100 bg-gray-50/50">
+                    <span className="text-xs font-extrabold tracking-[0.25em] uppercase text-gray-400">
                         Perfil Oficial
                     </span>
                 </div>
 
-                {/* 3. NOME */}
-                <div className="text-center w-full mb-4">
-                    <h1 className="text-[3.8rem] font-[900] leading-[0.9] tracking-tight text-[#0f0f11] mb-2">
-                        {profile.full_name}
-                    </h1>
-                    <div className="flex items-center justify-center gap-2">
-                        <p className="text-3xl font-bold" style={{ color: BRAND.purple }}>
-                            @{profile.nickname}
-                        </p>
+                {/* 3. NOME GIGANTE */}
+                <div className="text-center w-full mb-6">
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                        <h1 className="text-[3.8rem] font-[900] leading-[0.95] tracking-tight text-[#0f0f11]">
+                            {profile.full_name}
+                        </h1>
                         {profile.verification_badge && <VerifiedBadge />}
                     </div>
+                    
+                    <p className="text-3xl font-bold" style={{ color: BRAND.purple }}>
+                        @{profile.nickname}
+                    </p>
                 </div>
 
-                {/* 4. AVATAR (Design Flat) */}
+                {/* 4. AVATAR & MEMBRO DESDE (Redesenhado) */}
                 {showAvatar && (
-                    <div className="relative my-6">
-                        {/* Anel Externo Sólido (Sem Blur) */}
-                        <div className="p-2 rounded-[50px] bg-white border border-gray-100">
+                    <div className="relative mb-8">
+                        {/* Anel Externo Sólido */}
+                        <div className="p-2 rounded-[50px] bg-white border border-gray-100 shadow-[0_8px_30px_rgba(0,0,0,0.04)]">
                             <div className="rounded-[42px] overflow-hidden w-60 h-60 relative border-4 border-white bg-gray-100">
                                 {safeAvatar ? (
                                     <img
@@ -129,8 +130,9 @@ export const ProfileShareCard = ({
                                 )}
                             </div>
                             
-                            {/* Badge Ano (Sólido) */}
-                            <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-[#0f0f11] text-white px-5 py-2 rounded-full border-4 border-white">
+                            {/* BADGE MEMBRO DESDE (Estilo "Tag Premium") */}
+                            <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-white text-[#0f0f11] px-5 py-2.5 rounded-full border border-gray-200 shadow-lg flex items-center gap-2 whitespace-nowrap">
+                                <span className="w-2 h-2 rounded-full bg-green-400"></span>
                                 <span className="text-xs font-bold tracking-widest uppercase">
                                     Membro desde {memberSinceYear}
                                 </span>
@@ -141,43 +143,52 @@ export const ProfileShareCard = ({
 
                 {/* 5. BIO */}
                 {profile.bio && (
-                    <div className="w-full text-center mb-8 px-4">
+                    <div className="w-full text-center mb-8 px-6 mt-4">
                         <p className="text-xl font-medium text-gray-500 leading-snug line-clamp-2">
                             {profile.bio}
                         </p>
                     </div>
                 )}
 
-                {/* 6. MÉTRICAS (Divisores Sólidos) */}
-                <div className="flex w-full justify-center gap-12 mb-auto mt-4 border-t border-b border-gray-100 py-6">
+                {/* 6. MÉTRICAS (Clean) */}
+                <div className="flex w-full justify-center gap-14 mb-auto border-t border-gray-100 pt-8 mt-2">
                     <div className="text-center">
-                        <span className="block text-4xl font-[900] text-[#0f0f11]">{stats.followers}</span>
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Seguidores</span>
+                        <span className="block text-[2.8rem] font-[900] text-[#0f0f11] leading-none mb-1">
+                            {stats.followers}
+                        </span>
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Seguidores</span>
                     </div>
-                    <div className="w-px h-12 bg-gray-200"></div>
+                    <div className="w-px h-16 bg-gray-100"></div>
                     <div className="text-center">
-                        <span className="block text-4xl font-[900] text-[#0f0f11]">{stats.following}</span>
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Seguindo</span>
+                        <span className="block text-[2.8rem] font-[900] text-[#0f0f11] leading-none mb-1">
+                            {stats.following}
+                        </span>
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Seguindo</span>
                     </div>
                 </div>
 
-                {/* 7. FOOTER LINK (Design Cartão) */}
-                <div className="w-full mt-6 bg-[#f8f9fa] rounded-3xl p-3 flex items-center justify-between border border-gray-200">
-                    <div className="flex items-center gap-4 pl-4">
-                        <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: BRAND.green }}>
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3">
-                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                {/* 7. FOOTER LINK (Sólido & Moderno) */}
+                <div className="w-full mt-8 bg-[#f8f9fa] rounded-3xl p-3 flex items-center justify-between border border-gray-200/60 shadow-sm">
+                    <div className="flex items-center gap-5 pl-5">
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm" style={{ background: BRAND.gradient }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                                <polyline points="10 17 15 12 10 7" />
+                                <line x1="15" y1="12" x2="3" y2="12" />
                             </svg>
                         </div>
-                        <div className="flex flex-col">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Acesse Agora</span>
-                            <span className="text-xl font-bold text-[#0f0f11]">facillithub.com</span>
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#42047e]">
+                                ACESSE AGORA
+                            </span>
+                            <span className="text-2xl font-bold text-[#0f0f11] tracking-tight">
+                                facillithub.com
+                            </span>
                         </div>
                     </div>
                     
                     {/* QR Code Sólido */}
-                    <div className="bg-white p-2 rounded-2xl border border-gray-200">
+                    <div className="bg-white p-2 rounded-2xl border border-gray-100">
                         <QRCodeSVG 
                             value={profileUrl} 
                             size={70}
