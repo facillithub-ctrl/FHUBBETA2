@@ -19,8 +19,8 @@ interface ProfileShareCardProps {
     avatarOverride?: string | null;
     logoOverride?: string | null;
     isExporting?: boolean;
-    theme?: CardTheme; // NOVO
-    showAvatar?: boolean; // NOVO
+    theme?: CardTheme;
+    showAvatar?: boolean;
 }
 
 const VerifiedBadge = ({ type }: { type: string | boolean }) => {
@@ -31,7 +31,6 @@ const VerifiedBadge = ({ type }: { type: string | boolean }) => {
         <path d="M9 16.17L4.83 12L3.41 13.41L9 19L21 7L19.59 5.59L9 16.17Z" fill="white"/>
     );
 
-    // Tamanho reduzido para 18px (mais discreto)
     return (
         <div className="flex items-center justify-center w-[18px] h-[18px] rounded-full shadow-sm ml-1.5 ring-2 ring-white/50" style={{ backgroundColor: color }}>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -57,7 +56,6 @@ export const ProfileShareCard = ({
     const safeAvatar = avatarOverride || (isExporting ? null : profile.avatar_url);
     const safeLogo = logoOverride || (isExporting ? null : "/assets/images/accont.svg");
 
-    // Configurações de Cores baseadas no Tema
     const getThemeStyles = () => {
         switch (theme) {
             case 'dark':
@@ -81,7 +79,7 @@ export const ProfileShareCard = ({
             case 'gradient':
             default:
                 return {
-                    bg: 'bg-white', // Base branca, o gradiente vai por cima
+                    bg: 'bg-white', 
                     textPrimary: 'text-[#0E0E0F]',
                     textSecondary: 'text-gray-500',
                     cardBg: 'bg-white/40 border-white/60 backdrop-blur-md',
@@ -124,18 +122,18 @@ export const ProfileShareCard = ({
             {/* --- CONTEÚDO --- */}
             <div className="relative z-10 flex flex-col items-center w-full h-full px-8 pt-14 pb-10">
                 
-                {/* HEADER: LOGO MAIOR */}
-                <div className="flex flex-col items-center gap-3 mb-10 w-full">
+                {/* HEADER: LOGO MAIOR (ATUALIZADO) */}
+                <div className="flex flex-col items-center gap-3 mb-8 w-full">
                     {safeLogo ? (
                         <img 
                             src={safeLogo} 
                             alt="Facillit" 
-                            // Aumentado para h-10 (40px) ou h-12 (48px) conforme pedido
-                            className={`h-11 object-contain transition-all ${theme === 'dark' ? 'brightness-0 invert opacity-90' : 'opacity-90'}`}
+                            // AQUI: Aumentado para h-16 (64px) e removido opacity-90
+                            className={`h-16 object-contain transition-all ${theme === 'dark' ? 'brightness-0 invert' : ''}`}
                             {...(!safeLogo.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
                         />
                     ) : (
-                        <span className={`text-xl font-bold tracking-widest ${styles.textSecondary}`}>FACILLIT</span>
+                        <span className={`text-2xl font-bold tracking-widest ${styles.textSecondary}`}>FACILLIT</span>
                     )}
                 </div>
 

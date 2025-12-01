@@ -1,30 +1,21 @@
 import { toPng } from 'html-to-image';
 
-// Proxy essencial para evitar bloqueio CORS no Safari iOS
 const CORS_PROXY = "https://wsrv.nl/?url=";
 
 export async function preloadImage(url: string): Promise<string | null> {
     if (!url) return null;
 
     try {
-        // 1. Construir URL Otimizada (Resize + Proxy)
         let fetchUrl = url;
+        // Redimensiona para economizar memória no iPhone, mas mantém qualidade (400px)
         if (url.startsWith('http') && !url.includes('wsrv.nl')) {
-             // Redimensiona para 300x300 (ideal para o card) e força PNG
-             fetchUrl = `${CORS_PROXY}${encodeURIComponent(url)}&w=300&h=300&output=png`;
+             fetchUrl = `${CORS_PROXY}${encodeURIComponent(url)}&w=400&h=400&output=png`;
         }
 
-        // 2. Fetch direto (Mais leve que Canvas)
-        const response = await fetch(fetchUrl, {
-            mode: 'cors',
-            cache: 'no-cache'
-        });
-
-        if (!response.ok) throw new Error('Falha no proxy de imagem');
-
+        const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
+        if (!response.ok) throw new Error('Falha no proxy');
         const blob = await response.blob();
 
-        // 3. Converter para Base64
         return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => {
@@ -35,9 +26,7 @@ export async function preloadImage(url: string): Promise<string | null> {
             reader.onerror = () => resolve(null);
             reader.readAsDataURL(blob);
         });
-
     } catch (e) {
-        console.warn("Avatar: Falha no carregamento otimizado:", e);
         return null;
     }
 }
@@ -60,16 +49,14 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
     try {
         await document.fonts.ready;
         await waitForImages(element);
-        
-        // Delay para Safari renderizar layout (shadows/gradients)
         await new Promise(r => setTimeout(r, 500));
 
         const dataUrl = await toPng(element, {
             quality: 1.0,
-            pixelRatio: 2, 
+            pixelRatio: 2, // 540px * 2 = 1080px (Full HD)
             cacheBust: true,
             skipAutoScale: true,
-            backgroundColor: '#ffffff', // Garante fundo branco sólido no PNG final
+            backgroundColor: '#ffffff', // Garante opacidade total
             fontEmbedCSS: "", 
             filter: (node) => {
                 if (node.tagName === 'LINK') return false;
@@ -85,10 +72,7 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
 
     } catch (error: any) {
         console.error("Erro html-to-image:", error);
-        if (error?.type === 'error') {
-             throw new Error("Erro ao processar imagem do card.");
-        }
-        throw new Error(error.message || "Falha na geração.");
+        throw new Error("Falha na geração.");
     }
 }
 

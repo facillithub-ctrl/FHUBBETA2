@@ -37,7 +37,6 @@ export const useProfileShare = (profileName: string, avatarUrl?: string | null) 
                 throw new Error("Arquivo vazio");
             }
         } catch (error) {
-            console.error(error);
             addToast({ title: 'Erro', message: 'Tente novamente.', type: 'error' });
         } finally {
             setIsGenerating(false);

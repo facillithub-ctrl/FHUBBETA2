@@ -15,8 +15,8 @@ interface ShareProfileButtonProps {
 export default function ShareProfileButton({ profile, stats, className = "", variant = 'primary' }: ShareProfileButtonProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
-  // Estados de Personalização
-  const [theme, setTheme] = useState<CardTheme>('gradient');
+  // Opções de personalização
+  const [theme, setTheme] = useState<CardTheme>('light');
   const [showAvatar, setShowAvatar] = useState(true);
 
   const { 
@@ -70,15 +70,15 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     <>
       <div className="relative inline-block text-left" ref={menuRef}>
         
-        {/* --- CARD OCULTO --- */}
+        {/* --- CARD OCULTO (Renderizador) --- */}
         <div style={{ 
             position: 'fixed', 
             left: '200vw', 
             top: 0, 
             zIndex: -50,
-            width: '400px', 
-            minWidth: '400px',
-            height: '711px',
+            width: '540px', // Base maior para qualidade
+            minWidth: '540px',
+            height: '960px', // Proporção Stories (9:16)
             overflow: 'hidden'
         }}>
            {profile && (
@@ -99,102 +99,96 @@ export default function ShareProfileButton({ profile, stats, className = "", var
 
         {/* --- MENU DE OPÇÕES --- */}
         {isMenuOpen && (
-          <div className="absolute right-0 bottom-full mb-3 w-72 rounded-2xl shadow-2xl bg-white border border-gray-100 z-40 animate-fade-in-up origin-bottom-right p-3">
+          <div className="absolute right-0 bottom-full mb-3 w-72 rounded-2xl shadow-xl bg-white border border-gray-100 z-40 animate-fade-in-up origin-bottom-right p-4">
               
-              {/* Seletor de Tema */}
-              <div className="flex gap-2 mb-3 bg-gray-50 p-1 rounded-xl">
-                  {['gradient', 'light', 'dark'].map((t) => (
-                      <button
-                        key={t}
-                        onClick={() => setTheme(t as CardTheme)}
-                        className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                            theme === t 
-                            ? 'bg-white shadow text-brand-purple' 
-                            : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                      >
-                        {t === 'gradient' ? 'Modern' : t === 'light' ? 'Clean' : 'Dark'}
-                      </button>
-                  ))}
+              <div className="flex justify-between items-center mb-4">
+                  <span className="text-sm font-bold text-gray-800">Personalizar Card</span>
+                  <button onClick={() => setIsMenuOpen(false)} className="text-gray-400 hover:text-gray-600">
+                      <i className="fas fa-times"></i>
+                  </button>
               </div>
 
-              {/* Toggle Avatar */}
-              <div className="flex items-center justify-between px-2 mb-3">
-                  <span className="text-xs font-medium text-gray-600">Mostrar Avatar</span>
+              {/* Tema */}
+              <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => setTheme('light')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${theme === 'light' ? 'border-[#42047e] text-[#42047e] bg-purple-50' : 'border-gray-200 text-gray-500'}`}
+                  >
+                    Claro
+                  </button>
+                  <button
+                    onClick={() => setTheme('dark')}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${theme === 'dark' ? 'border-[#42047e] text-[#42047e] bg-purple-50' : 'border-gray-200 text-gray-500'}`}
+                  >
+                    Escuro
+                  </button>
+              </div>
+
+              {/* Avatar Toggle */}
+              <div className="flex items-center justify-between mb-4 bg-gray-50 p-2 rounded-lg">
+                  <span className="text-xs font-medium text-gray-600">Incluir Foto</span>
                   <button 
                     onClick={() => setShowAvatar(!showAvatar)}
-                    className={`w-10 h-5 rounded-full transition-colors relative ${showAvatar ? 'bg-brand-purple' : 'bg-gray-200'}`}
+                    className={`w-10 h-5 rounded-full transition-colors relative ${showAvatar ? 'bg-[#07f49e]' : 'bg-gray-300'}`}
                   >
-                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${showAvatar ? 'left-6' : 'left-1'}`}></div>
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-transform shadow-sm ${showAvatar ? 'left-6' : 'left-1'}`}></div>
                   </button>
               </div>
 
-              <hr className="border-gray-100 my-2" />
-
-              <div className="space-y-1">
-                  <button 
-                      onClick={() => {
-                          if (cardRef.current) handleGenerate(cardRef.current);
-                          setIsMenuOpen(false);
-                      }}
-                      disabled={isGenerating}
-                      className="w-full text-left px-3 py-3 rounded-xl text-sm font-bold text-white bg-brand-purple hover:bg-brand-purple/90 flex items-center justify-center gap-2 transition-all active:scale-95"
-                  >
-                      {isGenerating ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-image"></i>}
-                      <span>{isGenerating ? 'Criando...' : 'Gerar Imagem'}</span>
-                  </button>
-
-                  <button 
-                    onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/u/${profile.nickname}`);
-                        setIsMenuOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-2 transition-colors"
-                  >
-                      <i className="fas fa-link"></i>
-                      <span>Copiar Link</span>
-                  </button>
-              </div>
+              <button 
+                  onClick={() => {
+                      if (cardRef.current) handleGenerate(cardRef.current);
+                      setIsMenuOpen(false);
+                  }}
+                  disabled={isGenerating}
+                  className="w-full py-3 rounded-xl text-sm font-bold text-white bg-[#42047e] hover:opacity-90 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-purple-900/20"
+              >
+                  {isGenerating ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-magic"></i>}
+                  <span>{isGenerating ? 'Criando...' : 'Gerar Stories'}</span>
+              </button>
           </div>
         )}
       </div>
 
-      {/* --- PREVIEW MODAL MELHORADO --- */}
+      {/* --- PREVIEW MODAL (UX Melhorada) --- */}
       {previewUrl && (
-        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-fade-in">
-            <div className="w-full max-w-sm flex flex-col gap-6 animate-fade-in-up">
-                
-                <div className="flex justify-between items-center text-white/90 px-1">
-                    <h3 className="font-bold text-xl">Seu Card</h3>
-                    <button 
-                        onClick={clearPreview}
-                        className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white"
-                    >
-                        <i className="fas fa-times"></i>
-                    </button>
-                </div>
+        <div className="fixed inset-0 z-[9999] bg-[#0f0f11]/95 flex flex-col items-center justify-center p-4 animate-fade-in">
+            
+            {/* Header de Navegação */}
+            <div className="absolute top-6 right-6 z-50">
+                <button 
+                    onClick={clearPreview}
+                    className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all backdrop-blur-md"
+                >
+                    <i className="fas fa-times text-lg"></i>
+                </button>
+            </div>
 
-                {/* Container da Imagem com Sombra e Borda */}
-                <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/20">
+            <div className="w-full max-w-sm flex flex-col items-center gap-6 h-full justify-center">
+                
+                <h3 className="text-white font-bold text-lg opacity-90">Seu Card está pronto!</h3>
+
+                {/* Imagem (Sombra e Borda para destacar do fundo escuro) */}
+                <div className="relative rounded-[20px] overflow-hidden shadow-2xl border border-white/10 w-auto max-h-[70vh]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                         src={previewUrl} 
                         alt="Preview" 
-                        className="w-full h-auto object-contain block bg-white" 
+                        className="w-full h-full object-contain block bg-white" 
                     />
                 </div>
 
-                <div className="flex flex-col gap-3">
+                <div className="w-full flex flex-col gap-3">
                     <button
                         onClick={handleShare}
-                        className="w-full py-4 bg-white text-black hover:bg-gray-100 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-transform active:scale-95"
+                        className="w-full py-4 bg-[#07f49e] text-[#0f0f11] rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg hover:brightness-110 transition-transform active:scale-95"
                     >
                         <i className="fas fa-share-nodes"></i> 
-                        <span>Partilhar / Baixar</span>
+                        <span>Compartilhar / Salvar</span>
                     </button>
                     
                     <p className="text-white/40 text-xs text-center">
-                        Se o menu não abrir, segure na imagem para salvar.
+                        Se o compartilhamento nativo não abrir, <br/>segure na imagem para salvar na galeria.
                     </p>
                 </div>
             </div>
