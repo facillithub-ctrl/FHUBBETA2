@@ -1,63 +1,60 @@
 import { toBlob } from 'html-to-image';
 
-/**
- * Converte um elemento HTML em um arquivo de imagem pronto para compartilhamento.
- * Usa configurações otimizadas para Safari/iOS e evita erros de fonte.
- */
+// Utilitário para pré-carregar a imagem. 
+// Se falhar (CORS/Erro), retorna NULL para não quebrar o canvas.
+export async function preloadImage(url: string): Promise<string | null> {
+    if (!url) return null;
+    try {
+        const res = await fetch(url, { mode: 'cors', cache: 'no-cache' });
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const blob = await res.blob();
+        return URL.createObjectURL(blob);
+    } catch (e) {
+        console.warn("Avatar falhou no preload (será ignorado na geração):", e);
+        return null;
+    }
+}
+
 export async function generateImageBlob(element: HTMLElement, fileName: string): Promise<File | null> {
     if (!element) return null;
 
     try {
-        // 1. Forçar carregamento de fontes antes de renderizar
-        await document.fonts.ready;
+        // 1. Aguarda fontes (rápido)
+        try { await document.fonts.ready; } catch {}
         
-        // 2. Pequeno delay para garantir que estilos CSS foram aplicados
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // 2. Pequeno delay para layout
+        await new Promise(r => setTimeout(r, 100));
 
-        // 3. Conversão otimizada
+        // 3. Renderização ÚNICA e Otimizada
+        // skipAutoScale e pixelRatio reduzido ajudam no iOS
         const blob = await toBlob(element, {
             quality: 0.9,
-            pixelRatio: 1.5, // Equilíbrio entre qualidade e performance mobile
-            cacheBust: true, 
+            pixelRatio: 1.5, // 1.5 é seguro para iOS. 2.0+ costuma travar.
+            cacheBust: true,
             skipAutoScale: true,
             backgroundColor: '#ffffff',
-            
-            // --- CORREÇÃO DO ERRO ---
-            // Isso impede que a biblioteca tente baixar/parsear CSS externos quebrados.
-            // As fontes carregadas no navegador ainda aparecerão visualmente.
-            fontEmbedCSS: "", 
-            
-            // Filtro para ignorar elementos indesejados
-            filter: (node) => !node.classList?.contains('ignore-export')
+            fontEmbedCSS: "", // Previne crash de fontes
         });
 
-        if (!blob) throw new Error("Falha na geração do Blob");
+        if (!blob) throw new Error("Blob gerado veio vazio.");
 
-        // 4. Cria o objeto File real
         return new File([blob], `${fileName}.jpg`, { type: 'image/jpeg' });
-    } catch (error) {
-        console.error("Erro no exportAsImage:", error);
-        return null; 
+
+    } catch (error: any) {
+        // Log detalhado para mobile (usando stringify para ver objetos vazios)
+        const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
+        console.error("Erro na geração:", error);
+        throw new Error(errorMsg);
     }
 }
 
-/**
- * Tenta invocar o compartilhamento nativo do dispositivo.
- * Retorna TRUE se conseguiu abrir o menu, FALSE se não suportado.
- */
 export async function shareNativeFile(file: File, title: string, text: string): Promise<boolean> {
-    if (typeof navigator === 'undefined' || !navigator.share || !navigator.canShare) {
-        return false;
-    }
+    if (typeof navigator === 'undefined' || !navigator.share || !navigator.canShare) return false;
     
-    const shareData = {
-        files: [file],
-        title: title,
-        text: text
-    };
-
-    // Valida se o navegador aceita especificamente ESSE arquivo
+    const shareData = { files: [file], title, text };
+    
     if (navigator.canShare && !navigator.canShare(shareData)) {
+        console.warn("Navegador diz que não pode compartilhar este arquivo.");
         return false;
     }
 
@@ -65,8 +62,8 @@ export async function shareNativeFile(file: File, title: string, text: string): 
         await navigator.share(shareData);
         return true;
     } catch (err: any) {
-        if (err.name === 'AbortError') return true;
-        console.error("Erro ao chamar navigator.share:", err);
+        if (err.name === 'AbortError') return true; 
+        console.error("Erro no Share API:", err);
         return false;
     }
 }

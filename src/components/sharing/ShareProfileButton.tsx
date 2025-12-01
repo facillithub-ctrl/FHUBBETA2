@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { UserProfile } from '@/app/dashboard/types';
 import { ProfileShareCard, ShareCardStats } from './ProfileShareCard';
 import { useProfileShare } from '@/features/share'; 
@@ -15,16 +15,35 @@ interface ShareProfileButtonProps {
 export default function ShareProfileButton({ profile, stats, className = "", variant = 'primary' }: ShareProfileButtonProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
-  // Hook customizado com toda a lógica
   const { 
     isGenerating, 
     previewUrl, 
+    safeAvatarUrl,
+    prepareEnvironment,
     handleGenerate, 
     handleShare, 
     clearPreview 
- } = useProfileShare(profile.nickname || "");
+  } = useProfileShare(profile.nickname || "", profile.avatar_url);
 
   const cardRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Inicia o preparo do avatar assim que abre o menu
+  useEffect(() => {
+      if (isMenuOpen) {
+          prepareEnvironment();
+      }
+  }, [isMenuOpen, prepareEnvironment]);
 
   const onGenerateClick = () => {
       if (cardRef.current) {
@@ -56,34 +75,46 @@ export default function ShareProfileButton({ profile, stats, className = "", var
 
   return (
     <>
-      {/* 1. O Card Invisível (Fixo na tela, fora da visão, mas renderizável) */}
-      <div style={{ position: 'fixed', top: 0, left: 0, zIndex: -9999, opacity: 0, pointerEvents: 'none' }}>
-           {profile && <ProfileShareCard innerRef={cardRef} profile={profile} stats={stats} />}
-      </div>
+      <div className="relative inline-block text-left" ref={menuRef}>
+        
+        {/* --- CARD OCULTO --- */}
+        {/* MUDANÇA: left: 0 e z-index negativo. Isso garante que o elemento esteja "na tela" para o iOS renderizar, mas atrás de tudo. */}
+        <div style={{ position: 'fixed', top: 0, left: 0, zIndex: -9999, opacity: 0, pointerEvents: 'none' }}>
+           {profile && (
+               <ProfileShareCard 
+                   innerRef={cardRef} 
+                   profile={profile} 
+                   stats={stats} 
+                   // Se safeAvatarUrl for undefined (carregando), passamos null.
+                   // Se for null (erro), passamos null (placeholder).
+                   // Se for string (sucesso), passamos a string.
+                   avatarOverride={safeAvatarUrl ?? null} 
+                />
+            )}
+        </div>
 
-      <div className="relative inline-block text-left">
         {renderTriggerButton()}
 
-        {/* 2. Menu Dropdown */}
         {isMenuOpen && (
           <div className="absolute right-0 bottom-full mb-2 w-64 rounded-xl shadow-xl bg-white border border-gray-100 z-40 animate-fade-in-up origin-bottom-right">
               <div className="p-2 space-y-1">
                   <button 
                       onClick={onGenerateClick}
                       disabled={isGenerating}
-                      className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-brand-purple/5 hover:text-brand-purple flex items-center gap-3 transition-colors"
+                      className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-brand-purple/5 hover:text-brand-purple flex items-center gap-3 transition-colors disabled:opacity-50"
                   >
                       {isGenerating ? (
                           <i className="fas fa-spinner fa-spin w-5 text-center text-brand-purple"></i>
                       ) : (
                           <i className="fas fa-image w-5 text-center"></i>
                       )}
-                      <span>{isGenerating ? 'Criando Card...' : 'Gerar Imagem'}</span>
+                      <span>{isGenerating ? 'Gerando...' : 'Gerar Imagem'}</span>
                   </button>
-                  
+
                   <button 
                     onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/u/${profile.nickname}`);
+                        const url = `${window.location.origin}/u/${profile.nickname}`;
+                        navigator.clipboard.writeText(url);
                         setIsMenuOpen(false);
                     }}
                     className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-brand-purple/5 hover:text-brand-purple flex items-center gap-3 transition-colors"
@@ -96,14 +127,12 @@ export default function ShareProfileButton({ profile, stats, className = "", var
         )}
       </div>
 
-      {/* 3. O Modal de Preview (CRÍTICO: Fundo escuro e Botão de Ação) */}
+      {/* --- PREVIEW MODAL --- */}
       {previewUrl && (
         <div className="fixed inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-4 animate-fade-in backdrop-blur-sm">
             <div className="w-full max-w-sm flex flex-col gap-5">
-                
-                {/* Header do Modal */}
                 <div className="flex justify-between items-center text-white px-2">
-                    <h3 className="font-bold text-lg">Seu Card está pronto!</h3>
+                    <h3 className="font-bold text-lg">Card Gerado!</h3>
                     <button 
                         onClick={clearPreview}
                         className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white"
@@ -112,28 +141,24 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                     </button>
                 </div>
 
-                {/* A Imagem Gerada */}
                 <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                         src={previewUrl} 
-                        alt="Preview do Card" 
+                        alt="Preview" 
                         className="w-full h-auto object-contain block" 
                     />
                 </div>
 
-                {/* Ações */}
                 <div className="flex flex-col gap-3">
-                    {/* O clique aqui dispara o navigator.share instantaneamente */}
                     <button
                         onClick={handleShare}
                         className="w-full py-4 bg-brand-green hover:bg-green-500 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95"
                     >
-                        <i className="fas fa-share-nodes"></i> Compartilhar Agora
+                        <i className="fas fa-share-nodes"></i> Compartilhar
                     </button>
-                    
                     <p className="text-white/50 text-xs text-center px-4">
-                        Dica: Se preferir, segure na imagem acima para salvar na galeria do seu celular.
+                        Se falhar, segure na imagem para salvar.
                     </p>
                 </div>
             </div>

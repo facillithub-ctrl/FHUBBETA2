@@ -14,6 +14,7 @@ interface ProfileShareCardProps {
     profile: UserProfile;
     stats: ShareCardStats;
     innerRef: RefObject<HTMLDivElement>;
+    avatarOverride?: string | null; // <--- NOVA PROP ADICIONADA
 }
 
 // Ícone SVG de CHECK (Para Blue e Green)
@@ -30,7 +31,7 @@ const StarBadgeSVG = ({ color }: { color: string }) => (
     </svg>
 );
 
-export const ProfileShareCard = ({ profile, stats, innerRef }: ProfileShareCardProps) => {
+export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride }: ProfileShareCardProps) => {
     // URL para o QR Code
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://facillithub.com';
     const profileUrl = `${baseUrl}/u/${profile.nickname}`;
@@ -39,19 +40,16 @@ export const ProfileShareCard = ({ profile, stats, innerRef }: ProfileShareCardP
     const renderBadge = () => {
         const badge = profile.verification_badge;
         
-        // Verifica o tipo de badge e retorna o SVG correto
         if (badge === 'green') {
-            return <CheckBadgeSVG color="#22c55e" />; // text-green-500
+            return <CheckBadgeSVG color="#22c55e" />; 
         }
         if (badge === 'blue') {
-            return <CheckBadgeSVG color="#3b82f6" />; // text-blue-500
+            return <CheckBadgeSVG color="#3b82f6" />; 
         }
         if (badge === 'red') {
-            return <StarBadgeSVG color="#ef4444" />; // text-red-500
+            return <StarBadgeSVG color="#ef4444" />; 
         }
         
-        // CORREÇÃO: Removemos '|| badge === true' para evitar o erro de Type mismatch.
-        // Se o valor for a string 'true', assumimos azul (padrão legado).
         if (badge === 'true') {
             return <CheckBadgeSVG color="#3b82f6" />;
         }
@@ -83,9 +81,9 @@ export const ProfileShareCard = ({ profile, stats, innerRef }: ProfileShareCardP
             <div className="relative mb-6 z-10">
                 <div className="absolute -inset-[4px] rounded-full bg-gradient-to-tr from-brand-purple to-brand-green"></div>
                 <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden shadow-sm relative z-10 bg-white">
-                     {profile.avatar_url ? (
+                     {(avatarOverride || profile.avatar_url) ? (
                         <img
-                            src={profile.avatar_url || ""}
+                            src={avatarOverride || profile.avatar_url || ""}
                             alt={profile.nickname || "Avatar"}
                             className="w-full h-full object-cover"
                             crossOrigin="anonymous"
@@ -108,7 +106,6 @@ export const ProfileShareCard = ({ profile, stats, innerRef }: ProfileShareCardP
                         {profile.full_name}
                     </h1>
                     
-                    {/* Renderiza o SVG correto (Check ou Star) com a cor certa */}
                     <div className="flex items-center">
                         {renderBadge()}
                     </div>

@@ -1,57 +1,83 @@
 import { useState, useCallback } from 'react';
-import { generateImageBlob, shareNativeFile } from '@/utils/exportAsImage';
+import { generateImageBlob, shareNativeFile, preloadImage } from '@/utils/exportAsImage';
 import { useToast } from '@/contexts/ToastContext';
 
-export const useProfileShare = (profileName: string) => {
+export const useProfileShare = (profileName: string, avatarUrl?: string | null) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [previewFile, setPreviewFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    
+    // Avatar Seguro: Começa undefined.
+    const [safeAvatarUrl, setSafeAvatarUrl] = useState<string | null | undefined>(undefined);
     const { addToast } = useToast();
 
-    // Passo 1: Gerar a imagem e mostrar o preview
+    // ETAPA 1: Preparação Segura
+    const prepareEnvironment = useCallback(async () => {
+        if (!avatarUrl) {
+            setSafeAvatarUrl(null);
+            return;
+        }
+        
+        // Evita rodar duas vezes
+        if (safeAvatarUrl !== undefined) return;
+
+        try {
+            const localUrl = await preloadImage(avatarUrl);
+            // Se localUrl for null (erro CORS), setamos null para usar o Placeholder.
+            // Isso garante que o html-to-image NUNCA trave por rede.
+            setSafeAvatarUrl(localUrl);
+        } catch (e) {
+            setSafeAvatarUrl(null); 
+        }
+    }, [avatarUrl, safeAvatarUrl]);
+
+    // ETAPA 2: Geração com Tratamento de Erro
     const handleGenerate = useCallback(async (elementRef: HTMLElement | null) => {
         if (!elementRef) return;
 
         setIsGenerating(true);
+        // Limpa preview anterior para forçar reload visual
+        setPreviewUrl(null); 
+
         try {
-            const file = await generateImageBlob(elementRef, `facillit-${profileName}`);
+            // Timeout manual de 8s para não ficar carregando infinitamente
+            const timeoutPromise = new Promise<null>((_, reject) => 
+                setTimeout(() => reject(new Error("O tempo limite excedeu (8s).")), 8000)
+            );
+
+            const filePromise = generateImageBlob(elementRef, `facillit-${profileName}`);
+            
+            const file = await Promise.race([filePromise, timeoutPromise]);
             
             if (file) {
                 setPreviewFile(file);
-                // Cria URL temporária para mostrar no modal
                 setPreviewUrl(URL.createObjectURL(file)); 
             }
-        } catch (error) {
-            addToast({ 
-                title: 'Erro ao criar imagem', 
-                message: 'Tente novamente.', 
-                type: 'error' 
-            });
+        } catch (error: any) {
+            console.error("Falha HandleGenerate:", error);
+            const msg = error.message?.includes("tempo limite") 
+                ? "Demorou muito. Tente novamente." 
+                : "Erro ao criar imagem. Tente de novo.";
+            addToast({ title: 'Erro', message: msg, type: 'error' });
         } finally {
             setIsGenerating(false);
         }
     }, [profileName, addToast]);
 
-    // Passo 2: Compartilhar o arquivo JÁ gerado
+    // ETAPA 3: Compartilhar
     const handleShare = useCallback(async () => {
         if (!previewFile) return;
+        
+        const success = await shareNativeFile(
+            previewFile, 
+            'Meu Perfil Facillit', 
+            `Confira meu perfil: ${window.location.origin}/u/${profileName}`
+        );
 
-        try {
-            const shared = await shareNativeFile(
-                previewFile, 
-                'Meu Perfil Facillit', 
-                `Confira meu perfil: ${window.location.origin}/u/${profileName}`
-            );
-
-            if (shared) {
-                addToast({ title: 'Sucesso', message: 'Compartilhado!', type: 'success' });
-            } else {
-                // Fallback se navigator.share falhar
-                addToast({ title: 'Atenção', message: 'Salve a imagem manualmente.', type: 'info' });
-            }
-        } catch (error) {
-            console.error(error);
-            // Não mostramos erro aqui pois o fallback visual (modal) já serve para isso
+        if (success) {
+            addToast({ title: 'Sucesso', message: 'Compartilhamento iniciado.', type: 'success' });
+        } else {
+            addToast({ title: 'Info', message: 'Salve a imagem manualmente.', type: 'info' });
         }
     }, [previewFile, profileName, addToast]);
 
@@ -63,9 +89,11 @@ export const useProfileShare = (profileName: string) => {
 
     return {
         isGenerating,
-        previewUrl,   // Se existir, mostre o Modal
+        previewUrl,
+        safeAvatarUrl, 
+        prepareEnvironment,
         handleGenerate,
-        handleShare,  // Ligue isso no botão "Enviar" do Modal
+        handleShare,
         clearPreview
     };
 };
