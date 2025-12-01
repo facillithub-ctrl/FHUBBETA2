@@ -1,12 +1,26 @@
 import { toPng } from 'html-to-image';
 
+// Proxy gratuito de alta performance que adiciona CORS headers automaticamente
+// Isso resolve o problema do Supabase/Safari sem configuração no servidor.
+const CORS_PROXY = "https://wsrv.nl/?url=";
+
 export async function preloadImage(url: string): Promise<string | null> {
     if (!url) return null;
     
     return new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = 'anonymous'; 
-        img.src = url;
+        
+        // LÓGICA MÁGICA:
+        // Se for uma URL remota (não data: ou /assets), passamos pelo proxy.
+        // Adicionamos &output=png para garantir compatibilidade.
+        let safeUrl = url;
+        if (url.startsWith('http')) {
+            // EncodeURIComponent é vital para URLs com caracteres especiais
+            safeUrl = `${CORS_PROXY}${encodeURIComponent(url)}&output=png`;
+        }
+        
+        img.src = safeUrl;
         
         img.onload = () => {
             const canvas = document.createElement('canvas');
@@ -19,7 +33,7 @@ export async function preloadImage(url: string): Promise<string | null> {
                     const dataURL = canvas.toDataURL('image/png');
                     resolve(dataURL);
                 } catch (e) {
-                    console.warn("CORS bloqueou conversão Base64:", e);
+                    console.warn("CORS ainda bloqueou (improvável com proxy):", e);
                     resolve(null);
                 }
             } else {
@@ -28,8 +42,24 @@ export async function preloadImage(url: string): Promise<string | null> {
         };
 
         img.onerror = () => {
-            console.warn("Falha ao carregar imagem:", url);
-            resolve(null);
+            // Se o proxy falhar, tentamos a URL original como última esperança
+            if (url.startsWith('http') && safeUrl.includes('wsrv.nl')) {
+                console.warn("Proxy falhou, tentando direto...");
+                // Recursão simples para tentar sem proxy
+                const rawImg = new Image();
+                rawImg.crossOrigin = 'anonymous';
+                rawImg.src = url;
+                rawImg.onload = function() {
+                     // Lógica de canvas repetida simplificada
+                     const c = document.createElement('canvas');
+                     c.width = rawImg.width; c.height = rawImg.height;
+                     c.getContext('2d')?.drawImage(rawImg,0,0);
+                     try { resolve(c.toDataURL('image/png')); } catch { resolve(null); }
+                };
+                rawImg.onerror = () => resolve(null);
+            } else {
+                resolve(null);
+            }
         };
     });
 }
@@ -52,7 +82,9 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
     try {
         await document.fonts.ready;
         await waitForImages(element);
-        await new Promise(r => setTimeout(r, 300));
+        
+        // Delay para o Safari (iOS)
+        await new Promise(r => setTimeout(r, 500));
 
         const dataUrl = await toPng(element, {
             quality: 1.0,
@@ -76,9 +108,9 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
     } catch (error: any) {
         console.error("Erro no html-to-image:", error);
         if (error?.type === 'error') {
-             throw new Error("Bloqueio de segurança (CORS) em imagem.");
+             throw new Error("Erro de imagem. O Proxy tentou ajudar mas falhou.");
         }
-        throw new Error(error.message || "Falha ao gerar.");
+        throw new Error(error.message || "Falha ao gerar imagem.");
     }
 }
 

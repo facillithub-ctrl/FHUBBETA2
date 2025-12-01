@@ -67,7 +67,6 @@ export default function ShareProfileButton({ profile, stats, className = "", var
       <div className="relative inline-block text-left" ref={menuRef}>
         
         {/* --- CARD OCULTO (MODO EXPORTAÇÃO) --- */}
-        {/* Usamos left: 200vw para garantir que ele seja renderizado fora da tela com dimensões FIXAS */}
         <div style={{ 
             position: 'fixed', 
             left: '200vw', 
@@ -85,7 +84,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                    stats={stats} 
                    avatarOverride={safeAvatarUrl ?? null}
                    logoOverride={safeLogoUrl ?? null} 
-                   isExporting={true} // Ativa o modo de exportação limpo
+                   isExporting={true} 
                 />
             )}
         </div>
