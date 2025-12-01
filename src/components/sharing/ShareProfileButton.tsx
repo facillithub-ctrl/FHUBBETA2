@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { UserProfile } from '@/app/dashboard/types';
-import { ProfileShareCard, ShareCardStats, CardTheme } from './ProfileShareCard';
+import { ProfileShareCard, ShareCardStats } from './ProfileShareCard';
 import { useProfileShare } from '@/features/share'; 
 
 interface ShareProfileButtonProps {
@@ -14,7 +14,6 @@ interface ShareProfileButtonProps {
 
 export default function ShareProfileButton({ profile, stats, className = "", variant = 'primary' }: ShareProfileButtonProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [theme, setTheme] = useState<CardTheme>('light');
   const [showAvatar, setShowAvatar] = useState(true);
 
   const { 
@@ -68,7 +67,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     <>
       <div className="relative inline-block text-left" ref={menuRef}>
         
-        {/* RENDERIZADOR OFF-SCREEN (540x960 base para Full HD) */}
+        {/* RENDERIZADOR (Fora da tela) */}
         <div style={{ 
             position: 'fixed', 
             left: '200vw', 
@@ -87,7 +86,6 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                    avatarOverride={safeAvatarUrl ?? null}
                    logoOverride={safeLogoUrl ?? null} 
                    isExporting={true}
-                   theme={theme}
                    showAvatar={showAvatar}
                 />
             )}
@@ -95,37 +93,20 @@ export default function ShareProfileButton({ profile, stats, className = "", var
 
         {renderTriggerButton()}
 
+        {/* MENU SIMPLIFICADO */}
         {isMenuOpen && (
-          <div className="absolute right-0 bottom-full mb-3 w-80 rounded-2xl shadow-2xl bg-white border border-gray-100 z-40 animate-fade-in-up origin-bottom-right p-4">
+          <div className="absolute right-0 bottom-full mb-3 w-72 rounded-2xl shadow-xl bg-white border border-gray-100 z-40 animate-fade-in-up origin-bottom-right p-4">
               
               <div className="flex justify-between items-center mb-4">
                   <span className="text-sm font-bold text-gray-800">Criar Story</span>
-                  <button onClick={() => setIsMenuOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500">
+                  <button onClick={() => setIsMenuOpen(false)} className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-50 hover:bg-gray-100 text-gray-400">
                       <i className="fas fa-times text-xs"></i>
                   </button>
               </div>
 
-              {/* Seletor de Estilo */}
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                  <button
-                    onClick={() => setTheme('light')}
-                    className={`py-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${theme === 'light' ? 'border-[#42047e] text-[#42047e] bg-purple-50' : 'border-gray-100 bg-gray-50 text-gray-500'}`}
-                  >
-                    <div className="w-3 h-3 rounded-full border border-gray-300 bg-white"></div>
-                    Claro
-                  </button>
-                  <button
-                    onClick={() => setTheme('dark')}
-                    className={`py-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${theme === 'dark' ? 'border-[#42047e] text-[#42047e] bg-purple-50' : 'border-gray-100 bg-gray-900 text-white'}`}
-                  >
-                    <div className="w-3 h-3 rounded-full border border-gray-600 bg-gray-800"></div>
-                    Escuro
-                  </button>
-              </div>
-
-              {/* Avatar Toggle */}
+              {/* Toggle Avatar */}
               <div className="flex items-center justify-between mb-5 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <span className="text-xs font-bold text-gray-700">Exibir Foto de Perfil</span>
+                  <span className="text-xs font-bold text-gray-700">Mostrar Foto</span>
                   <button 
                     onClick={() => setShowAvatar(!showAvatar)}
                     className={`w-11 h-6 rounded-full transition-colors relative ${showAvatar ? 'bg-[#07f49e]' : 'bg-gray-300'}`}
@@ -140,61 +121,67 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                       setIsMenuOpen(false);
                   }}
                   disabled={isGenerating}
-                  className="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-[#42047e] hover:opacity-90 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-purple-900/20"
+                  className="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-[#42047e] hover:opacity-90 flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-purple-900/20 disabled:opacity-70"
               >
-                  {isGenerating ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-arrow-down"></i>}
-                  <span>{isGenerating ? 'Gerando...' : 'Baixar / Compartilhar'}</span>
+                  {isGenerating ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-magic"></i>}
+                  <span>{isGenerating ? 'A criar...' : 'Gerar Story'}</span>
               </button>
           </div>
         )}
       </div>
 
-      {/* --- POPUP DE VISUALIZAÇÃO (Desktop & Mobile Otimizado) --- */}
+      {/* POPUP DE VISUALIZAÇÃO */}
       {previewUrl && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 animate-fade-in">
-            <div className="w-full h-full max-w-4xl flex flex-col md:flex-row items-center justify-center gap-8 relative">
-                
-                {/* Botão Fechar Flutuante */}
-                <button 
-                    onClick={clearPreview}
-                    className="absolute top-0 right-0 md:-top-8 md:-right-8 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full text-white flex items-center justify-center transition-all backdrop-blur-md z-50"
-                >
-                    <i className="fas fa-times text-lg"></i>
-                </button>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-fade-in bg-[#1a1a1c]/95 backdrop-blur-sm">
+            
+            {/* Botão Voltar */}
+            <button 
+                onClick={clearPreview}
+                className="absolute top-6 right-6 flex items-center gap-2 text-white/70 hover:text-white transition-colors bg-white/10 px-4 py-2 rounded-full backdrop-blur-md z-50 font-medium text-sm"
+            >
+                <i className="fas fa-arrow-left"></i>
+                <span>Voltar</span>
+            </button>
 
-                {/* Área da Imagem */}
-                <div className="relative h-full max-h-[80vh] w-auto aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-[#0f0f11]">
+            <div className="w-full max-w-5xl h-full flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16">
+                
+                {/* IMAGEM PREVIEW */}
+                <div className="relative h-[65vh] md:h-[85vh] w-auto aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl border border-white/5 bg-[#0f0f11] flex-shrink-0 mt-8 md:mt-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                         src={previewUrl} 
-                        alt="Stories Preview" 
-                        className="w-full h-full object-contain" 
+                        alt="Story Preview" 
+                        className="w-full h-full object-contain block" 
                     />
                 </div>
 
-                {/* Painel de Ações */}
-                <div className="flex flex-col gap-4 w-full max-w-xs text-center md:text-left">
+                {/* AÇÕES */}
+                <div className="flex flex-col items-center md:items-start gap-5 w-full max-w-xs animate-slide-up text-center md:text-left">
                     <div>
-                        <h3 className="text-2xl font-bold text-white mb-2">Pronto!</h3>
-                        <p className="text-gray-400 text-sm">A imagem está pronta para ser partilhada nos seus Stories.</p>
+                        <h2 className="text-3xl font-bold text-white mb-2">Pronto! ✨</h2>
+                        <p className="text-gray-400 text-sm leading-relaxed">
+                            O card foi gerado com qualidade máxima.
+                        </p>
                     </div>
 
-                    <button
-                        onClick={handleShare}
-                        className="w-full py-4 bg-[#07f49e] hover:bg-[#06d68a] text-[#0f0f11] rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 transition-all active:scale-95"
-                    >
-                        <i className="fas fa-share-alt"></i> 
-                        <span>Partilhar Agora</span>
-                    </button>
+                    <div className="flex flex-col w-full gap-3">
+                        <button
+                            onClick={handleShare}
+                            className="w-full py-4 bg-[#07f49e] hover:bg-[#05dcb6] text-[#0f0f11] rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(7,244,158,0.2)] transition-all active:scale-95"
+                        >
+                            <i className="fas fa-share-nodes"></i> 
+                            <span>Partilhar</span>
+                        </button>
 
-                    <a 
-                        href={previewUrl}
-                        download={`facillit-stories-${profile.nickname}.png`}
-                        className="w-full py-4 bg-white/10 hover:bg-white/15 text-white rounded-xl font-bold text-base flex items-center justify-center gap-2 border border-white/5 transition-all"
-                    >
-                        <i className="fas fa-download"></i>
-                        <span>Salvar na Galeria</span>
-                    </a>
+                        <a 
+                            href={previewUrl}
+                            download={`facillit-${profile.nickname}.png`}
+                            className="w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-2 border border-white/10 transition-all"
+                        >
+                            <i className="fas fa-download"></i>
+                            <span>Salvar na Galeria</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

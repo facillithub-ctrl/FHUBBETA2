@@ -5,30 +5,33 @@ const CORS_PROXY = "https://wsrv.nl/?url=";
 export async function preloadImage(url: string): Promise<string | null> {
     if (!url) return null;
 
-    try {
-        let fetchUrl = url;
-        // Redimensiona para 400px (suficiente para o avatar no card, economiza RAM)
-        if (url.startsWith('http') && !url.includes('wsrv.nl')) {
-             fetchUrl = `${CORS_PROXY}${encodeURIComponent(url)}&w=400&h=400&output=png`;
+    const tryFetch = async (targetUrl: string): Promise<string | null> => {
+        try {
+            const response = await fetch(targetUrl, { mode: 'cors', cache: 'no-cache' });
+            if (!response.ok) throw new Error('Fetch failed');
+            const blob = await response.blob();
+            
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64 = reader.result as string;
+                    resolve(base64 && base64.length > 100 ? base64 : null);
+                };
+                reader.onerror = () => resolve(null);
+                reader.readAsDataURL(blob);
+            });
+        } catch (e) {
+            return null;
         }
+    };
 
-        const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
-        if (!response.ok) throw new Error('Falha no proxy');
-        const blob = await response.blob();
-
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const base64 = reader.result as string;
-                if (base64 && base64.length > 100) resolve(base64);
-                else resolve(null);
-            };
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(blob);
-        });
-    } catch (e) {
-        return null;
+    if (url.startsWith('http') && !url.includes('wsrv.nl')) {
+        const proxyUrl = `${CORS_PROXY}${encodeURIComponent(url)}&w=400&h=400&output=png`;
+        const result = await tryFetch(proxyUrl);
+        if (result) return result;
     }
+
+    return await tryFetch(url);
 }
 
 async function waitForImages(element: HTMLElement): Promise<void> {
@@ -49,18 +52,16 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
     try {
         await document.fonts.ready;
         await waitForImages(element);
-        // Delay para garantir que o renderizador processe o gradiente CSS
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 400));
 
         const dataUrl = await toPng(element, {
             quality: 1.0,
-            pixelRatio: 3, // ALTA RESOLUÇÃO (Para nitidez máxima no mobile)
+            pixelRatio: 3, // Ultra Sharp
             cacheBust: true,
             skipAutoScale: true,
-            backgroundColor: '#ffffff', // Garante fundo sólido, previne "cinzas"
+            backgroundColor: '#ffffff', // Branco Sólido = Zero Manchas
             fontEmbedCSS: "", 
             style: {
-                // Força o elemento a se comportar bem durante a captura
                 transform: 'scale(1)',
                 transformOrigin: 'top left'
             },
@@ -77,7 +78,7 @@ export async function generateImageBlob(element: HTMLElement, fileName: string):
         return new File([blob], `${fileName}.png`, { type: 'image/png' });
 
     } catch (error: any) {
-        console.error("Erro html-to-image:", error);
+        console.error("Erro renderização:", error);
         throw new Error("Falha na geração.");
     }
 }

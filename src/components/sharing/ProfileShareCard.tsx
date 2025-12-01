@@ -10,8 +10,6 @@ export interface ShareCardStats {
     following: number;
 }
 
-export type CardTheme = 'light' | 'dark';
-
 interface ProfileShareCardProps {
     profile: UserProfile;
     stats: ShareCardStats;
@@ -19,7 +17,6 @@ interface ProfileShareCardProps {
     avatarOverride?: string | null;
     logoOverride?: string | null;
     isExporting?: boolean;
-    theme?: CardTheme;
     showAvatar?: boolean;
 }
 
@@ -27,8 +24,6 @@ const BRAND = {
     purple: '#42047e',
     green: '#07f49e',
     dark: '#0f0f11',
-    light: '#ffffff',
-    gray: '#f3f4f6',
     gradient: 'linear-gradient(135deg, #42047e 0%, #07f49e 100%)'
 };
 
@@ -48,7 +43,6 @@ export const ProfileShareCard = ({
     avatarOverride, 
     logoOverride, 
     isExporting = false,
-    theme = 'light',
     showAvatar = true
 }: ProfileShareCardProps) => {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://facillithub.com';
@@ -57,62 +51,49 @@ export const ProfileShareCard = ({
     const safeAvatar = avatarOverride || (isExporting ? null : profile.avatar_url);
     const safeLogo = logoOverride || (isExporting ? null : "/assets/images/accont.svg");
 
-    const isDark = theme === 'dark';
-
-    // FUNDO LIMPO: Sem divs extras, apenas CSS puro para evitar artefactos
-    const backgroundStyle = isDark 
-        ? {
-            backgroundColor: BRAND.dark,
-            backgroundImage: `
-                radial-gradient(circle at 100% 0%, rgba(7, 244, 158, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 0% 100%, rgba(66, 4, 126, 0.15) 0%, transparent 40%)
-            `
-          }
-        : {
-            backgroundColor: BRAND.light,
-            backgroundImage: `
-                radial-gradient(circle at 100% 0%, rgba(7, 244, 158, 0.1) 0%, transparent 45%),
-                radial-gradient(circle at 0% 100%, rgba(66, 4, 126, 0.08) 0%, transparent 45%)
-            `
-          };
-
     return (
         <div
             ref={innerRef}
-            // Tamanho Base: 540x960. Com pixelRatio 3 = 1620x2880 (Ultra HD)
-            className="w-[540px] h-[960px] flex flex-col items-center relative overflow-hidden font-sans box-border"
-            style={backgroundStyle}
+            // Base: 540x960 (9:16). Fundo Branco Puro para nitidez máxima.
+            className="w-[540px] h-[960px] flex flex-col items-center relative overflow-hidden font-sans box-border bg-white"
         >
+            {/* DECORAÇÃO DE FUNDO (Clean & Sharp) */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                {/* Formas vetoriais simples - Sem Blur complexo */}
+                <svg className="absolute top-0 right-0 w-[400px] h-[400px] opacity-[0.03]" viewBox="0 0 100 100">
+                    <circle cx="100" cy="0" r="80" fill={BRAND.green} />
+                </svg>
+                <svg className="absolute bottom-0 left-0 w-[500px] h-[500px] opacity-[0.04]" viewBox="0 0 100 100">
+                    <circle cx="0" cy="100" r="80" fill={BRAND.purple} />
+                </svg>
+            </div>
+
             {/* CONTEÚDO */}
             <div className="relative z-10 flex flex-col items-center w-full h-full pt-20 pb-16 px-10">
                 
                 {/* 1. HEADER LOGO */}
-                <div className="w-full flex justify-center mb-10">
+                <div className="w-full flex justify-center mb-12">
                     {safeLogo ? (
                         <img 
                             src={safeLogo} 
                             alt="Facillit" 
-                            className="h-14 object-contain"
-                            // No dark mode, invertemos a cor para branco se for SVG preto
-                            style={{ filter: isDark ? 'brightness(0) invert(1)' : 'none' }}
+                            className="h-16 object-contain"
                             {...(!safeLogo.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
                         />
                     ) : (
-                        <span className="text-3xl font-bold tracking-widest opacity-80" style={{ color: isDark ? '#fff' : BRAND.purple }}>
+                        <span className="text-3xl font-bold tracking-widest text-[#42047e] opacity-90">
                             FACILLIT
                         </span>
                     )}
                 </div>
 
-                {/* 2. AVATAR (Sem sombras difusas, apenas borda nítida) */}
+                {/* 2. AVATAR (Super Nítido) */}
                 {showAvatar && (
-                    <div className="relative mb-8">
-                        {/* Borda Externa (Gradiente) */}
-                        <div className="p-[5px] rounded-full" style={{ background: BRAND.gradient }}>
-                            {/* Borda Interna (Sólida) */}
-                            <div className="rounded-full border-[5px]" 
-                                 style={{ borderColor: isDark ? BRAND.dark : '#fff', backgroundColor: isDark ? BRAND.dark : '#fff' }}>
-                                <div className="w-52 h-52 rounded-full overflow-hidden relative bg-gray-100">
+                    <div className="relative mb-10">
+                        {/* Anel de Gradiente Sólido (Sem box-shadow difuso) */}
+                        <div className="p-[4px] rounded-full" style={{ background: BRAND.gradient }}>
+                            <div className="rounded-full border-[6px] border-white bg-white">
+                                <div className="w-56 h-56 rounded-full overflow-hidden relative bg-gray-50 border border-gray-100">
                                     {safeAvatar ? (
                                         <img
                                             src={safeAvatar}
@@ -135,9 +116,8 @@ export const ProfileShareCard = ({
 
                 {/* 3. NOME */}
                 <div className="text-center w-full mb-12">
-                    <div className="flex items-center justify-center gap-3 mb-3">
-                        <h1 className="text-[3rem] font-[900] tracking-tight leading-none"
-                            style={{ color: isDark ? '#fff' : BRAND.dark }}>
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                        <h1 className="text-[3.2rem] font-[800] tracking-tight leading-none text-[#0f0f11]">
                             {profile.full_name}
                         </h1>
                         {profile.verification_badge && profile.verification_badge !== 'none' && (
@@ -145,69 +125,56 @@ export const ProfileShareCard = ({
                         )}
                     </div>
                     
-                    {/* Username Pill - Sem blur, cor sólida com transparência alpha */}
-                    <div className="inline-block px-6 py-2 rounded-full" 
-                         style={{ 
-                             backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(66, 4, 126, 0.05)',
-                             border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'transparent'}`
-                         }}>
-                        <p className="text-2xl font-bold" 
-                           style={{ color: isDark ? '#fff' : BRAND.purple }}>
+                    <div className="inline-block">
+                        <p className="text-2xl font-bold bg-clip-text text-transparent" 
+                           style={{ backgroundImage: BRAND.gradient }}>
                             @{profile.nickname}
                         </p>
                     </div>
                 </div>
 
-                {/* 4. MÉTRICAS (Design Limpo - Sem Sombras) */}
-                <div className="flex items-center justify-center gap-6 w-full mb-auto">
-                    <div className="flex-1 rounded-3xl p-6 flex flex-col items-center"
-                         style={{ 
-                             backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f8f9fa', 
-                             border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#e5e7eb'}`
-                         }}>
-                        <span className="text-4xl font-[900] leading-none mb-2" style={{ color: isDark ? '#fff' : BRAND.dark }}>
+                {/* 4. MÉTRICAS (Card Sólido) */}
+                <div className="flex items-center justify-center gap-6 w-full mb-auto px-4">
+                    <div className="flex-1 rounded-2xl p-6 flex flex-col items-center bg-[#f8f9fa] border border-[#e5e7eb]">
+                        <span className="text-4xl font-[900] leading-none mb-2 text-[#0f0f11]">
                             {stats.followers}
                         </span>
-                        <span className="text-sm font-bold uppercase tracking-widest opacity-60" style={{ color: isDark ? '#fff' : BRAND.dark }}>
+                        <span className="text-sm font-bold uppercase tracking-widest text-[#6b7280]">
                             Seguidores
                         </span>
                     </div>
                     
-                    <div className="flex-1 rounded-3xl p-6 flex flex-col items-center"
-                         style={{ 
-                             backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#f8f9fa', 
-                             border: `1px solid ${isDark ? 'rgba(255,255,255,0.05)' : '#e5e7eb'}`
-                         }}>
-                        <span className="text-4xl font-[900] leading-none mb-2" style={{ color: isDark ? '#fff' : BRAND.dark }}>
+                    <div className="flex-1 rounded-2xl p-6 flex flex-col items-center bg-[#f8f9fa] border border-[#e5e7eb]">
+                        <span className="text-4xl font-[900] leading-none mb-2 text-[#0f0f11]">
                             {stats.following}
                         </span>
-                        <span className="text-sm font-bold uppercase tracking-widest opacity-60" style={{ color: isDark ? '#fff' : BRAND.dark }}>
+                        <span className="text-sm font-bold uppercase tracking-widest text-[#6b7280]">
                             Seguindo
                         </span>
                     </div>
                 </div>
 
-                {/* 5. QR CODE FOOTER */}
-                <div className="w-full mt-10 relative rounded-[36px] overflow-hidden border border-gray-100/10">
-                    <div className="h-3 w-full" style={{ background: BRAND.gradient }}></div>
-                    
-                    <div className="py-10 px-8 flex flex-row items-center justify-between"
-                         style={{ backgroundColor: isDark ? '#151517' : 'white' }}>
-                        
+                {/* 5. FOOTER (Link Visual) */}
+                <div className="w-full mt-10 mb-4 rounded-[28px] overflow-hidden border border-[#f3f4f6] shadow-[0_4px_20px_rgba(0,0,0,0.03)] bg-white relative">
+                    {/* Barra Lateral */}
+                    <div className="absolute left-0 top-0 bottom-0 w-2" style={{ background: BRAND.gradient }}></div>
+
+                    <div className="py-8 px-8 pl-10 flex flex-row items-center justify-between">
                         <div className="flex flex-col items-start gap-1">
-                            <span className="text-xs font-bold uppercase tracking-[0.25em]" style={{ color: BRAND.green }}>
-                                CONECTAR
+                            <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#42047e]">
+                                PERFIL OFICIAL
                             </span>
-                            <span className="text-2xl font-bold leading-tight" style={{ color: isDark ? '#fff' : BRAND.dark }}>
-                                Escaneie<br/>o perfil
+                            <span className="text-xl font-bold text-[#0f0f11]">
+                                facillithub.com
                             </span>
                         </div>
-
-                        <div className="p-3 rounded-2xl bg-white border border-gray-100">
-                            <QRCodeSVG 
+                        
+                        {/* Ícone QR Simples e Nítido */}
+                        <div className="p-1 bg-white border border-gray-100 rounded-lg">
+                             <QRCodeSVG 
                                 value={profileUrl} 
-                                size={110}
-                                fgColor={BRAND.dark} 
+                                size={70}
+                                fgColor="#000000" 
                                 bgColor="#ffffff"
                                 level={"M"}
                             />
