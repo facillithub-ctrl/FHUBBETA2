@@ -29,28 +29,17 @@ export default function ShareProfileButton({ profile, stats, className = "", var
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    const handleClick = (e: MouseEvent) => {
+        if (menuRef.current && !menuRef.current.contains(e.target as Node)) setIsMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Inicia o preparo do avatar assim que abre o menu
+  // Preload ao abrir
   useEffect(() => {
-      if (isMenuOpen) {
-          prepareEnvironment();
-      }
+      if (isMenuOpen) prepareEnvironment();
   }, [isMenuOpen, prepareEnvironment]);
-
-  const onGenerateClick = () => {
-      if (cardRef.current) {
-          handleGenerate(cardRef.current);
-          setIsMenuOpen(false);
-      }
-  };
 
   const renderTriggerButton = () => {
     if (variant === 'icon') {
@@ -77,18 +66,16 @@ export default function ShareProfileButton({ profile, stats, className = "", var
     <>
       <div className="relative inline-block text-left" ref={menuRef}>
         
-        {/* --- CARD OCULTO --- */}
-        {/* MUDANÇA: left: 0 e z-index negativo. Isso garante que o elemento esteja "na tela" para o iOS renderizar, mas atrás de tudo. */}
-        <div style={{ position: 'fixed', top: 0, left: 0, zIndex: -9999, opacity: 0, pointerEvents: 'none' }}>
+        {/* --- CARD OCULTO (Renderização Off-Screen) --- */}
+        {/* left: 200vw garante que está fora da tela, mas visível para a engine de renderização */}
+        <div style={{ position: 'fixed', left: '200vw', top: 0, zIndex: -50 }}>
            {profile && (
                <ProfileShareCard 
                    innerRef={cardRef} 
                    profile={profile} 
                    stats={stats} 
-                   // Se safeAvatarUrl for undefined (carregando), passamos null.
-                   // Se for null (erro), passamos null (placeholder).
-                   // Se for string (sucesso), passamos a string.
                    avatarOverride={safeAvatarUrl ?? null} 
+                   isExporting={true} // Ativa o modo leve (sem blur)
                 />
             )}
         </div>
@@ -99,7 +86,10 @@ export default function ShareProfileButton({ profile, stats, className = "", var
           <div className="absolute right-0 bottom-full mb-2 w-64 rounded-xl shadow-xl bg-white border border-gray-100 z-40 animate-fade-in-up origin-bottom-right">
               <div className="p-2 space-y-1">
                   <button 
-                      onClick={onGenerateClick}
+                      onClick={() => {
+                          if (cardRef.current) handleGenerate(cardRef.current);
+                          setIsMenuOpen(false);
+                      }}
                       disabled={isGenerating}
                       className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-brand-purple/5 hover:text-brand-purple flex items-center gap-3 transition-colors disabled:opacity-50"
                   >
@@ -108,13 +98,12 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                       ) : (
                           <i className="fas fa-image w-5 text-center"></i>
                       )}
-                      <span>{isGenerating ? 'Gerando...' : 'Gerar Imagem'}</span>
+                      <span>{isGenerating ? 'Criando PNG...' : 'Baixar Imagem'}</span>
                   </button>
 
                   <button 
                     onClick={() => {
-                        const url = `${window.location.origin}/u/${profile.nickname}`;
-                        navigator.clipboard.writeText(url);
+                        navigator.clipboard.writeText(`${window.location.origin}/u/${profile.nickname}`);
                         setIsMenuOpen(false);
                     }}
                     className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-brand-purple/5 hover:text-brand-purple flex items-center gap-3 transition-colors"
@@ -142,6 +131,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                 </div>
 
                 <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-white/10 bg-gray-900">
+                    {/* Exibe o PNG gerado */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img 
                         src={previewUrl} 
@@ -155,10 +145,10 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                         onClick={handleShare}
                         className="w-full py-4 bg-brand-green hover:bg-green-500 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95"
                     >
-                        <i className="fas fa-share-nodes"></i> Compartilhar
+                        <i className="fas fa-share-nodes"></i> Enviar / Postar
                     </button>
                     <p className="text-white/50 text-xs text-center px-4">
-                        Se falhar, segure na imagem para salvar.
+                        Se não funcionar, segure na imagem para salvar na galeria.
                     </p>
                 </div>
             </div>

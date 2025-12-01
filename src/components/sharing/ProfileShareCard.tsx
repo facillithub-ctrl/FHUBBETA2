@@ -14,46 +14,32 @@ interface ProfileShareCardProps {
     profile: UserProfile;
     stats: ShareCardStats;
     innerRef: RefObject<HTMLDivElement>;
-    avatarOverride?: string | null; // <--- NOVA PROP ADICIONADA
+    avatarOverride?: string | null;
+    isExporting?: boolean; 
 }
 
-// Ícone SVG de CHECK (Para Blue e Green)
 const CheckBadgeSVG = ({ color }: { color: string }) => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z" fill={color}/>
     </svg>
 );
 
-// Ícone SVG de ESTRELA (Para Red)
 const StarBadgeSVG = ({ color }: { color: string }) => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill={color}/>
     </svg>
 );
 
-export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride }: ProfileShareCardProps) => {
-    // URL para o QR Code
+export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride, isExporting = false }: ProfileShareCardProps) => {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://facillithub.com';
     const profileUrl = `${baseUrl}/u/${profile.nickname}`;
 
-    // Lógica para determinar qual ícone e cor mostrar
     const renderBadge = () => {
         const badge = profile.verification_badge;
-        
-        if (badge === 'green') {
-            return <CheckBadgeSVG color="#22c55e" />; 
-        }
-        if (badge === 'blue') {
-            return <CheckBadgeSVG color="#3b82f6" />; 
-        }
-        if (badge === 'red') {
-            return <StarBadgeSVG color="#ef4444" />; 
-        }
-        
-        if (badge === 'true') {
-            return <CheckBadgeSVG color="#3b82f6" />;
-        }
-
+        if (badge === 'green') return <CheckBadgeSVG color="#22c55e" />;
+        if (badge === 'blue') return <CheckBadgeSVG color="#3b82f6" />;
+        if (badge === 'red') return <StarBadgeSVG color="#ef4444" />;
+        if (badge === 'true') return <CheckBadgeSVG color="#3b82f6" />;
         return null;
     };
 
@@ -63,49 +49,48 @@ export const ProfileShareCard = ({ profile, stats, innerRef, avatarOverride }: P
             className="w-[400px] h-[700px] bg-white border-[16px] border-gray-50 flex flex-col items-center relative overflow-hidden font-sans box-border"
             style={{ backgroundColor: '#ffffff' }}
         >
-            {/* Decoração de Fundo */}
-            <div className="absolute top-[-80px] right-[-80px] w-[300px] h-[300px] bg-brand-purple/5 rounded-full blur-[50px] pointer-events-none"></div>
-            <div className="absolute bottom-[-40px] left-[-40px] w-[250px] h-[250px] bg-green-500/5 rounded-full blur-[50px] pointer-events-none"></div>
+            {/* Fundo Otimizado */}
+            {isExporting ? (
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-50/30 via-white to-green-50/30 z-0 pointer-events-none"></div>
+            ) : (
+                <>
+                    <div className="absolute top-[-80px] right-[-80px] w-[300px] h-[300px] bg-brand-purple/5 rounded-full blur-[50px] pointer-events-none"></div>
+                    <div className="absolute bottom-[-40px] left-[-40px] w-[250px] h-[250px] bg-green-500/5 rounded-full blur-[50px] pointer-events-none"></div>
+                </>
+            )}
 
-            {/* HEADER: Logo */}
+            {/* Logo - Mantido (geralmente SVG local não dá problema, mas se der, removeremos também) */}
             <div className="w-full flex justify-center pt-8 mb-6 relative z-10">
                 <img 
                     src="/assets/images/accont.svg" 
                     alt="Facillit Account" 
                     className="h-14 object-contain"
-                    crossOrigin="anonymous"
+                    crossOrigin="anonymous" 
                 />
             </div>
 
-            {/* AVATAR */}
+            {/* AVATAR - MODO DE TESTE (SEMPRE PLACEHOLDER) */}
             <div className="relative mb-6 z-10">
                 <div className="absolute -inset-[4px] rounded-full bg-gradient-to-tr from-brand-purple to-brand-green"></div>
                 <div className="w-28 h-28 rounded-full border-4 border-white overflow-hidden shadow-sm relative z-10 bg-white">
-                     {(avatarOverride || profile.avatar_url) ? (
-                        <img
-                            src={avatarOverride || profile.avatar_url || ""}
-                            alt={profile.nickname || "Avatar"}
-                            className="w-full h-full object-cover"
-                            crossOrigin="anonymous"
-                        />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                            {/* Placeholder SVG */}
-                            <svg className="w-12 h-12 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                            </svg>
-                        </div>
-                    )}
+                    {/* TESTE DE DIAGNÓSTICO:
+                        Removemos a tag <img> condicional e forçamos o ícone SVG.
+                        Isso garante que NENHUMA requisição de imagem externa será feita na área do avatar.
+                    */}
+                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                        <svg className="w-12 h-12 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                        </svg>
+                    </div>
                 </div>
             </div>
 
-            {/* IDENTIDADE + VERIFICADO DINÂMICO */}
+            {/* IDENTIDADE */}
             <div className="text-center z-10 mb-4 w-full px-4">
                 <div className="flex items-center justify-center gap-2 mb-1">
                     <h1 className="font-bold text-2xl text-gray-900 leading-tight">
                         {profile.full_name}
                     </h1>
-                    
                     <div className="flex items-center">
                         {renderBadge()}
                     </div>

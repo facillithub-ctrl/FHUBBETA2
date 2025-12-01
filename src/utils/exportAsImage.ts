@@ -1,50 +1,78 @@
-import { toBlob } from 'html-to-image';
+import { toPng } from 'html-to-image';
 
-// Utilitário para pré-carregar a imagem. 
-// Se falhar (CORS/Erro), retorna NULL para não quebrar o canvas.
+// Pré-carregador robusto
 export async function preloadImage(url: string): Promise<string | null> {
     if (!url) return null;
-    try {
-        const res = await fetch(url, { mode: 'cors', cache: 'no-cache' });
-        if (!res.ok) throw new Error(`Status ${res.status}`);
-        const blob = await res.blob();
-        return URL.createObjectURL(blob);
-    } catch (e) {
-        console.warn("Avatar falhou no preload (será ignorado na geração):", e);
-        return null;
-    }
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous'; 
+        img.src = url;
+        
+        img.onload = () => {
+            // Técnica do Canvas Intermediário para garantir "limpeza" do buffer
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(img, 0, 0);
+                try {
+                    canvas.toBlob((blob) => {
+                        if (blob) resolve(URL.createObjectURL(blob));
+                        else resolve(null);
+                    });
+                } catch (e) {
+                    console.warn("Avatar: Bloqueio de CORS detectado.", e);
+                    resolve(null);
+                }
+            } else {
+                resolve(null);
+            }
+        };
+
+        img.onerror = () => {
+            console.warn("Avatar: Falha ao carregar imagem.", url);
+            resolve(null);
+        };
+    });
 }
 
 export async function generateImageBlob(element: HTMLElement, fileName: string): Promise<File | null> {
     if (!element) return null;
 
     try {
-        // 1. Aguarda fontes (rápido)
-        try { await document.fonts.ready; } catch {}
-        
-        // 2. Pequeno delay para layout
-        await new Promise(r => setTimeout(r, 100));
+        await document.fonts.ready;
+        // Pequeno delay para garantir estabilidade do DOM off-screen
+        await new Promise(r => setTimeout(r, 200));
 
-        // 3. Renderização ÚNICA e Otimizada
-        // skipAutoScale e pixelRatio reduzido ajudam no iOS
-        const blob = await toBlob(element, {
-            quality: 0.9,
-            pixelRatio: 1.5, // 1.5 é seguro para iOS. 2.0+ costuma travar.
+        const dataUrl = await toPng(element, {
+            quality: 1.0,
+            pixelRatio: 2, 
             cacheBust: true,
             skipAutoScale: true,
             backgroundColor: '#ffffff',
-            fontEmbedCSS: "", // Previne crash de fontes
+            fontEmbedCSS: "", // Vital para evitar crash de fontes
+            filter: (node) => {
+                // Filtra tags que costumam quebrar a exportação no Safari
+                if (node.tagName === 'LINK' && (node as HTMLLinkElement).rel === 'stylesheet') return false;
+                return true;
+            }
         });
 
-        if (!blob) throw new Error("Blob gerado veio vazio.");
-
-        return new File([blob], `${fileName}.jpg`, { type: 'image/jpeg' });
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        
+        return new File([blob], `${fileName}.png`, { type: 'image/png' });
 
     } catch (error: any) {
-        // Log detalhado para mobile (usando stringify para ver objetos vazios)
-        const errorMsg = error instanceof Error ? error.message : JSON.stringify(error);
-        console.error("Erro na geração:", error);
-        throw new Error(errorMsg);
+        console.error("Erro interno html-to-image:", error);
+        
+        // Se o erro for um Evento de DOM (como o erro de imagem), transformamos em texto legível
+        if (error.target && error.type === 'error') {
+             throw new Error("Bloqueio de segurança na imagem do card. Usando placeholder.");
+        }
+        
+        throw new Error(error.message || "Falha na renderização do Card.");
     }
 }
 
@@ -54,7 +82,6 @@ export async function shareNativeFile(file: File, title: string, text: string): 
     const shareData = { files: [file], title, text };
     
     if (navigator.canShare && !navigator.canShare(shareData)) {
-        console.warn("Navegador diz que não pode compartilhar este arquivo.");
         return false;
     }
 
@@ -62,8 +89,8 @@ export async function shareNativeFile(file: File, title: string, text: string): 
         await navigator.share(shareData);
         return true;
     } catch (err: any) {
-        if (err.name === 'AbortError') return true; 
-        console.error("Erro no Share API:", err);
+        if (err.name === 'AbortError') return true;
+        console.error("Erro no Share:", err);
         return false;
     }
 }
