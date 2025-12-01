@@ -13,21 +13,41 @@ interface ShareProfileButtonProps {
   variant?: 'primary' | 'secondary' | 'icon';
 }
 
-// Helper para converter DataURL em File objeto para compartilhamento
+// Helper para converter DataURL em Arquivo (com logs)
 const dataUrlToFile = async (dataUrl: string, filename: string): Promise<File> => {
-    const res = await fetch(dataUrl);
-    const blob = await res.blob();
-    return new File([blob], filename, { type: 'image/jpeg' });
+    try {
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        return new File([blob], filename, { type: 'image/jpeg' });
+    } catch (error) {
+        throw new Error(`Falha na conversão DataURL -> File: ${error instanceof Error ? error.message : String(error)}`);
+    }
 };
 
 export default function ShareProfileButton({ profile, stats, className = "", variant = 'primary' }: ShareProfileButtonProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
+  // Estado para armazenar logs de erro visíveis na tela (caso alerts sejam bloqueados)
+  const [debugLog, setDebugLog] = useState<string>(""); 
 
   const cardRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
+
+  // Função para logar na tela do celular
+  const log = (msg: string, isError = false) => {
+      console.log(msg);
+      if (isError) {
+          // Mostra um alert nativo para garantir que você veja o erro
+          alert(`ERRO: ${msg}`);
+          setDebugLog(prev => prev + "\n[ERRO] " + msg);
+      } else {
+          // Opcional: comentar o alert abaixo se ficar muito chato, mas útil para saber onde parou
+          // alert(`INFO: ${msg}`);
+          setDebugLog(prev => prev + "\n[OK] " + msg);
+      }
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -40,83 +60,116 @@ export default function ShareProfileButton({ profile, stats, className = "", var
   }, []);
 
   const generateImage = async () => {
-    if (!cardRef.current) return null;
+    if (!cardRef.current) {
+        log("Referência do Card (cardRef) está nula!", true);
+        return null;
+    }
     
     try {
+        log("1. Iniciando html-to-image...");
+        
+        // Pequeno delay para garantir renderização
         await new Promise(r => setTimeout(r, 100));
 
+        // Verificação de segurança do tamanho
+        if (cardRef.current.clientWidth === 0) {
+            log("AVISO: O Card tem largura 0px. Tentando forçar visibilidade...");
+        }
+
         const dataUrl = await toJpeg(cardRef.current!, { 
-            quality: 0.9,
-            pixelRatio: 2, 
-            cacheBust: false, // Tente 'true' se a imagem do avatar falhar
+            quality: 0.85, // Reduzido levemente para evitar crash de memória
+            pixelRatio: 1.5, // Reduzido de 2 para 1.5 para maior compatibilidade mobile
+            cacheBust: true, // Tenta burlar cache de imagens
             skipAutoScale: true,
             backgroundColor: '#ffffff',
-            fontEmbedCSS: "", 
+            fontEmbedCSS: "", // Importante: evita carregar fontes externas que bloqueiam o canvas
         });
+
+        log(`2. Imagem gerada! Comprimento da string: ${dataUrl.length}`);
+        
+        if (dataUrl.length < 1000) {
+            throw new Error("Imagem gerada parece estar vazia ou corrompida.");
+        }
+
         return dataUrl;
-    } catch (err) {
-        console.error("Erro na geração da imagem:", err);
+    } catch (err: any) {
+        log(`FALHA na geração da imagem (toJpeg): ${err.message || JSON.stringify(err)}`, true);
         return null;
     }
   };
 
   const handleProcess = async () => {
+    setDebugLog("Iniciando processo...");
     setIsGenerating(true);
+    
     try {
+      // Passo 1: Gerar DataURL
       const dataUrl = await generateImage();
       
-      if (dataUrl) {
-          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-          if (isMobile) {
-              // --- SOLUÇÃO NATIVA PARA MOBILE (Web Share API) ---
-              // Tenta abrir o menu de compartilhamento nativo se suportado
-              if (navigator.share && navigator.canShare) {
-                  try {
-                      const file = await dataUrlToFile(dataUrl, `facillit-${profile.nickname}.jpg`);
-                      
-                      // Verifica se o navegador suporta compartilhar arquivos
-                      if (navigator.canShare({ files: [file] })) {
-                          await navigator.share({
-                              files: [file],
-                              title: 'Meu Card Facillit',
-                              text: `Confira meu perfil: facillithub.com/u/${profile.nickname}`,
-                          });
-                          // Sucesso no compartilhamento nativo
-                          addToast({ title: 'Sucesso!', message: 'Card compartilhado.', type: 'success' });
-                          setIsMenuOpen(false);
-                          setIsGenerating(false);
-                          return; // Sai da função, não abre o modal
-                      }
-                  } catch (shareError) {
-                      // Se o usuário cancelar ou o navegador der erro, apenas logamos
-                      // e deixamos cair no fallback do modal abaixo.
-                      console.log('Web Share cancelado ou não suportado, usando fallback.', shareError);
-                  }
-              }
-
-              // --- FALLBACK: Modal de Preview ---
-              // Usado se o Web Share falhar ou não for suportado
-              setPreviewImage(dataUrl);
-              addToast({ title: 'Pronto!', message: 'Segure na imagem para salvar.', type: 'success' });
-          } else {
-              // --- DESKTOP: Download Direto ---
-              const link = document.createElement('a');
-              link.download = `facillit-${profile.nickname}.jpg`;
-              link.href = dataUrl;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              addToast({ title: 'Baixado!', message: 'Imagem salva no computador.', type: 'success' });
-          }
-          
-          setIsMenuOpen(false);
-      } else {
-          throw new Error("Falha na geração");
+      if (!dataUrl) {
+          throw new Error("DataURL não foi retornado.");
       }
-    } catch (error) {
-      console.error(error);
-      addToast({ title: 'Erro', message: 'Não foi possível gerar a imagem.', type: 'error' });
+
+      // Detecção de Mobile
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      log(`Ambiente detectado: ${isMobile ? 'MOBILE' : 'DESKTOP'}`);
+
+      if (isMobile) {
+          // Passo 2: Converter para Arquivo
+          log("3. Convertendo para objeto File...");
+          let file: File;
+          try {
+             file = await dataUrlToFile(dataUrl, `facillit-${profile.nickname}.jpg`);
+             log(`Arquivo criado: ${file.name} (${file.size} bytes, type: ${file.type})`);
+          } catch (e: any) {
+             throw new Error(`Erro ao criar arquivo: ${e.message}`);
+          }
+
+          // Passo 3: Verificar suporte a Share API
+          if (!navigator.share) {
+              throw new Error("Navegador NÃO suporta navigator.share");
+          }
+
+          if (!navigator.canShare) {
+              log("Aviso: navigator.canShare não existe, tentando compartilhar mesmo assim...");
+          } else if (!navigator.canShare({ files: [file] })) {
+             throw new Error("O navegador diz que NÃO pode compartilhar este tipo de arquivo.");
+          }
+
+          // Passo 4: Compartilhar
+          log("4. Abrindo menu de compartilhamento nativo...");
+          try {
+              await navigator.share({
+                  files: [file],
+                  title: 'Meu Card Facillit',
+                  text: 'Confira meu perfil!',
+              });
+              log("SUCESSO: Compartilhamento concluído!");
+              addToast({ title: 'Sucesso!', message: 'Card compartilhado.', type: 'success' });
+          } catch (shareError: any) {
+              if (shareError.name === 'AbortError') {
+                  log("Usuário cancelou/fechou o menu de compartilhamento.");
+              } else {
+                  throw new Error(`Erro na API Share: ${shareError.message} / Name: ${shareError.name}`);
+              }
+          }
+
+      } else {
+          // Desktop: Download direto
+          const link = document.createElement('a');
+          link.download = `facillit-${profile.nickname}.jpg`;
+          link.href = dataUrl;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          addToast({ title: 'Baixado!', message: 'Imagem salva no computador.', type: 'success' });
+      }
+      
+      setIsMenuOpen(false);
+
+    } catch (error: any) {
+      log(error.message || "Erro desconhecido", true);
+      addToast({ title: 'Erro', message: 'Veja o log na tela.', type: 'error' });
     } finally {
       setIsGenerating(false);
     }
@@ -155,6 +208,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
   return (
     <>
       <div className="relative inline-block text-left" ref={menuRef}>
+        {/* Renderização oculta para captura */}
         <div style={{ position: 'fixed', top: 0, left: 0, zIndex: -9999, opacity: 0, pointerEvents: 'none', visibility: 'visible' }}>
            {profile && <ProfileShareCard innerRef={cardRef} profile={profile} stats={stats} />}
         </div>
@@ -162,7 +216,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
         {renderButtonContent()}
 
         {isMenuOpen && (
-          <div className="absolute right-0 bottom-full mb-2 w-56 rounded-xl shadow-xl bg-white border border-gray-100 z-50 animate-fade-in-up origin-bottom-right">
+          <div className="absolute right-0 bottom-full mb-2 w-72 rounded-xl shadow-xl bg-white border border-gray-100 z-50 animate-fade-in-up origin-bottom-right overflow-hidden">
               <div className="p-2 space-y-1">
                   <button 
                       onClick={handleProcess}
@@ -170,7 +224,7 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                       className="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-brand-purple/5 hover:text-brand-purple flex items-center gap-3 transition-colors"
                   >
                       <i className={`fas ${isGenerating ? 'fa-spinner fa-spin' : 'fa-image'} w-5 text-center`}></i>
-                      <span>{isGenerating ? 'Gerando...' : 'Salvar Imagem'}</span>
+                      <span>{isGenerating ? 'Processando...' : 'Gerar Imagem (Debug)'}</span>
                   </button>
 
                   <button 
@@ -181,38 +235,16 @@ export default function ShareProfileButton({ profile, stats, className = "", var
                       <span>Copiar Link</span>
                   </button>
               </div>
+              
+              {/* ÁREA DE LOG VISUAL NA UI (Para Debug Mobile) */}
+              {debugLog && (
+                  <div className="bg-gray-900 p-2 m-2 rounded text-[10px] text-green-400 font-mono overflow-auto max-h-32 whitespace-pre-wrap">
+                      {debugLog}
+                  </div>
+              )}
           </div>
         )}
       </div>
-
-      {previewImage && (
-        <div className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 animate-fade-in">
-            <div className="relative max-w-sm w-full bg-transparent flex flex-col items-center">
-                <button 
-                    onClick={() => setPreviewImage(null)}
-                    className="absolute -top-12 right-0 text-white/80 hover:text-white text-sm font-medium flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full backdrop-blur-md"
-                >
-                    Fechar <i className="fas fa-times"></i>
-                </button>
-                
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                    src={previewImage} 
-                    alt="Share Card" 
-                    className="w-full h-auto rounded-xl shadow-2xl border border-white/10" 
-                />
-                
-                <div className="mt-6 text-center bg-black/50 p-4 rounded-xl backdrop-blur-md border border-white/10">
-                    <p className="text-white font-bold text-lg mb-1 flex items-center justify-center gap-2">
-                        <i className="fas fa-check-circle text-green-400"></i> Pronto!
-                    </p>
-                    <p className="text-white/80 text-sm">
-                        Caso o compartilhamento não abra, segure na imagem acima para <strong>Salvar na Galeria</strong>.
-                    </p>
-                </div>
-            </div>
-        </div>
-      )}
     </>
   );
 }
