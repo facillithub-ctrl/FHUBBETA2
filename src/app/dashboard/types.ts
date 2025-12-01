@@ -1,7 +1,6 @@
 // Define as roles de usuário
 export type UserRole = 'student' | 'teacher' | 'professor' | 'admin' | 'administrator' | 'diretor';
 
-// --- Sub-tipos para Perfil ---
 export type SocialLinks = {
   instagram?: string;
   linkedin?: string;
@@ -11,13 +10,13 @@ export type SocialLinks = {
 };
 
 export type PrivacySettings = {
-  is_public: boolean;       // O perfil existe publicamente?
-  show_full_name: boolean;  // Mostrar nome real (true) ou nickname (false)
-  show_school: boolean;     // Mostrar instituição
-  show_stats: boolean;      // Mostrar estatísticas gerais
-  show_grades: boolean;     // Mostrar médias/notas
-  show_essays: boolean;     // Mostrar lista das últimas redações
-  show_badges: boolean;     // Mostrar gamificação
+  is_public: boolean;
+  show_full_name: boolean;
+  show_school: boolean;
+  show_stats: boolean;
+  show_grades: boolean;
+  show_essays: boolean;
+  show_badges: boolean;
 };
 
 export type RecentEssay = {
@@ -26,19 +25,18 @@ export type RecentEssay = {
   final_grade: number | null;
 };
 
-// --- Perfil de Usuário Principal ---
 export type UserProfile = {
   id: string;
   email?: string; 
   
-  // Campos Legados / CamelCase (Mantidos para compatibilidade)
+  // Campos Legados (CamelCase)
   fullName: string | null;
   nickname: string | null;
   avatarUrl: string | null;
   userCategory: string | null; 
   pronoun: string | null;
   birthDate: string | null;
-  schoolName: string | null;
+  schoolName: string | null; // Legado
   
   // Dados de Perfil
   bio?: string | null;
@@ -51,23 +49,24 @@ export type UserProfile = {
   avatar_url?: string | null;
   is_verified?: boolean;
   user_category?: string | null;
-  created_at?: string; // <--- ADICIONADO: Corrige o erro de build
+  created_at?: string;      // Adicionado para corrigir erro de data
+  school_name?: string | null; // Adicionado para corrigir erro do perfil público
   
-  // --- Gamificação (Perfil) ---
+  // --- Gamificação ---
   level?: number;
   current_xp?: number;
   next_level_xp?: number;
   streak_days?: number;
   badges?: string[];
 
-  // --- Campos Institucionais / Híbridos ---
+  // --- Institucional / Híbrido ---
   organization_id: string | null;
   target_exam: string | null;
   active_modules: string[] | null;
-  verification_badge: string | null;
+  verification_badge: string | null; // 'green' | 'blue' | 'red'
   has_completed_onboarding?: boolean;
 
-  // --- Campos Injetados (Perfil Público / Estatísticas) ---
+  // --- Injetados (Stats) ---
   stats_simulados?: number;
   stats_media?: number | null;
   stats_games?: number;
@@ -75,7 +74,7 @@ export type UserProfile = {
   recent_essays?: RecentEssay[];
 };
 
-// --- Tipos Pedagógicos Avançados ---
+// ... (Mantenha o restante dos tipos pedagógicos/testes/redação inalterados) ...
 export type BloomTaxonomy = 'lembrar' | 'compreender' | 'aplicar' | 'analisar' | 'avaliar' | 'criar';
 export type CognitiveSkill = 'interpretacao' | 'calculo' | 'memorizacao' | 'analise_grafica' | 'logica' | 'gramatica' | 'vocabulario';
 export type DifficultyLevel = 'facil' | 'medio' | 'dificil' | 'muito_dificil';
@@ -88,26 +87,20 @@ export type QuestionMetadata = {
   ai_explanation?: string | null;
 };
 
-// --- Tipos para o Módulo Write (Essay) ---
 export type EssayPrompt = {
   id: string;
   title: string;
   description: string | null;
-  supporting_texts?: any; // jsonb
+  supporting_texts?: any;
   source?: string | null;
   created_at?: string;
   organization_id?: string | null;
   image_url?: string | null;
-  
-  // Textos Motivadores
   motivational_text_1?: string | null;
   motivational_text_2?: string | null;
-  
-  // Texto Motivador 3 (Imagem)
   motivational_text_3_image_url?: string | null;
   motivational_text_3_description?: string | null;
   motivational_text_3_image_source?: string | null;
-
   category?: string | null;
   publication_date?: string | null;
   deadline?: string | null;
@@ -117,7 +110,6 @@ export type EssayPrompt = {
   class_id?: string | null;
 };
 
-// --- Tipos para o Módulo Test ---
 export type QuestionContent = {
   base_text?: string | null;
   statement: string;
@@ -158,7 +150,6 @@ export type TestWithQuestions = {
   subject?: string | null;
 };
 
-// --- Dashboards e Analytics ---
 export type StudentDashboardData = {
   stats: {
     simuladosFeitos: number;
@@ -207,7 +198,6 @@ export type CompetencyData = {
   fullMark: number; // Sempre 100
 };
 
-// --- Organizações e Escolas ---
 export type Organization = {
     id: string;
     name: string;

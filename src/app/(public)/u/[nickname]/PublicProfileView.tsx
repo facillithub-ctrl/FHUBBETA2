@@ -7,7 +7,7 @@ import { UserProfile } from '@/app/dashboard/types';
 import { toggleFollow } from './actions';
 import ShareProfileButton from '@/components/sharing/ShareProfileButton';
 import { useToast } from '@/contexts/ToastContext';
-import { VerificationBadge } from '@/components/VerificationBadge'; // Importação correta do Badge
+import { VerificationBadge } from '@/components/VerificationBadge'; 
 
 interface PublicProfileViewProps {
   profile: UserProfile;
@@ -52,21 +52,22 @@ export default function PublicProfileView({
     });
   };
 
-  // Dados para o botão de compartilhamento
   const shareStats = {
     followers: followersCount,
     following: followingCount
   };
 
-  // Formatação da data de entrada (se existir)
   const joinedDate = profile.created_at 
     ? new Date(profile.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
     : null;
 
+  // Lógica para pegar o nome da escola com fallback seguro
+  const schoolDisplay = profile.school_name || profile.schoolName;
+
   return (
     <div className="w-full min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
       
-      {/* --- 1. CAPA DO PERFIL (COVER) --- */}
+      {/* CAPA */}
       <div className="relative h-64 md:h-80 w-full group">
         {profile.cover_image_url ? (
             <Image
@@ -77,14 +78,12 @@ export default function PublicProfileView({
                 priority
             />
         ) : (
-            // Fallback: Gradiente Premium com Padrão
             <div className="w-full h-full bg-gradient-to-br from-brand-purple via-[#6366f1] to-royal-blue relative overflow-hidden">
                 <div className="absolute inset-0 opacity-20 bg-[url('/assets/images/pattern-grid.svg')] mix-blend-overlay"></div>
                 <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
             </div>
         )}
         
-        {/* Botão de Editar Capa (Apenas Dono) - Visual Only por enquanto */}
         {isOwner && (
             <Link 
                 href="/dashboard/profile"
@@ -98,16 +97,15 @@ export default function PublicProfileView({
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* --- 2. CABEÇALHO DO PERFIL (AVATAR + INFO + AÇÕES) --- */}
+        {/* HEADER PERFIL */}
         <div className="relative -mt-[80px] mb-8 flex flex-col md:flex-row items-start gap-6">
             
-            {/* Avatar Container */}
             <div className="relative shrink-0 mx-auto md:mx-0">
                 <div className="w-40 h-40 md:w-48 md:h-48 rounded-full border-[6px] border-white dark:border-gray-900 bg-white shadow-2xl overflow-hidden relative z-10">
                     {profile.avatar_url ? (
                         <Image 
                             src={profile.avatar_url} 
-                            alt={profile.nickname} 
+                            alt={profile.nickname || 'Avatar'} 
                             fill 
                             className="object-cover"
                         />
@@ -119,23 +117,20 @@ export default function PublicProfileView({
                 </div>
             </div>
 
-            {/* Informações Principais */}
             <div className="flex-1 text-center md:text-left pt-2 md:pt-[90px] w-full">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     
-                    {/* Nome e Badge */}
                     <div>
                         <div className="flex items-center justify-center md:justify-start gap-2 mb-1">
                             <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
                                 {profile.full_name}
                             </h1>
-                            {/* O componente VerificationBadge lida com a cor correta (Azul, Verde, etc) */}
-                            <VerificationBadge badge={profile.verification_badge} size="24px" />
+                            {/* Componente VerificationBadge Original do Site */}
+                            <VerificationBadge badge={profile.verification_badge} size="12px" />
                         </div>
                         <p className="text-lg text-gray-500 dark:text-gray-400 font-medium">@{profile.nickname}</p>
                     </div>
 
-                    {/* Botões de Ação */}
                     <div className="flex items-center justify-center gap-3">
                         {isOwner ? (
                             <Link 
@@ -170,7 +165,6 @@ export default function PublicProfileView({
                             </>
                         )}
 
-                        {/* Botão Share (Novo Componente) */}
                         <ShareProfileButton 
                             profile={profile} 
                             stats={shareStats} 
@@ -180,7 +174,6 @@ export default function PublicProfileView({
                     </div>
                 </div>
 
-                {/* Bio e Detalhes */}
                 <div className="mt-6 max-w-3xl">
                      {profile.bio && (
                         <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-base md:text-lg">
@@ -188,7 +181,6 @@ export default function PublicProfileView({
                         </p>
                     )}
                     
-                    {/* Metadados (Seguidores, Link, Data) */}
                     <div className="flex flex-wrap items-center justify-center md:justify-start gap-y-2 gap-x-6 mt-4 text-sm text-gray-500 dark:text-gray-400">
                          <div className="flex items-center gap-4">
                             <div className="hover:text-brand-purple transition-colors cursor-pointer">
@@ -217,13 +209,11 @@ export default function PublicProfileView({
             </div>
         </div>
 
-        {/* --- 3. CONTEÚDO PRINCIPAL (GRID) --- */}
+        {/* GRID DE INFORMAÇÕES */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
-            
-            {/* COLUNA ESQUERDA: Informações (Sticky on Desktop) */}
             <div className="lg:col-span-4 space-y-6">
                 
-                {/* Sobre / Educacional */}
+                {/* Sobre */}
                 <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6">
                     <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-4 flex items-center gap-2">
                         <i className="fas fa-graduation-cap text-brand-purple"></i>
@@ -231,14 +221,15 @@ export default function PublicProfileView({
                     </h3>
                     
                     <ul className="space-y-4">
-                        {profile.school_name && (
+                        {/* AQUI ESTAVA O ERRO DO SCHOOL NAME */}
+                        {schoolDisplay && (
                             <li className="flex items-start gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                                     <i className="fas fa-university text-sm"></i>
                                 </div>
                                 <div>
                                     <p className="text-xs text-gray-500 font-bold uppercase">Instituição</p>
-                                    <p className="text-gray-800 dark:text-gray-200 font-medium">{profile.school_name}</p>
+                                    <p className="text-gray-800 dark:text-gray-200 font-medium">{schoolDisplay}</p>
                                 </div>
                             </li>
                         )}
@@ -253,7 +244,6 @@ export default function PublicProfileView({
                             </div>
                         </li>
 
-                         {/* Redes Sociais */}
                         {(profile.social_links?.instagram || profile.social_links?.linkedin || profile.social_links?.github) && (
                             <li className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-800">
                                 <div className="flex gap-3 justify-start">
@@ -278,7 +268,7 @@ export default function PublicProfileView({
                     </ul>
                 </div>
 
-                {/* Estatísticas Rápidas */}
+                {/* Estatísticas */}
                 <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-6">
                      <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-4 flex items-center gap-2">
                         <i className="fas fa-chart-pie text-green-500"></i>
@@ -302,25 +292,20 @@ export default function PublicProfileView({
 
             </div>
 
-            {/* COLUNA DIREITA: Feed de Atividades / Redações */}
+            {/* COLUNA DIREITA */}
             <div className="lg:col-span-8 space-y-6">
-                
-                {/* Abas (Visual) */}
                 <div className="flex border-b border-gray-200 dark:border-gray-800">
                     <button className="px-6 py-3 border-b-2 border-brand-purple text-brand-purple font-bold">
                         Redações
                     </button>
-                    {/* Futuro: Adicionar aba 'Simulados', 'Conquistas', etc */}
                     <button className="px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium">
                         Conquistas
                     </button>
                 </div>
 
-                {/* Lista de Redações */}
                 <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden min-h-[300px]">
                     <div className="p-6">
                         <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-4">Últimas Redações</h3>
-                        
                         <div className="space-y-4">
                             {profile.recent_essays && profile.recent_essays.length > 0 ? (
                                 profile.recent_essays.map((essay, index) => (
@@ -366,7 +351,6 @@ export default function PublicProfileView({
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
       </div>
