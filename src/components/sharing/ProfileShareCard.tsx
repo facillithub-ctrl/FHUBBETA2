@@ -10,7 +10,7 @@ export interface ShareCardStats {
     following: number;
 }
 
-export type CardTheme = 'light' | 'dark';
+export type CardTheme = 'light';
 
 interface ProfileShareCardProps {
     profile: UserProfile;
@@ -28,13 +28,14 @@ const BRAND = {
     green: '#07f49e',
     dark: '#0f0f11',
     light: '#ffffff',
+    gray: '#f4f4f5',
     gradient: 'linear-gradient(135deg, #42047e 0%, #07f49e 100%)'
 };
 
 const VerifiedBadge = () => (
     <div className="flex items-center justify-center w-8 h-8 ml-2">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22Z" fill={BRAND.green} />
+            <circle cx="12" cy="12" r="10" fill={BRAND.green} />
             <path d="M7.5 12L10.5 15L16.5 9" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
     </div>
@@ -55,7 +56,6 @@ export const ProfileShareCard = ({
     const safeAvatar = avatarOverride || (isExporting ? null : profile.avatar_url);
     const safeLogo = logoOverride || (isExporting ? null : "/assets/images/accont.svg");
 
-    // Formata a data de criação (ou usa o ano atual como fallback)
     const memberSinceYear = profile.created_at 
         ? new Date(profile.created_at).getFullYear() 
         : new Date().getFullYear();
@@ -65,19 +65,19 @@ export const ProfileShareCard = ({
             ref={innerRef}
             className="w-[540px] h-[960px] flex flex-col items-center relative overflow-hidden font-sans box-border bg-white"
         >
-            {/* LINHA SUPERIOR (Marca da Cor) */}
-            <div className="w-full h-3" style={{ background: BRAND.gradient }}></div>
+            {/* LINHA DECORATIVA SUPERIOR */}
+            <div className="w-full h-4" style={{ background: BRAND.gradient }}></div>
 
             {/* CONTEÚDO PRINCIPAL */}
-            <div className="flex-1 flex flex-col items-center w-full px-12 pt-14 pb-12">
+            <div className="flex-1 flex flex-col items-center w-full px-10 pt-12 pb-10">
                 
-                {/* 1. LOGO EM EVIDÊNCIA */}
-                <div className="mb-10 w-full flex justify-center">
+                {/* 1. LOGO */}
+                <div className="mb-8 w-full flex justify-center">
                     {safeLogo ? (
                         <img 
                             src={safeLogo} 
                             alt="Facillit" 
-                            className="h-20 object-contain" // Tamanho aumentado (80px)
+                            className="h-20 object-contain"
                             {...(!safeLogo.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
                         />
                     ) : (
@@ -87,16 +87,16 @@ export const ProfileShareCard = ({
                     )}
                 </div>
 
-                {/* 2. TAG OFICIAL */}
-                <div className="mb-6 px-5 py-1.5 rounded-full border-2 border-[#f3f4f6]">
+                {/* 2. TAG OFICIAL (Borda sólida, sem sombra) */}
+                <div className="mb-6 px-6 py-2 rounded-full border-2 border-gray-100 bg-gray-50">
                     <span className="text-xs font-bold tracking-[0.2em] uppercase text-gray-400">
                         Perfil Oficial
                     </span>
                 </div>
 
-                {/* 3. NOME GIGANTE */}
-                <div className="text-center w-full mb-2">
-                    <h1 className="text-[4rem] font-[900] leading-[0.9] tracking-tight text-[#0f0f11] mb-1">
+                {/* 3. NOME */}
+                <div className="text-center w-full mb-4">
+                    <h1 className="text-[3.8rem] font-[900] leading-[0.9] tracking-tight text-[#0f0f11] mb-2">
                         {profile.full_name}
                     </h1>
                     <div className="flex items-center justify-center gap-2">
@@ -107,12 +107,12 @@ export const ProfileShareCard = ({
                     </div>
                 </div>
 
-                {/* 4. AVATAR (Limpo e Geométrico) */}
+                {/* 4. AVATAR (Design Flat) */}
                 {showAvatar && (
-                    <div className="relative my-8">
-                        {/* Anel de destaque com as cores da marca */}
-                        <div className="p-[6px] rounded-[48px] bg-white shadow-[0_10px_40px_-10px_rgba(66,4,126,0.2)]">
-                            <div className="rounded-[42px] overflow-hidden w-56 h-56 relative border-4 border-white">
+                    <div className="relative my-6">
+                        {/* Anel Externo Sólido (Sem Blur) */}
+                        <div className="p-2 rounded-[50px] bg-white border border-gray-100">
+                            <div className="rounded-[42px] overflow-hidden w-60 h-60 relative border-4 border-white bg-gray-100">
                                 {safeAvatar ? (
                                     <img
                                         src={safeAvatar}
@@ -129,8 +129,8 @@ export const ProfileShareCard = ({
                                 )}
                             </div>
                             
-                            {/* Ano de Membro (Badge Flutuante) */}
-                            <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 bg-[#0f0f11] text-white px-4 py-1.5 rounded-full shadow-lg border-2 border-white whitespace-nowrap">
+                            {/* Badge Ano (Sólido) */}
+                            <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 bg-[#0f0f11] text-white px-5 py-2 rounded-full border-4 border-white">
                                 <span className="text-xs font-bold tracking-widest uppercase">
                                     Membro desde {memberSinceYear}
                                 </span>
@@ -142,14 +142,14 @@ export const ProfileShareCard = ({
                 {/* 5. BIO */}
                 {profile.bio && (
                     <div className="w-full text-center mb-8 px-4">
-                        <p className="text-xl font-medium text-gray-500 leading-snug line-clamp-3">
+                        <p className="text-xl font-medium text-gray-500 leading-snug line-clamp-2">
                             {profile.bio}
                         </p>
                     </div>
                 )}
 
-                {/* 6. MÉTRICAS (Minimalista Vertical) */}
-                <div className="flex w-full justify-center gap-12 mb-auto mt-2">
+                {/* 6. MÉTRICAS (Divisores Sólidos) */}
+                <div className="flex w-full justify-center gap-12 mb-auto mt-4 border-t border-b border-gray-100 py-6">
                     <div className="text-center">
                         <span className="block text-4xl font-[900] text-[#0f0f11]">{stats.followers}</span>
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Seguidores</span>
@@ -161,26 +161,26 @@ export const ProfileShareCard = ({
                     </div>
                 </div>
 
-                {/* 7. FOOTER LINK */}
-                <div className="w-full mt-8 bg-[#f8f9fa] rounded-3xl p-2 flex items-center justify-between shadow-sm border border-gray-100">
-                    <div className="flex items-center gap-4 pl-6">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: BRAND.green }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0f0f11" strokeWidth="2.5">
+                {/* 7. FOOTER LINK (Design Cartão) */}
+                <div className="w-full mt-6 bg-[#f8f9fa] rounded-3xl p-3 flex items-center justify-between border border-gray-200">
+                    <div className="flex items-center gap-4 pl-4">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: BRAND.green }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3">
                                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                             </svg>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Visitar Perfil</span>
-                            <span className="text-lg font-bold text-[#0f0f11]">facillithub.com</span>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Acesse Agora</span>
+                            <span className="text-xl font-bold text-[#0f0f11]">facillithub.com</span>
                         </div>
                     </div>
                     
-                    {/* QR Code Limpo */}
-                    <div className="bg-white p-1.5 rounded-2xl border border-gray-200">
+                    {/* QR Code Sólido */}
+                    <div className="bg-white p-2 rounded-2xl border border-gray-200">
                         <QRCodeSVG 
                             value={profileUrl} 
-                            size={60}
+                            size={70}
                             fgColor="#000000" 
                             bgColor="#ffffff"
                             level={"M"}
