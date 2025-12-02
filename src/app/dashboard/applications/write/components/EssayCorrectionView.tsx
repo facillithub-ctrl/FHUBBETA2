@@ -14,7 +14,8 @@ import {
 import Image from 'next/image';
 import { VerificationBadge } from '@/components/VerificationBadge';
 import { useToast } from '@/contexts/ToastContext';
-import { ShareWriteButton } from '@/components/sharing/ShareWriteButton'; // <--- IMPORTADO
+import { ShareWriteButton } from '@/components/sharing/ShareWriteButton';
+import { UserProfile } from '@/app/dashboard/types';
 
 // --- TIPOS ---
 type CorrectionWithDetails = EssayCorrection & {
@@ -25,7 +26,7 @@ type CorrectionWithDetails = EssayCorrection & {
 
 type FullEssayDetails = Essay & {
   correction: CorrectionWithDetails | null;
-  profiles: { full_name: string | null } | null;
+  profiles: { full_name: string | null; nickname?: string; avatar_url?: string } | null;
 };
 
 // Tipo auxiliar para chaves de nota
@@ -127,21 +128,6 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
         return highlighted;
     };
 
-    // --- PREPARAÇÃO DOS DADOS PARA O SHARE CARD ---
-    const shareData = correction && data ? {
-        studentName: data.profiles?.full_name || "Estudante",
-        theme: data.title || "Redação sem Título",
-        totalScore: correction.final_grade || 0,
-        date: data.submitted_at ? new Date(data.submitted_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR'),
-        competencies: {
-            c1: correction.grade_c1 || 0,
-            c2: correction.grade_c2 || 0,
-            c3: correction.grade_c3 || 0,
-            c4: correction.grade_c4 || 0,
-            c5: correction.grade_c5 || 0,
-        }
-    } : null;
-
     if (isLoading) return (
         <div className="min-h-[60vh] flex flex-col items-center justify-center bg-gray-50">
             <div className="w-16 h-16 border-4 border-brand-purple border-t-transparent rounded-full animate-spin"></div>
@@ -154,6 +140,16 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
     const rawAiData = correction?.ai_feedback;
     const aiData = (Array.isArray(rawAiData) ? rawAiData[0] : rawAiData) as AIFeedback | null | undefined;
     const hasHumanCorrection = !!correction?.feedback;
+
+    // Converte os dados parciais para o formato de UserProfile esperado pelo botão
+    const studentProfileForShare: UserProfile = {
+        id: data.user_id || '',
+        full_name: data.profiles?.full_name || 'Estudante',
+        nickname: data.profiles?.nickname || '', // Garante string vazia se undefined
+        avatar_url: data.profiles?.avatar_url || null,
+        email: '',
+        user_category: 'aluno'
+    };
 
     return (
         <div className="bg-gray-50 min-h-screen pb-12 font-sans text-slate-800">
@@ -182,28 +178,15 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                             </div>
                         </div>
                     </div>
-                    
-                    {/* AÇÕES (Nota, Share, Print) */}
                     <div className="flex items-center gap-3">
                         {correction?.final_grade !== undefined && (
-                            <>
-                                {/* NOTA (Visível apenas em Desktop para economizar espaço no mobile) */}
-                                <div className="hidden md:flex flex-col items-end mr-2 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
-                                    <span className="text-[10px] uppercase font-bold text-slate-400">Nota</span>
-                                    <span className={`text-lg font-black leading-none ${correction.final_grade >= 900 ? 'text-green-600' : 'text-brand-purple'}`}>
-                                        {correction.final_grade}
-                                    </span>
-                                </div>
-                                
-                                {/* BOTÃO DE COMPARTILHAR (Novo) */}
-                                {shareData && (
-                                    <div className="hidden sm:block">
-                                        <ShareWriteButton data={shareData} />
-                                    </div>
-                                )}
-                            </>
+                            <div className="hidden md:flex flex-col items-end mr-2 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
+                                <span className="text-[10px] uppercase font-bold text-slate-400">Nota</span>
+                                <span className={`text-lg font-black leading-none ${correction.final_grade >= 900 ? 'text-green-600' : 'text-brand-purple'}`}>
+                                    {correction.final_grade}
+                                </span>
+                            </div>
                         )}
-                        
                         <button onClick={() => window.print()} className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-white hover:text-brand-purple hover:shadow-md transition-all" title="Baixar PDF">
                             <i className="fas fa-print"></i>
                         </button>
@@ -252,38 +235,53 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                     
                     {/* SCORE CARD */}
                     {correction?.final_grade !== undefined && (
-                        <div className="bg-white rounded-3xl p-6 shadow-lg shadow-purple-900/5 border border-purple-100 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-brand-purple/10 to-indigo-100/50 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700"></div>
-                            <div className="relative z-10 flex justify-between items-start">
-                                <div>
-                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Resultado Final</p>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-indigo-600 tracking-tighter">
-                                            {correction.final_grade}
-                                        </span>
-                                        <span className="text-xl text-gray-400 font-bold">/1000</span>
+                        <>
+                            <div className="bg-white rounded-3xl p-6 shadow-lg shadow-purple-900/5 border border-purple-100 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-brand-purple/10 to-indigo-100/50 rounded-full -mr-10 -mt-10 group-hover:scale-150 transition-transform duration-700"></div>
+                                <div className="relative z-10 flex justify-between items-start">
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Resultado Final</p>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-purple to-indigo-600 tracking-tighter">
+                                                {correction.final_grade}
+                                            </span>
+                                            <span className="text-xl text-gray-400 font-bold">/1000</span>
+                                        </div>
                                     </div>
+                                    {correction.badge && (
+                                        <div className="bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-lg border border-yellow-200/60 flex items-center gap-2 text-xs font-bold">
+                                            <i className="fas fa-medal text-yellow-500"></i> {correction.badge}
+                                        </div>
+                                    )}
                                 </div>
-                                {correction.badge && (
-                                    <div className="bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-lg border border-yellow-200/60 flex items-center gap-2 text-xs font-bold">
-                                        <i className="fas fa-medal text-yellow-500"></i> {correction.badge}
-                                    </div>
-                                )}
+                                <div className="grid grid-cols-5 gap-2 mt-6 pt-6 border-t border-gray-100">
+                                    {[1, 2, 3, 4, 5].map(i => (
+                                        <div key={i} className="flex flex-col items-center">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase mb-1">C{i}</span>
+                                            <span className="text-sm font-bold text-slate-800 bg-gray-50 px-2 py-1 rounded-md min-w-[30px] text-center">
+                                                {correction[`grade_c${i}` as GradeKey] ?? '-'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="grid grid-cols-5 gap-2 mt-6 pt-6 border-t border-gray-100">
-                                {[1, 2, 3, 4, 5].map(i => (
-                                    <div key={i} className="flex flex-col items-center">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase mb-1">C{i}</span>
-                                        <span className="text-sm font-bold text-slate-800 bg-gray-50 px-2 py-1 rounded-md min-w-[30px] text-center">
-                                            {correction[`grade_c${i}` as GradeKey] ?? '-'}
-                                        </span>
-                                    </div>
-                                ))}
+
+                            {/* --- BOTÃO DE COMPARTILHAR --- */}
+                            <div className="w-full">
+                                <ShareWriteButton 
+                                    profile={studentProfileForShare} 
+                                    stats={{
+                                        score: correction.final_grade,
+                                        title: data.title || "Redação Prática",
+                                        essayDate: data.submitted_at || undefined
+                                    }}
+                                    className="w-full"
+                                />
                             </div>
-                        </div>
+                        </>
                     )}
 
-                    {/* GPS - RECOMENDAÇÃO DO PROFESSOR (NOVO BLOCO) */}
+                    {/* GPS - RECOMENDAÇÃO DO PROFESSOR */}
                     {(correction?.recommended_test_id || correction?.additional_link) && (
                         <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-100 rounded-3xl p-5 shadow-sm relative overflow-hidden animate-in fade-in slide-in-from-right">
                             <div className="flex items-center gap-3 mb-3 relative z-10">
