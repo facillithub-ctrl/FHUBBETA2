@@ -264,10 +264,10 @@ export default function CampaignPage() {
              {/* Card Professor 1 */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-6 hover:shadow-md transition-shadow">
               <div className="relative w-24 h-24 flex-shrink-0 rounded-full overflow-hidden bg-gray-200 border-2 border-brand-purple/20">
-                 <Image src="/assets/images/time/pedro.JPG" alt="Prof. Pedro" fill className="object-cover" />
+                 <Image src="/assets/images/time/" alt="Prof. A " fill className="object-cover" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Prof. Pedro</h3>
+                <h3 className="text-xl font-bold text-gray-900">Prof. A</h3>
                 <p className="text-brand-purple font-medium text-sm mb-2">Especialista em Linguagens</p>
                 <p className="text-xs text-gray-500">Focado na estrutura argumentativa e coesão textual. Vai te ensinar a não fugir do tema.</p>
               </div>
@@ -275,10 +275,10 @@ export default function CampaignPage() {
              {/* Card Professor 2 */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-6 hover:shadow-md transition-shadow">
               <div className="relative w-24 h-24 flex-shrink-0 rounded-full overflow-hidden bg-gray-200 border-2 border-brand-purple/20">
-                 <Image src="/assets/images/time/igor.jpg" alt="Prof. Igor" fill className="object-cover" />
+                 <Image src="/assets/images/time/" alt="Prof. B" fill className="object-cover" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Prof. Igor</h3>
+                <h3 className="text-xl font-bold text-gray-900">Prof. B</h3>
                 <p className="text-brand-purple font-medium text-sm mb-2">Mestre em Literatura</p>
                 <p className="text-xs text-gray-500">Responsável por ampliar seu repertório sociocultural para garantir os 200 pontos na competência 2.</p>
               </div>
