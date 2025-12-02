@@ -14,6 +14,7 @@ import {
 import Image from 'next/image';
 import { VerificationBadge } from '@/components/VerificationBadge';
 import { useToast } from '@/contexts/ToastContext';
+import { ShareWriteButton } from '@/components/sharing/ShareWriteButton'; // <--- IMPORTADO
 
 // --- TIPOS ---
 type CorrectionWithDetails = EssayCorrection & {
@@ -126,6 +127,21 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
         return highlighted;
     };
 
+    // --- PREPARAÇÃO DOS DADOS PARA O SHARE CARD ---
+    const shareData = correction && data ? {
+        studentName: data.profiles?.full_name || "Estudante",
+        theme: data.title || "Redação sem Título",
+        totalScore: correction.final_grade || 0,
+        date: data.submitted_at ? new Date(data.submitted_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR'),
+        competencies: {
+            c1: correction.grade_c1 || 0,
+            c2: correction.grade_c2 || 0,
+            c3: correction.grade_c3 || 0,
+            c4: correction.grade_c4 || 0,
+            c5: correction.grade_c5 || 0,
+        }
+    } : null;
+
     if (isLoading) return (
         <div className="min-h-[60vh] flex flex-col items-center justify-center bg-gray-50">
             <div className="w-16 h-16 border-4 border-brand-purple border-t-transparent rounded-full animate-spin"></div>
@@ -166,15 +182,28 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                             </div>
                         </div>
                     </div>
+                    
+                    {/* AÇÕES (Nota, Share, Print) */}
                     <div className="flex items-center gap-3">
                         {correction?.final_grade !== undefined && (
-                            <div className="hidden md:flex flex-col items-end mr-2 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
-                                <span className="text-[10px] uppercase font-bold text-slate-400">Nota</span>
-                                <span className={`text-lg font-black leading-none ${correction.final_grade >= 900 ? 'text-green-600' : 'text-brand-purple'}`}>
-                                    {correction.final_grade}
-                                </span>
-                            </div>
+                            <>
+                                {/* NOTA (Visível apenas em Desktop para economizar espaço no mobile) */}
+                                <div className="hidden md:flex flex-col items-end mr-2 bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
+                                    <span className="text-[10px] uppercase font-bold text-slate-400">Nota</span>
+                                    <span className={`text-lg font-black leading-none ${correction.final_grade >= 900 ? 'text-green-600' : 'text-brand-purple'}`}>
+                                        {correction.final_grade}
+                                    </span>
+                                </div>
+                                
+                                {/* BOTÃO DE COMPARTILHAR (Novo) */}
+                                {shareData && (
+                                    <div className="hidden sm:block">
+                                        <ShareWriteButton data={shareData} />
+                                    </div>
+                                )}
+                            </>
                         )}
+                        
                         <button onClick={() => window.print()} className="w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:bg-white hover:text-brand-purple hover:shadow-md transition-all" title="Baixar PDF">
                             <i className="fas fa-print"></i>
                         </button>
