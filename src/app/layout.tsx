@@ -3,22 +3,21 @@ import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/contexts/ToastContext";
-import Script from "next/script";
+import Script from "next/script"; // Essencial para o Analytics e SEO
 
 // --- Fontes ---
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-montserrat" });
 
-// --- Configuração Mobile (Barra de status roxa) ---
+// --- Configuração Mobile ---
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#7C3AED",
 };
 
-// --- URL Base (Importante para as imagens funcionarem) ---
-// Se estiver rodando local, use http://localhost:3000, senão o domínio final
-const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://facillithub.com.br";
+// URL base (Use variável de ambiente ou o domínio fixo)
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://facillithub.com.br';
 
 // --- METADADOS OTIMIZADOS ---
 export const metadata: Metadata = {
@@ -28,48 +27,16 @@ export const metadata: Metadata = {
     default: "Facillit Hub | Ecossistema Digital Inteligente",
     template: "%s | Facillit Hub",
   },
-
-  description:
-    "Transforme ideias em resultados reais. O Facillit Hub centraliza organização, educação e gestão em 5 verticais inteligentes: Students, Schools, Startups, Enterprise e Global.",
+  
+  description: "Transforme ideias em resultados reais. O Facillit Hub centraliza organização, educação e gestão em 5 verticais inteligentes: Students, Schools, Startups, Enterprise e Global.",
 
   keywords: [
-    "Facillit Hub", // Termo principal separado
-    "FacillitHub",  // Termo junto (prevenção)
-    "Facillit",
-    "Ecossistema Digital",
-    "Super App de Educação",
-    "Plataforma Integrada",
-    "Transformação Digital",
-    "EdTech Brasil",
-    "ProdTech",
-    "Inovação Pedagógica",
-    "Tecnologia Educacional",
-    "Gestão Inteligente",
-    "Interconectividade",
-    "Jornada Digital",
-    "Facillit Students",
-    "Facillit Games",
-    "Facillit Write",
-    "Facillit Library",
-    "Facillit Play",
-    "Facillit Test",
-    "Facillit Create",
-    "Facillit Schools",
-    "Facillit Edu",
-    "Facillit Lab",
-    "Facillit Startups",
-    "Facillit Center",
-    "Facillit Host",
-    "Facillit API",
-    "Facillit Enterprise",
-    "Facillit People",
-    "Facillit Access",
-    "Facillit Card",
-    "Facillit Global",
-    "Facillit Day",
-    "Facillit Finances",
-    "Facillit C&C",
-    "Facillit Coach",
+    "Facillit Hub", "FacillitHub", "Hub Educacional",
+    "Ecossistema Digital", "Super App de Educação", "Plataforma Integrada",
+    "Transformação Digital", "EdTech Brasil", "ProdTech",
+    "Facillit Students", "Facillit Schools", "Facillit Startups",
+    "Facillit Enterprise", "Facillit Global", "Gestão Escolar",
+    "Facillit Write", "Facillit Play", "Facillit Test"
   ],
 
   authors: [{ name: "Facillit Hub Team", url: baseUrl }],
@@ -83,12 +50,11 @@ export const metadata: Metadata = {
     url: baseUrl,
     siteName: "Facillit Hub",
     title: "Facillit Hub | Ecossistema Digital Inteligente",
-    description:
-      "Conecte-se ao futuro com o Facillit Hub. Uma infraestrutura digital completa para educação, gestão e negócios.",
+    description: "Uma infraestrutura digital coesa que conecta pessoas, escolas e empresas.",
     images: [
       {
-        url: "/assets/images/LOGO/isologo/preto.png", // Sua logo configurada aqui
-        width: 800, // Ajuste conforme a resolução real da sua imagem se souber
+        url: "/assets/images/LOGO/isologo/preto.png", // Sua logo oficial
+        width: 800,
         height: 800,
         alt: "Logo Facillit Hub",
       },
@@ -99,11 +65,11 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Facillit Hub | Inovação e Propósito",
     description: "O sistema operacional completo para educação e negócios.",
-    images: ["/assets/images/LOGO/isologo/preto.png"], // Logo no Twitter também
+    images: ["/assets/images/LOGO/isologo/preto.png"],
     creator: "@facillithub",
   },
 
-  // --- ÍCONES (Navegador e Google Mobile) ---
+  // --- ÍCONES (Aba do navegador) ---
   icons: {
     icon: "/assets/images/LOGO/isologo/preto.png",
     shortcut: "/assets/images/LOGO/isologo/preto.png",
@@ -128,40 +94,54 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Dados Estruturados para o Google entender sua Marca (Organization Schema)
+  
+  // JSON-LD: Diz ao Google quem é a empresa e qual é a logo
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
     "name": "Facillit Hub",
+    "alternateName": "FacillitHub",
     "url": baseUrl,
     "logo": `${baseUrl}/assets/images/LOGO/isologo/preto.png`,
     "description": "Ecossistema digital inteligente para educação e gestão.",
-    "contactPoint": {
-      "@type": "ContactPoint",
-      "telephone": "", // Adicione se tiver um telefone público
-      "contactType": "customer service"
-    }
-    // Se tiver redes sociais, adicione aqui:
-    // "sameAs": [
-    //   "https://www.instagram.com/facillithub",
-    //   "https://www.linkedin.com/company/facillithub"
-    // ]
+    "sameAs": [
+      "https://www.instagram.com/facillithub",
+      "https://www.linkedin.com/company/facillithub"
+    ]
   };
 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body
-        className={`${inter.variable} ${montserrat.variable} font-sans antialiased bg-[#F8F9FA] text-gray-900 selection:bg-brand-purple/20 selection:text-brand-purple`}
-      >
-        {/* Script JSON-LD para SEO Avançado */}
+      <body className={`${inter.variable} ${montserrat.variable} font-sans antialiased bg-[#F8F9FA] text-gray-900 selection:bg-brand-purple/20 selection:text-brand-purple`}>
+        
+        {/* --- 1. Script do Google Analytics (Carrega a biblioteca) --- */}
         <Script
-          id="json-ld"
+          strategy="afterInteractive"
+          src="https://www.googletagmanager.com/gtag/js?id=G-5Z0EL4MRMM"
+        />
+
+        {/* --- 2. Configuração do Google Analytics (Seu ID) --- */}
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-5Z0EL4MRMM');
+          `}
+        </Script>
+
+        {/* --- 3. Script JSON-LD (SEO da Marca) --- */}
+        <Script
+          id="json-ld-organization"
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        
+
         <ThemeProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+             {children}
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>
