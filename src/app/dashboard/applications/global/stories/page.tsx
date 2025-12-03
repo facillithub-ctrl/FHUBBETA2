@@ -12,8 +12,8 @@ import PostDetailModal from './components/PostDetailModal';
 import TrendingTerms from './components/TrendingTerms';
 
 // --- FEEDS ---
-// Importamos APENAS o BookFeed por enquanto
-import BookFeed from './components/feeds/BookFeed'; // O Next.js vai buscar o index.tsx dentro da pasta
+// Apenas o BookFeed é importado porque é o único que existe fisicamente por enquanto
+import BookFeed from './components/feeds/BookFeed';
 
 // --- TIPOS E ACTIONS ---
 import { UserProfile, StoryCategory, StoryPost } from './types';
@@ -22,13 +22,13 @@ import createClient from '@/utils/supabase/client';
 
 // --- COMPONENTE: EM DESENVOLVIMENTO (Placeholder) ---
 const FeedUnderConstruction = ({ category }: { category: string }) => (
-  <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-[2rem] border border-dashed border-gray-200">
+  <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-[2rem] border border-dashed border-gray-200 mt-6">
     <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4 text-3xl text-gray-300">
       {category === 'games' ? '🎮' : category === 'movies' ? '🎬' : '🚧'}
     </div>
     <h3 className="font-bold text-gray-900 text-lg mb-2">Feed de {category} em Breve</h3>
-    <p className="text-sm text-gray-500 max-w-xs">
-      Estamos preparando algo incrível para os fãs de {category}. Fique ligado!
+    <p className="text-sm text-gray-500 max-w-xs mx-auto">
+      Estamos preparando algo incrível para os fãs de {category === 'all' ? 'conteúdo geral' : category}. Fique ligado!
     </p>
   </div>
 );
@@ -42,7 +42,9 @@ const ProfileSideCard = ({ user, onOpenCreate }: { user: UserProfile, onOpenCrea
            {user.avatar_url ? (
              <Image src={user.avatar_url} alt={user.name} fill className="object-cover" />
            ) : (
-             <div className="w-full h-full flex items-center justify-center text-gray-300"><i className="fas fa-user text-3xl"></i></div>
+             <div className="w-full h-full flex items-center justify-center text-gray-300">
+               <i className="fas fa-user text-3xl"></i>
+             </div>
            )}
         </div>
       </div>
@@ -66,7 +68,6 @@ function StoriesContent() {
   const postIdFromUrl = searchParams.get('p');
 
   // --- ESTADOS ---
-  // Default para 'books' já que é o foco agora
   const [activeCategory, setActiveCategory] = useState<StoryCategory>('books'); 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -123,11 +124,12 @@ function StoriesContent() {
 
   // --- RENDERIZAÇÃO DO FEED ---
   const renderFeed = () => {
-    const props = { userId: currentUser?.id, key: feedKey };
+    const commonProps = { userId: currentUser?.id };
     
-    // Se for Books, renderiza o feed real. Se for qualquer outro, mostra o placeholder.
-    if (activeCategory === 'books' || activeCategory === 'all') {
-        return <BookFeed {...props} />;
+    // Se a categoria for Books, renderiza o feed real.
+    // Para qualquer outra, mostra o placeholder "Em Breve".
+    if (activeCategory === 'books') {
+        return <BookFeed key={feedKey} {...commonProps} />;
     }
     
     return <FeedUnderConstruction category={activeCategory} />;
@@ -154,7 +156,7 @@ function StoriesContent() {
              {currentUser ? (
                 <ProfileSideCard user={currentUser} onOpenCreate={() => setIsCreateModalOpen(true)} />
              ) : (
-                <div className="h-64 bg-gray-50 rounded-2xl animate-pulse"></div>
+                <div className="h-64 bg-gray-50 rounded-2xl animate-pulse border border-gray-100"></div>
              )}
           </aside>
 
@@ -162,16 +164,16 @@ function StoriesContent() {
           <main className="lg:col-span-6 space-y-6">
              
              {/* Header Mobile */}
-             <div className="lg:hidden flex items-center justify-between mb-4 sticky top-0 z-30 bg-[#FDFDFD]/95 backdrop-blur-sm py-3 px-2">
+             <div className="lg:hidden flex items-center justify-between mb-4 sticky top-0 z-30 bg-[#FDFDFD]/95 backdrop-blur-sm py-3 px-2 border-b border-gray-50 -mx-2">
                 <h1 className="font-bold text-xl text-gray-900">Stories</h1>
-                <button onClick={() => setIsCreateModalOpen(true)} className="w-9 h-9 bg-brand-purple text-white rounded-full shadow-lg">
+                <button onClick={() => setIsCreateModalOpen(true)} className="w-9 h-9 bg-brand-purple text-white rounded-full shadow-lg flex items-center justify-center">
                    <i className="fas fa-plus"></i>
                 </button>
              </div>
 
              <div className="mb-2"><StoriesBar currentUser={currentUser} /></div>
 
-             <div className="sticky top-0 z-20 bg-[#FDFDFD]/95 backdrop-blur-md pt-2 pb-4">
+             <div className="sticky top-0 lg:top-0 z-20 bg-[#FDFDFD]/95 backdrop-blur-md pt-2 pb-4">
                 <CategoryTabs activeCategory={activeCategory} onSelect={setActiveCategory} />
              </div>
 
@@ -183,6 +185,15 @@ function StoriesContent() {
           {/* DIREITA */}
           <aside className="hidden lg:block lg:col-span-3">
              <div className="sticky top-24 space-y-6">
+                {/* Search Bar */}
+                <div className="relative group">
+                   <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-purple transition-colors"></i>
+                   <input 
+                      type="text" 
+                      placeholder="Buscar no Stories..." 
+                      className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple outline-none transition-all shadow-sm"
+                   />
+                </div>
                 <TrendingTerms category={activeCategory} />
              </div>
           </aside>
