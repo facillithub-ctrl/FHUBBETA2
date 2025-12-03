@@ -2,77 +2,56 @@
 
 import createClient from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { StoryPost, StoryCategory, BookPostType, GamePostType } from './types';
+import { StoryPost, StoryCategory, VerificationType } from './types';
 
-// --- CONSTANTES ---
 const FEED_PATH = '/dashboard/applications/global/stories';
 
-// --- HELPER: Parse Seguro de Metadata ---
+// --- HELPER ---
 const safeMetadataParse = (data: any) => {
   if (!data) return {};
   if (typeof data === 'object') return data;
-  try {
-    return JSON.parse(data);
-  } catch (error) {
-    return {};
-  }
+  try { return JSON.parse(data); } catch { return {}; }
 };
 
-// --- MAPPER CENTRALIZADO ---
+// --- MAPPER ---
 const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
   const isLikedByMe = row.my_like && Array.isArray(row.my_like) 
     ? row.my_like.some((l: any) => l.user_id === currentUserId) 
     : false;
 
+  // Fallback seguro para o usuário
   const user = row.user || { 
-    id: 'unknown', full_name: 'Usuário Desconhecido', avatar_url: null, nickname: 'user', is_verified: false, role: 'student' 
+    id: 'unknown', full_name: 'Usuário', avatar_url: null, username: 'user' 
   };
 
-  // --- LÓGICA DE DEFINIÇÃO DO BADGE ---
-  // Prioridade: 1. Aluno Destaque (red) -> 2. Professor (green) -> 3. Verificado Padrão (blue)
-  let badgeValue = null;
+  // Tenta pegar os dados novos, se não existirem, usa padrão
+  const role = user.role || 'student';
+  const isVerified = !!user.is_verified;
   
-  // Se existir uma coluna 'badge' explícita no banco, use-a:
-  if (user.badge) {
-      badgeValue = user.badge;
-  } 
-  // Caso contrário, infere baseado no role/status
-  else if (user.role === 'teacher') {
-      badgeValue = 'green';
-  } else if (user.is_verified) {
-      badgeValue = 'blue';
-  }
-  // Você pode adicionar lógica para 'red' aqui se tiver um campo is_star ou similar
+  let badgeValue: VerificationType = null;
+  if (user.badge) badgeValue = user.badge as VerificationType;
+  else if (role === 'teacher') badgeValue = 'green';
+  else if (isVerified) badgeValue = 'blue';
 
   return {
     id: row.id,
-    // Casting seguro para os tipos definidos
-    type: (row.type as any) || 'status', 
-    category: (row.category as any) || 'all',
-    
+    type: row.type || 'status', 
+    category: row.category || 'all',
     user: {
       id: user.id,
       name: user.full_name,
       avatar_url: user.avatar_url,
-      username: user.nickname ? `@${user.nickname}` : `@${user.username || 'user'}`,
-      isVerified: user.is_verified,
-      role: user.role,
-      badge: badgeValue, // Campo essencial para o componente
+      username: user.nickname || user.username || 'user',
+      isVerified,
+      badge: badgeValue,
+      role
     },
-    
-    createdAt: new Date(row.created_at).toLocaleDateString('pt-BR', { 
-      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 
-    }),
-
+    createdAt: new Date(row.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
     content: row.content || '',
     title: row.title,           
     subtitle: row.subtitle,     
     coverImage: row.cover_image, 
-    mediaUrl: row.media_url,
-    isVideo: row.is_video,
-
     metadata: safeMetadataParse(row.metadata), 
-    
     likes: row.likes?.[0]?.count || 0,
     commentsCount: row.comments?.[0]?.count || 0,
     isLiked: isLikedByMe,
@@ -80,7 +59,7 @@ const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
   };
 };
 
-// --- 1. BUSCAR FEED ---
+// --- BUSCAR FEED (Com Fallback Automático) ---
 export async function getStoriesFeed(
   category: StoryCategory = 'all', 
   limit: number = 20, 
@@ -89,12 +68,13 @@ export async function getStoriesFeed(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  // TENTATIVA 1: Query Completa (com role/badge)
+  // Se o seu banco tiver as colunas, isso roda.
   let query = supabase
     .from('stories_posts')
     .select(`
-      id, content, type, category, created_at, 
-      title, subtitle, cover_image, media_url, is_video, metadata,
-      user:profiles!stories_posts_user_id_fkey (id, full_name, avatar_url, nickname, is_verified, role), 
+      *,
+      user:profiles!stories_posts_user_id_fkey (id, full_name, avatar_url, nickname, is_verified, role, badge),
       likes:stories_likes(count),
       comments:stories_comments(count),
       my_like:stories_likes(user_id)
@@ -102,121 +82,101 @@ export async function getStoriesFeed(
     .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (targetUserId) {
-    query = query.eq('user_id', targetUserId);
-  } else if (category !== 'all') {
-    if (['movies', 'series', 'anime'].includes(category)) {
-      query = query.in('category', ['movies', 'series', 'anime']);
-    } else {
-      query = query.eq('category', category);
-    }
-  }
+  if (targetUserId) query = query.eq('user_id', targetUserId);
+  else if (category !== 'all') query = query.eq('category', category);
 
   const { data, error } = await query;
 
   if (error) {
-    console.error('Erro ao carregar feed:', error);
+    // TENTATIVA 2: Query de Compatibilidade (Sem role/badge)
+    // Isso resolve o erro 'column does not exist' automaticamente
+    if (error.code === '42703' || error.message.includes('does not exist')) {
+        console.warn("⚠️ Usando modo de compatibilidade (Banco desatualizado)");
+        const fallbackQuery = supabase
+            .from('stories_posts')
+            .select(`
+              *,
+              user:profiles!stories_posts_user_id_fkey (id, full_name, avatar_url, nickname, is_verified),
+              likes:stories_likes(count),
+              comments:stories_comments(count),
+              my_like:stories_likes(user_id)
+            `)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+            
+        if (targetUserId) fallbackQuery.eq('user_id', targetUserId);
+        else if (category !== 'all') fallbackQuery.eq('category', category);
+
+        const { data: fallbackData } = await fallbackQuery;
+        return (fallbackData || []).map(row => mapToStoryPost(row, user?.id));
+    }
     return [];
   }
   
   return (data || []).map(row => mapToStoryPost(row, user?.id));
 }
 
-// --- 2. BUSCAR POST ÚNICO ---
+// --- RESTANTE DAS AÇÕES ---
 export async function getPostById(postId: string): Promise<StoryPost | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
+  // Tenta completo
   const { data, error } = await supabase
     .from('stories_posts')
-    .select(`
-      *,
-      user:profiles!stories_posts_user_id_fkey (id, full_name, avatar_url, nickname, is_verified, role),
-      likes:stories_likes(count),
-      comments:stories_comments(count),
-      my_like:stories_likes(user_id)
-    `)
+    .select(`*, user:profiles!stories_posts_user_id_fkey (id, full_name, avatar_url, nickname, is_verified, role, badge), likes:stories_likes(count), comments:stories_comments(count), my_like:stories_likes(user_id)`)
     .eq('id', postId)
     .single();
 
-  if (error || !data) return null;
+  if (error && error.code === '42703') {
+     // Fallback simples
+     const { data: fallback } = await supabase
+        .from('stories_posts')
+        .select(`*, user:profiles!stories_posts_user_id_fkey (id, full_name, avatar_url, nickname, is_verified), likes:stories_likes(count), comments:stories_comments(count), my_like:stories_likes(user_id)`)
+        .eq('id', postId)
+        .single();
+     return fallback ? mapToStoryPost(fallback, user?.id) : null;
+  }
+  
+  if (!data) return null;
   return mapToStoryPost(data, user?.id);
 }
 
-// --- 3. DELETE POST ---
 export async function deleteStoryPost(postId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Não autorizado');
-
-  const { error } = await supabase
-    .from('stories_posts')
-    .delete()
-    .match({ id: postId, user_id: user.id });
-
-  if (error) {
-      console.error('Erro ao deletar:', error);
-      throw new Error('Erro ao excluir post');
-  }
+  if (!user) return;
+  await supabase.from('stories_posts').delete().match({ id: postId, user_id: user.id });
   revalidatePath(FEED_PATH);
 }
 
-// --- 4. CRIAR POST ---
 export async function createStoryPost(postData: Partial<StoryPost>) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) throw new Error('Sessão expirada.');
+  if (!user) throw new Error('Unauthorized');
 
-  if (!postData.content && !postData.coverImage && !postData.title && !postData.metadata) {
-     throw new Error('O post precisa ter conteúdo.');
-  }
-
-  const payload = {
+  await supabase.from('stories_posts').insert({
     user_id: user.id,
     category: postData.category || 'all',
-    type: postData.type || 'status', 
-    
+    type: postData.type || 'status',
     content: postData.content,
     title: postData.title,
     subtitle: postData.subtitle,
     cover_image: postData.coverImage,
-    media_url: postData.mediaUrl,
-    is_video: postData.isVideo || false,
-    
     metadata: postData.metadata || {},
-  };
-
-  const { error } = await supabase.from('stories_posts').insert(payload);
-
-  if (error) { 
-    console.error('Erro ao criar post:', error); 
-    throw new Error('Não foi possível publicar agora.'); 
-  }
-
+  });
   revalidatePath(FEED_PATH);
 }
 
-// --- 5. INTERAÇÕES (Like) ---
 export async function togglePostLike(postId: string, currentLikedState: boolean) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
-  try {
-    if (currentLikedState) {
-      await supabase.from('stories_likes')
-        .delete()
-        .match({ post_id: postId, user_id: user.id });
-    } else {
-      await supabase.from('stories_likes')
-        .upsert(
-          { post_id: postId, user_id: user.id }, 
-          { onConflict: 'post_id, user_id' }
-        );
-    }
-    revalidatePath(FEED_PATH);
-  } catch (e) {
-    console.error('Erro no like:', e);
+  if (currentLikedState) {
+    await supabase.from('stories_likes').delete().match({ post_id: postId, user_id: user.id });
+  } else {
+    await supabase.from('stories_likes').upsert({ post_id: postId, user_id: user.id }, { onConflict: 'post_id, user_id' });
   }
+  revalidatePath(FEED_PATH);
 }

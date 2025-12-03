@@ -2,16 +2,17 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ToastProvider, useToast } from '@/contexts/ToastContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 
 // Componentes
 import StoriesBar from './components/StoriesBar';
 import CategoryTabs from './components/CategoryTabs';
 import CreateReviewModal from './components/CreateReviewModal';
-import CreatePostWidget from './components/CreatePostWidget'; // Novo Widget
+import CreatePostWidget from './components/CreatePostWidget';
 import PostDetailModal from './components/PostDetailModal';
-import TrendingTerms from './components/TrendingTerms';
+import TrendingTerms from './components/TrendingTerms'; // Importado para Sidebar
 
 // Feeds
 import BookFeed from './components/feeds/BookFeed';
@@ -21,57 +22,102 @@ import { UserProfile, StoryCategory, StoryPost } from './types';
 import { createStoryPost, getPostById } from './actions';
 import createClient from '@/utils/supabase/client';
 
-// --- NOTIFICAÇÕES EM TEMPO REAL (Mock/Hook) ---
-const useRealtimeNotifications = (userId?: string) => {
-  const { showToast } = useToast();
-  
-  useEffect(() => {
-    if (!userId) return;
-    const supabase = createClient();
-    // Escuta inserções na tabela de notificações (se existir)
-    const channel = supabase
-      .channel('realtime-notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, 
-      (payload) => {
-         showToast(payload.new.message || "Nova interação!", "info");
-      })
-      .subscribe();
+// --- ELEMENTOS ESTRUTURAIS (HOISTED) ---
 
-    return () => { supabase.removeChannel(channel); };
-  }, [userId, showToast]);
-};
+// Placeholder (Fixo o erro de ReferenceError)
+const FeedUnderConstruction = ({ category }: { category: string }) => (
+  <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
+    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-2xl grayscale">🚧</div>
+    <p className="text-gray-600 font-medium text-lg">O feed de {category} está sendo preparado.</p>
+  </div>
+);
 
-const ProfileSideCard = ({ user }: { user: UserProfile }) => (
-  <div className="bg-white rounded-xl p-5 border border-gray-100 sticky top-24">
-      <div className="flex items-center gap-3 mb-4">
-         <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden relative border border-gray-200">
-            {user.avatar_url && <Image src={user.avatar_url} alt="Eu" fill className="object-cover" />}
-         </div>
-         <div>
-            <h3 className="font-bold text-gray-900 text-sm">{user.name}</h3>
-            <p className="text-gray-500 text-xs">@{user.username}</p>
-         </div>
+// Item de Navegação Simples
+const NavItem = ({ icon, label, active }: { icon: string, label: string, active?: boolean }) => (
+    <div className={`flex items-center gap-4 px-4 py-3 rounded-full cursor-pointer transition-all ${active ? 'font-bold text-brand-purple bg-purple-50/50' : 'text-gray-700 hover:bg-gray-100'}`}>
+        <i className={`${icon} text-lg w-6 text-center`}></i>
+        <span className="text-base hidden xl:inline">{label}</span>
+    </div>
+);
+
+// Sidebar Esquerda (Navegação)
+const LeftSidebar = ({ user, onOpenCreate }: { user: UserProfile, onOpenCreate: () => void }) => (
+  <div className="sticky top-0 h-screen overflow-y-auto w-full px-6 py-6 flex flex-col justify-between border-r border-gray-100/80">
+     
+     {/* Topo e Menu */}
+     <div className="space-y-6">
+        <Link href="/dashboard" className="text-xl font-black text-brand-purple hover:opacity-80 transition-opacity flex items-center gap-2">
+           <i className="fas fa-feather-alt text-2xl"></i>
+           <span className="hidden xl:inline">Facillit Stories</span>
+        </Link>
+        
+        <nav className="space-y-1">
+           <NavItem icon="fas fa-home" label="Início" active={true} />
+           <NavItem icon="fas fa-hashtag" label="Explorar" />
+           <NavItem icon="far fa-bell" label="Notificações" />
+           <NavItem icon="far fa-bookmark" label="Salvos" />
+           <NavItem icon="far fa-user" label="Perfil" />
+        </nav>
+
+        <button onClick={onOpenCreate} className="w-full py-3 bg-brand-purple text-white font-bold rounded-full shadow-md hover:bg-[#360366] transition-all text-base mt-6">
+           Publicar
+        </button>
+     </div>
+
+     {/* Rodapé: Perfil Mini */}
+     <div className="py-4 border-t border-gray-100 mt-auto">
+        <div className="flex items-center gap-3 p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer w-max xl:w-full">
+           <div className="w-8 h-8 rounded-full bg-gray-200 relative overflow-hidden">
+               {user.avatar_url && <Image src={user.avatar_url} alt="Eu" fill className="object-cover" />}
+           </div>
+           <div className="hidden xl:block leading-tight">
+              <p className="font-bold text-sm text-gray-900 truncate">{user.name}</p>
+              <p className="text-xs text-gray-500 truncate">@{user.username}</p>
+           </div>
+        </div>
+     </div>
+  </div>
+);
+
+// --- SIDEBAR DIREITA (Trends) ---
+const RightSidebar = ({ category }: { category: string }) => (
+  <div className="sticky top-0 h-screen overflow-y-auto pt-6 px-6 space-y-6">
+      {/* Busca Clean */}
+      <div className="relative group mb-6">
+         <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+         <input 
+           type="text" 
+           placeholder="Buscar..." 
+           className="w-full bg-gray-100 border-none rounded-full py-3 pl-12 pr-4 text-sm focus:bg-white focus:ring-1 focus:ring-brand-purple transition-all outline-none"
+         />
       </div>
-      <div className="flex justify-between text-center border-t border-gray-50 pt-3">
-          <div><span className="block font-bold text-sm">12</span><span className="text-[10px] text-gray-400">Lidos</span></div>
-          <div><span className="block font-bold text-sm">482</span><span className="text-[10px] text-gray-400">Seguidores</span></div>
-          <div><span className="block font-bold text-sm">35</span><span className="text-[10px] text-gray-400">Seguindo</span></div>
+
+      {/* Trends Clean */}
+      <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100">
+         <h3 className="font-bold text-gray-900 text-lg mb-4">Em Alta</h3>
+         <TrendingTerms category={category} />
+      </div>
+      
+      <div className="text-[11px] text-gray-400 px-2 leading-relaxed">
+         © 2024 Facillit Hub • Termos • Privacidade
       </div>
   </div>
 );
 
+
 function StoriesContent() {
+  // ... Lógica de estado e handlers ...
   const router = useRouter();
   const searchParams = useSearchParams();
   const postIdFromUrl = searchParams.get('p');
 
   const [activeCategory, setActiveCategory] = useState<StoryCategory>('all');
-  const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [selectedPost, setSelectedPost] = useState<StoryPost | null>(null);
-  const [feedKey, setFeedKey] = useState(0); 
+  const [feedKey, setFeedKey] = useState(0);
 
-  // Setup Inicial
+  // Carregamento de Usuário
   useEffect(() => {
     const load = async () => {
       const supabase = createClient();
@@ -79,27 +125,19 @@ function StoriesContent() {
       if (user) {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
         setCurrentUser({
-          id: user.id,
-          name: profile?.full_name || 'User',
-          avatar_url: profile?.avatar_url,
-          username: profile?.nickname || 'user',
-          isVerified: profile?.is_verified,
-          verificationType: profile?.role === 'teacher' ? 'green' : (profile?.is_verified ? 'blue' : null)
+          id: user.id, name: profile?.full_name || 'Usuário', avatar_url: profile?.avatar_url,
+          username: profile?.nickname || 'user', isVerified: profile?.is_verified,
+          role: profile?.role || 'student', badge: profile?.badge || null
         });
       }
     };
     load();
   }, []);
 
-  // Ativa notificações
-  useRealtimeNotifications(currentUser?.id);
-
-  // Deep Link Handler
+  // Deep Link
   useEffect(() => {
     if (postIdFromUrl) {
-       getPostById(postIdFromUrl).then(post => {
-          if (post) setSelectedPost(post);
-       });
+       getPostById(postIdFromUrl).then(p => { if (p) setSelectedPost(p); });
     } else {
        setSelectedPost(null);
     }
@@ -110,7 +148,7 @@ function StoriesContent() {
     try {
         await createStoryPost(postData);
         setFeedKey(p => p + 1);
-        setIsAdvancedModalOpen(false);
+        setIsModalOpen(false);
     } catch {
         alert("Erro ao publicar.");
     }
@@ -118,7 +156,7 @@ function StoriesContent() {
 
   const handleOpenPost = (post: StoryPost) => {
     setSelectedPost(post);
-    window.history.pushState(null, '', `?p=${post.id}`);
+    router.push(`?p=${post.id}`, { scroll: false });
   };
 
   const handleClosePost = () => {
@@ -127,84 +165,64 @@ function StoriesContent() {
   };
 
   return (
-    <div className="min-h-screen bg-white md:bg-[#FAFAFA] font-inter">
-      {selectedPost && <PostDetailModal post={selectedPost} currentUser={currentUser} onClose={handleClosePost} />}
+    <div className="min-h-screen bg-white font-inter flex justify-center">
       
-      {currentUser && (
-        <CreateReviewModal 
-          isOpen={isAdvancedModalOpen} 
-          onClose={() => setIsAdvancedModalOpen(false)} 
-          currentUser={currentUser} 
-          onPostCreate={handlePostCreate} 
-        />
-      )}
+      {/* Modais */}
+      {selectedPost && <PostDetailModal post={selectedPost} currentUser={currentUser} onClose={handleClosePost} />}
+      {currentUser && <CreateReviewModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} currentUser={currentUser} onPostCreate={handlePostCreate} />}
 
-      <div className="max-w-7xl mx-auto md:px-4 lg:px-8 pt-0 md:pt-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* GRID PRINCIPAL: Layout com respiro maior (gap-8) */}
+      <div className="w-full max-w-[1300px] mx-auto grid grid-cols-1 lg:grid-cols-[275px_1fr] xl:grid-cols-[275px_1fr_300px] gap-8">
           
-          {/* COLUNA ESQUERDA (Desktop) */}
-          <aside className="hidden lg:block lg:col-span-3">
-             {currentUser && <ProfileSideCard user={currentUser} />}
-             <div className="mt-4 text-xs text-gray-400 px-2">
-                © 2024 Facillit Stories • Privacidade • Termos
-             </div>
+          {/* 1. ESQUERDA (Navegação) */}
+          <aside className="hidden lg:block">
+             {currentUser && <LeftSidebar user={currentUser} onOpenCreate={() => setIsModalOpen(true)} />}
           </aside>
 
-          {/* COLUNA CENTRAL (Feed Infinito) */}
-          <main className="lg:col-span-6 bg-white min-h-screen border-x border-gray-100 pb-20">
+          {/* 2. CENTRO (Feed Principal) */}
+          {/* Main com largura centralizada e bordas para criar o efeito "Timeline" */}
+          <main className="w-full max-w-[650px] min-h-screen border-x border-gray-100/80 bg-white mx-auto">
              
-             {/* Header Mobile */}
-             <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center justify-between lg:hidden">
-                <div className="w-8 h-8 rounded-full bg-brand-purple flex items-center justify-center text-white"><i className="fas fa-feather-alt"></i></div>
-                <h1 className="font-bold text-lg">Início</h1>
-                <div className="w-8"></div>
+             {/* Header Fixo */}
+             <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 px-6 py-3 flex justify-between items-center">
+                <h1 className="font-bold text-xl tracking-tight">Página Inicial</h1>
+                {currentUser && <Link href={`/u/${currentUser.username}`} className="w-8 h-8 rounded-full bg-gray-100 relative overflow-hidden"><Image src={currentUser.avatar_url || ''} alt="Eu" fill className="object-cover" /></Link>}
              </div>
 
              {/* Stories Bar */}
-             <div className="px-4 pt-4 pb-2 border-b border-gray-50">
-                <StoriesBar currentUser={currentUser} />
+             <div className="pt-4 pb-4 border-b border-gray-100 px-6">
+                 <StoriesBar currentUser={currentUser} />
              </div>
 
-             {/* Widget de Criação Rápida */}
+             {/* WIDGET DE CRIAÇÃO */}
              {currentUser && (
-               <CreatePostWidget 
-                  currentUser={currentUser} 
-                  onPostCreate={handlePostCreate} 
-                  onOpenAdvancedModal={() => setIsAdvancedModalOpen(true)}
-               />
+                <div className="border-b border-gray-100">
+                    <CreatePostWidget currentUser={currentUser} onPostCreate={handlePostCreate} onOpenAdvancedModal={() => setIsModalOpen(true)} />
+                </div>
              )}
 
-             {/* Abas (Agora integradas ao feed) */}
-             <div className="sticky top-[0px] md:top-0 z-20 bg-white/95 backdrop-blur-md border-b border-gray-100">
-                <CategoryTabs activeCategory={activeCategory} onSelect={setActiveCategory} />
+             {/* Abas de Filtro */}
+             <div className="sticky top-[58px] z-30 bg-white/95 backdrop-blur border-b border-gray-100">
+                <div className="py-2 px-6">
+                   <CategoryTabs activeCategory={activeCategory} onSelect={setActiveCategory} />
+                </div>
              </div>
 
-             {/* Feed */}
-             <div className="animate-fade-in">
+             {/* O Feed */}
+             <div className="pb-32">
                 {activeCategory === 'books' || activeCategory === 'all' ? (
-                   <BookFeed 
-                      key={feedKey} 
-                      userId={currentUser?.id} 
-                      onPostClick={handleOpenPost} 
-                   />
+                   <BookFeed key={feedKey} userId={currentUser?.id} onPostClick={handleOpenPost} />
                 ) : (
-                   <div className="p-10 text-center text-gray-400">Em breve...</div>
+                   <FeedUnderConstruction category={activeCategory} />
                 )}
              </div>
           </main>
 
-          {/* COLUNA DIREITA (Desktop) */}
-          <aside className="hidden lg:block lg:col-span-3">
-             <div className="sticky top-24">
-                <div className="bg-gray-50 rounded-full px-4 py-3 mb-6 flex items-center gap-2 border border-gray-100 focus-within:bg-white focus-within:border-brand-purple transition-all">
-                   <i className="fas fa-search text-gray-400"></i>
-                   <input type="text" placeholder="Buscar no Facillit" className="bg-transparent outline-none text-sm w-full" />
-                </div>
-                <TrendingTerms category={activeCategory} />
-             </div>
+          {/* 3. DIREITA (Trends) */}
+          <aside className="hidden xl:block">
+             <RightSidebar category={activeCategory} />
           </aside>
 
-        </div>
       </div>
     </div>
   );
@@ -212,10 +230,10 @@ function StoriesContent() {
 
 export default function StoriesPage() {
   return (
-    <ToastProvider>
-      <Suspense fallback={<div className="h-screen flex items-center justify-center bg-white"><div className="animate-pulse w-10 h-10 bg-brand-purple rounded-full"></div></div>}>
+    <Suspense fallback={<div className="min-h-screen w-full flex items-center justify-center bg-white"><div className="w-8 h-8 border-2 border-brand-purple border-t-transparent rounded-full animate-spin"></div></div>}>
+      <ToastProvider>
         <StoriesContent />
-      </Suspense>
-    </ToastProvider>
+      </ToastProvider>
+    </Suspense>
   );
 }

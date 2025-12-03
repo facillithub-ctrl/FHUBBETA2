@@ -1,72 +1,105 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Image from 'next/image';
-import { UserProfile } from '../types';
+import { UserProfile, StoryPost } from '../types';
 
-export default function CreatePostWidget({ 
-  currentUser, 
-  onPostCreate 
-}: { 
-  currentUser: UserProfile, 
-  onPostCreate: (text: string) => Promise<void> // Promise para saber quando acabou
-}) {
+type Props = {
+  currentUser: UserProfile;
+  onPostCreate: (post: Partial<StoryPost>) => Promise<void>;
+  onOpenAdvancedModal: () => void;
+};
+
+export default function CreatePostWidget({ currentUser, onPostCreate, onOpenAdvancedModal }: Props) {
   const [text, setText] = useState('');
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!text.trim() || isSubmitting) return; // Trava local
-    
+  // Auto-resize do textarea
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setText(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = `${e.target.scrollHeight}px`;
+  };
+
+  const handleSubmit = async () => {
+    if (!text.trim()) return;
     setIsSubmitting(true);
     try {
-        await onPostCreate(text);
-        setText('');
-        setIsExpanded(false);
+      await onPostCreate({
+        content: text,
+        category: 'all',
+        type: 'status'
+      });
+      setText('');
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+      setIsFocused(false);
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className={`bg-white rounded-3xl p-4 mb-6 transition-all duration-300 border border-gray-100 ${isExpanded ? 'shadow-lg' : 'shadow-sm'}`}>
-      <div className="flex gap-4 items-start">
-        <div className="w-11 h-11 rounded-full bg-gray-100 overflow-hidden relative flex-shrink-0">
-          {currentUser.avatar_url ? (
-             <Image src={currentUser.avatar_url} alt="Me" fill className="object-cover" />
-          ) : (
-             <div className="w-full h-full flex items-center justify-center text-gray-400"><i className="fas fa-user"></i></div>
-          )}
+    <div className={`bg-white border-b border-gray-100 pt-4 pb-2 px-4 transition-colors ${isFocused ? 'bg-gray-50/30' : ''}`}>
+      <div className="flex gap-3">
+        {/* Avatar */}
+        <div className="flex-shrink-0 pt-1">
+          <div className="w-10 h-10 rounded-full bg-gray-200 relative overflow-hidden border border-gray-200">
+            {currentUser.avatar_url ? (
+               <Image src={currentUser.avatar_url} alt="Eu" fill className="object-cover" />
+            ) : (
+               <div className="w-full h-full flex items-center justify-center text-gray-400"><i className="fas fa-user"></i></div>
+            )}
+          </div>
         </div>
-        
-        <form onSubmit={handleSubmit} className="flex-1 w-full">
-          <input 
-            type="text" 
-            placeholder={`Partilhe a sua experiência cultural...`} 
-            className="w-full bg-transparent border-none focus:ring-0 text-sm py-3 px-2 placeholder-gray-400"
+
+        {/* Área de Input */}
+        <div className="flex-1 min-w-0">
+          <textarea
+            ref={textareaRef}
+            placeholder="O que você está pensando?"
+            className="w-full bg-transparent border-none outline-none text-lg text-gray-900 placeholder-gray-400 resize-none overflow-hidden min-h-[42px] leading-relaxed"
+            rows={1}
             value={text}
-            onChange={(e) => setText(e.target.value)}
-            onFocus={() => setIsExpanded(true)}
+            onChange={handleInput}
+            onFocus={() => setIsFocused(true)}
             disabled={isSubmitting}
           />
-          
-          {isExpanded && (
-            <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-50 animate-fade-in">
-               <div className="flex gap-3 text-gray-400">
-                 <button type="button" className="hover:text-purple-600 transition-colors"><i className="fas fa-image"></i></button>
-                 {/* Outros botões... */}
-               </div>
-               <button 
-                 type="submit" 
-                 disabled={!text.trim() || isSubmitting}
-                 className="px-6 py-2 bg-black text-white text-xs font-bold rounded-full hover:opacity-80 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-               >
-                 {isSubmitting ? 'Publicando...' : 'Publicar'}
-               </button>
-            </div>
-          )}
-        </form>
+
+          {/* Barra de Ações (Sempre visível para fácil acesso) */}
+          <div className="flex justify-between items-center mt-3 mb-2">
+             
+             <div className="flex items-center gap-0 text-brand-purple">
+                <button className="p-2 rounded-full hover:bg-purple-50 transition-colors text-brand-purple/80 hover:text-brand-purple" title="Mídia">
+                   <i className="far fa-image text-lg"></i>
+                </button>
+                <button className="p-2 rounded-full hover:bg-purple-50 transition-colors text-brand-purple/80 hover:text-brand-purple" title="GIF">
+                   <i className="fas fa-film text-lg"></i>
+                </button>
+                <button className="p-2 rounded-full hover:bg-purple-50 transition-colors text-brand-purple/80 hover:text-brand-purple" title="Enquete">
+                   <i className="fas fa-poll-h text-lg"></i>
+                </button>
+                
+                {/* Botão para criar reviews/listas */}
+                <button 
+                  onClick={onOpenAdvancedModal}
+                  className="ml-2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-50 text-brand-purple text-xs font-bold hover:bg-purple-100 transition-colors"
+                >
+                   <i className="fas fa-plus"></i>
+                   Criar Review
+                </button>
+             </div>
+
+             <button 
+               onClick={handleSubmit}
+               disabled={!text.trim() || isSubmitting}
+               className="bg-brand-purple text-white font-bold px-5 py-1.5 rounded-full text-sm hover:bg-[#360366] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+             >
+               {isSubmitting ? 'Enviando...' : 'Publicar'}
+             </button>
+          </div>
+        </div>
       </div>
     </div>
   );
