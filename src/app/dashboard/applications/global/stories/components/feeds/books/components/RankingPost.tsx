@@ -38,7 +38,8 @@ export default function RankingPost({ post }: { post: StoryPost }) {
         ))}
       </div>
       
-      <p className="text-sm text-gray-600 mt-3 px-2 italic">"{post.content}"</p>
+      {/* CORREÇÃO AQUI: Aspas escapadas */}
+      <p className="text-sm text-gray-600 mt-3 px-2 italic">&quot;{post.content}&quot;</p>
     </div>
   );
 }

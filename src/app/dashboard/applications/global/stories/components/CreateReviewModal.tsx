@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Image from 'next/image'; // Importar Next Image
 import { UserProfile, StoryPost, BookPostType } from '../types';
 
 type Props = {
@@ -10,7 +11,7 @@ type Props = {
   onPostCreate: (post: Partial<StoryPost>) => void;
 };
 
-// Configuração dos Tipos de Post com Ícones e Descrições
+// ... Mantenha o array POST_TYPES igual ...
 const POST_TYPES: { id: BookPostType; label: string; icon: string; desc: string }[] = [
   { id: 'review', label: 'Resenha', icon: 'fas fa-book-open', desc: 'Análise aprofundada com nota.' },
   { id: 'rating', label: 'Avaliação', icon: 'fas fa-star', desc: 'Apenas nota rápida.' },
@@ -29,7 +30,7 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
   const [selectedType, setSelectedType] = useState<BookPostType>('review');
   const [loading, setLoading] = useState(false);
 
-  // Estado Unificado do Formulário
+  // ... Mantenha o estado formData igual ...
   const [formData, setFormData] = useState({
     title: '',
     author: '', 
@@ -37,7 +38,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
     rating: 0,
     coverImage: '',
     tags: '',
-    // Campos Específicos (Metadata)
     targetAudience: '',
     reasons: ['', '', ''],
     price: '',
@@ -50,7 +50,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
     publisher: '',
     pages: '',
     genre: '',
-    // Inicializa lista com 5 posições vazias
     rankingItems: [
         { position: 1, title: '' }, 
         { position: 2, title: '' }, 
@@ -62,14 +61,13 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
 
   if (!isOpen) return null;
 
-  // Atualiza um motivo específico no array
+  // ... Mantenha as funções handleReasonChange, handleRankingChange e handleSubmit iguais ...
   const handleReasonChange = (index: number, value: string) => {
     const newReasons = [...formData.reasons];
     newReasons[index] = value;
     setFormData({ ...formData, reasons: newReasons });
   };
 
-  // Atualiza um item do ranking específico no array
   const handleRankingChange = (index: number, value: string) => {
     const newItems = formData.rankingItems.map((item, idx) => 
         idx === index ? { ...item, title: value } : item
@@ -79,22 +77,18 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
 
   const handleSubmit = async () => {
     setLoading(true);
-    
-    // Filtra itens vazios antes de enviar
     const validRankingItems = formData.rankingItems.filter(i => i.title.trim() !== '');
     const validReasons = formData.reasons.filter(r => r.trim() !== '');
 
-    // Constrói o objeto final
     const newPost: Partial<StoryPost> = {
       category: 'books',
-      type: selectedType, // TIPO É FUNDAMENTAL
+      type: selectedType,
       title: formData.title || 'Post sem título',
-      subtitle: formData.author, // Usamos subtitle como autor na raiz também
+      subtitle: formData.author,
       content: formData.content,
       coverImage: formData.coverImage,
       tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
       
-      // Metadata: O coração dos posts especiais
       metadata: {
         author: formData.author,
         price: formData.price ? parseFloat(formData.price) : undefined,
@@ -112,13 +106,10 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
         quotePage: formData.quotePage,
         rankingItems: validRankingItems,
       },
-      
       rating: (selectedType === 'review' || selectedType === 'rating') ? formData.rating : undefined,
-      
       progress: selectedType === 'first-impressions' ? { 
          current: 0, total: 100, percentage: formData.progress, status: 'Lendo' 
       } : undefined,
-      
       externalLink: selectedType === 'promotion' && formData.affiliateLink ? {
          url: formData.affiliateLink,
          label: 'Ver Oferta'
@@ -127,7 +118,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
 
     try {
         await onPostCreate(newPost);
-        // Reset parcial após sucesso
         setStep(1);
         setFormData({ ...formData, title: '', content: '', rankingItems: formData.rankingItems.map(i => ({...i, title: ''})) }); 
     } catch (error) {
@@ -143,9 +133,10 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
   const renderCommonFields = () => (
     <div className="space-y-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
       <div className="flex gap-4">
+          {/* CORREÇÃO: Usando next/image e relative */}
           <div className="w-24 h-32 bg-white rounded-lg flex-shrink-0 flex items-center justify-center border border-dashed border-gray-300 relative overflow-hidden group hover:border-purple-400 transition-colors">
              {formData.coverImage ? (
-                <img src={formData.coverImage} alt="Capa" className="w-full h-full object-cover" />
+                <Image src={formData.coverImage} alt="Capa" fill className="object-cover" />
              ) : (
                 <div className="text-center p-2">
                    <i className="fas fa-camera text-gray-300 mb-1"></i>
@@ -154,7 +145,7 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
              )}
              <input 
                 type="text" 
-                className="absolute inset-0 opacity-0 cursor-pointer"
+                className="absolute inset-0 opacity-0 cursor-pointer z-10"
                 onChange={(e) => setFormData({...formData, coverImage: e.target.value})}
              />
           </div>
@@ -183,7 +174,10 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
     </div>
   );
 
+  // ... Mantenha renderSpecificFields igual (código não alterado) ...
   const renderSpecificFields = () => {
+    // (Copie o código original da função renderSpecificFields aqui para economizar espaço na resposta, 
+    //  pois ele não precisa de alterações)
     switch(selectedType) {
         case 'review':
         case 'rating':
@@ -207,7 +201,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                   )}
                </div>
             );
-        
         case 'ranking':
             return (
                <div className="space-y-3 animate-in fade-in">
@@ -230,7 +223,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                   ))}
                </div>
             );
-
         case 'quote':
             return (
                <div className="space-y-3 animate-in fade-in">
@@ -248,7 +240,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                   />
                </div>
             );
-
         case 'promotion':
             return (
                <div className="space-y-3 animate-in fade-in">
@@ -259,7 +250,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                   <input className="w-full bg-gray-50 border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Link de Afiliado/Loja" value={formData.affiliateLink} onChange={e => setFormData({...formData, affiliateLink: e.target.value})} />
                </div>
             );
-
         case 'recommendation':
              return (
                 <div className="space-y-3 animate-in fade-in">
@@ -270,7 +260,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                    ))}
                 </div>
              );
-
         case 'technical':
              return (
                 <div className="grid grid-cols-2 gap-3 animate-in fade-in">
@@ -279,8 +268,7 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                    <input className="bg-gray-50 border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Nº Páginas" value={formData.pages} onChange={e => setFormData({...formData, pages: e.target.value})} />
                 </div>
              );
-
-        default: // Indication, Discussion, etc
+        default: 
             return (
                <textarea 
                   className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm h-32 outline-none"

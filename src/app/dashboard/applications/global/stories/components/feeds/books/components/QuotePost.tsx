@@ -16,8 +16,9 @@ export default function QuotePost({ post }: { post: StoryPost }) {
       <div className="relative z-10 max-w-md">
         <i className="fas fa-quote-left text-4xl text-brand-green/80 mb-6 block"></i>
         
+        {/* CORREÇÃO: Aspas escapadas (&quot;) */}
         <p className="font-serif text-2xl md:text-3xl leading-relaxed tracking-wide text-gray-100 italic">
-           "{post.metadata?.quoteText || post.content}"
+           &quot;{post.metadata?.quoteText || post.content}&quot;
         </p>
         
         <div className="mt-8 flex items-center justify-center gap-3">
