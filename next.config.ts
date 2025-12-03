@@ -55,8 +55,22 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      // Placeholders (CORREÇÃO DO ERRO)
+      {
+        protocol: 'https',
+        hostname: 'via.placeholder.com',
+        port: '',
+        pathname: '/**',
+      },
+      // Google User Content (Avatares de login social do Google)
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };
 
-export default nextConfig;  
+export default nextConfig;

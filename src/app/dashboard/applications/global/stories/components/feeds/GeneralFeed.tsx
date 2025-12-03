@@ -6,7 +6,7 @@ export default function GeneralFeed({ userId }: { userId?: string }) {
     <BaseFeed 
       category="all" 
       currentUserId={userId}
-      emptyMessage="Seu feed está silencioso. Siga mais pessoas ou poste algo!" 
+      emptyMessage="O que está acontecendo no campus? Compartilhe algo!" 
     />
   );
 }

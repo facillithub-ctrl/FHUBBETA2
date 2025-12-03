@@ -6,7 +6,7 @@ export default function GamesFeed({ userId }: { userId?: string }) {
     <BaseFeed 
       category="games" 
       currentUserId={userId}
-      emptyMessage="Nenhum gameplay ou conquista registrada." 
+      emptyMessage="Nenhum progresso ou conquista compartilhada." 
     />
   );
 }

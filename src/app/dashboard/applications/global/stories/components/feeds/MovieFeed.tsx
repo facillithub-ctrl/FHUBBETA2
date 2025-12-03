@@ -6,7 +6,7 @@ export default function MovieFeed({ userId }: { userId?: string }) {
     <BaseFeed 
       category="movies" 
       currentUserId={userId}
-      emptyMessage="Nenhum filme ou série comentado. Assistiu algo bom?" 
+      emptyMessage="Nenhuma maratona registrada recentemente." 
     />
   );
 }
