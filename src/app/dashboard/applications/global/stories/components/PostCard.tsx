@@ -23,8 +23,9 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
 
   const isOwner = currentUserId === post.user.id;
   
-  // CORREÇÃO: Adiciona lógica de fallback para isVerified
-  const badgeToDisplay = post.user.badge || (post.user.isVerified ? 'blue' : null);
+  // CORREÇÃO FINAL: Usa o badge processado (já com fallback de 'blue' ou 'green' no actions.ts)
+  // O valor de post.user.badge já é o valor final calculado no mapToStoryPost
+  const badgeToDisplay = post.user.badge || null;
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -92,7 +93,7 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
                         {post.user.name}
                     </Link>
                     
-                    {/* SELO VERIFICADO: Renderização condicional robusta com fallback */}
+                    {/* SELO VERIFICADO: Renderização usando a variável de exibição */}
                     {badgeToDisplay && (
                         <div className="flex-shrink-0 inline-flex items-center pt-[2px]">
                             <VerificationBadge badge={badgeToDisplay} size="14px" />
