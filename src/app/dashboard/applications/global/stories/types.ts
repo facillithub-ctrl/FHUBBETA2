@@ -8,13 +8,16 @@ export type UserProfile = {
   username: string;
   isVerified?: boolean;
   bio?: string;
+  role?: 'student' | 'teacher' | 'admin';
+  // Gamificação leve (Opcional)
+  level?: number; 
+  readCount?: number;
   followers?: number;
   following?: number;
-  readCount?: number;
-  role?: 'student' | 'teacher' | 'admin';
 };
 
 // --- STORY CIRCLES (Círculos de Stories no topo) ---
+// Usado pelo componente StoriesBar
 export type StoryCircle = {
   id: string;
   user: UserProfile;
@@ -23,64 +26,38 @@ export type StoryCircle = {
   category?: StoryCategory;
 };
 
-// --- CATEGORIAS ---
+// --- CATEGORIAS GERAIS ---
 export type StoryCategory = 
   | 'all' 
   | 'books' 
   | 'movies' 
   | 'series' 
   | 'anime' 
-  | 'sports' 
-  | 'podcasts' 
   | 'games' 
-  | 'book-club';
+  | 'general';
 
-// --- SUBTIPOS DE LIVROS ---
+// --- FORMATOS ESPECÍFICOS DE LIVROS (E OUTRAS MÍDIAS) ---
+// Estes são os tipos que definem qual componente visual será carregado
 export type BookPostType = 
-  | 'review'             // Resenha completa
+  | 'review'             // Análise aprofundada
   | 'rating'             // Avaliação rápida
   | 'recommendation'     // "Recomendado para..."
   | 'indication'         // Indicação simples
   | 'promotion'          // Oferta/Promoção
   | 'discussion'         // Debate/Pergunta
-  | 'first-impressions'  // Primeiras impressões (com mood)
+  | 'first-impressions'  // Primeiras impressões (com barra de progresso)
   | 'quote'              // Citação visual
   | 'technical'          // Ficha Técnica
   | 'ranking';           // Top X Listas
 
-// --- TIPOS GERAIS DE POSTAGEM ---
-// Une os tipos específicos de livros com os tipos genéricos do sistema
-export type PostType = 
-  | BookPostType 
-  | 'video' 
-  | 'quote' // Mantido para compatibilidade legado, mas preferir o do BookPostType se for livro
-  | 'status' 
-  | 'link' 
-  | 'recommendation' // Mantido para legado
-  | 'match' 
-  | 'progress';
-
-// --- ELEMENTOS AUXILIARES ---
-
-export type CharacterInfo = {
-  name: string;
-  role?: string;
-};
-
-export type ReadingProgress = {
-  current: number;
-  total: number;
-  percentage: number;
-  status: 'Lendo' | 'Concluído' | 'Abandonado' | 'Quero Ler' | 'Assistindo' | 'Jogando';
-};
-
+// --- TIPOS DE CONTEÚDO AUXILIAR ---
 export type Comment = {
   id: string;
-  user: string;
+  user: UserProfile;
   text: string;
+  createdAt: string;
 };
 
-// Estrutura para itens de Ranking (ex: Top 5 Livros)
 export type RankingItem = {
   position: number;
   title: string;
@@ -93,99 +70,69 @@ export type RankingItem = {
 export type StoryPost = {
   id: string;
   category: StoryCategory;
-  type: PostType;
+  
+  // O 'type' decide o layout. Se não for livro, usa 'status' ou 'media'
+  type: BookPostType | 'status' | 'media'; 
+  
   user: UserProfile;
   createdAt: string; 
   
-  // Conteúdo Principal
-  title?: string;
-  subtitle?: string; // Usado para "Autor" em livros ou legendas curtas
-  coverImage?: string;
-  rating?: number; // 0-5
-  
-  content: string;
-  mediaUrl?: string; // Imagem, Video ou Preview de Link
+  // Conteúdo Base (Comum a todos)
+  content: string;       // Texto principal ou descrição
+  title?: string;        // Título do Livro/Filme/Post
+  subtitle?: string;     // Autor do Livro ou Subtítulo
+  coverImage?: string;   // Capa do livro ou Imagem do post
+  mediaUrl?: string;     // Para vídeos ou mídia extra
   isVideo?: boolean; 
   
-  // Dados Específicos de Nicho (Estruturas fixas)
-  progress?: ReadingProgress;
-  characters?: CharacterInfo[];
-  
   // --- METADADOS FLEXÍVEIS (JSONB) ---
-  // Contém todos os campos específicos para cada tipo de layout
+  // Aqui vive a mágica de cada formato específico
   metadata?: {
-    // >>>> LIVROS
-    author?: string;       // Redundância explícita do autor do livro
-    publisher?: string;    // Editora
-    pages?: number | string; // Número de páginas
-    genre?: string;        // Gênero literário
-    year?: string;         // Ano de lançamento
+    // >>>> DADOS DE LIVRO / OBRA
+    author?: string;       
+    publisher?: string;    
+    pages?: number; 
+    genre?: string;        
+    year?: string;         
     
-    // Subtipo: Quote
-    quote?: string;        // Texto da citação (se diferente do content)
-    quotePage?: string;    // Página da citação
+    // >>>> AVALIAÇÃO
+    rating?: number;       // 0 a 5
+    mood?: string;         // Emoção (ex: "Chocado", "Feliz")
+    tags?: string[];       // Ex: ["Romance", "Plot Twist"]
     
-    // Subtipo: Promotion
+    // >>>> RECOMENDAÇÃO
+    reasons?: string[];      // Lista de motivos ("Por que ler?")
+    targetAudience?: string; // "Recomendado para..."
+    
+    // >>>> PROMOÇÃO
     price?: number;
     oldPrice?: number;
     discountPercent?: number;
     coupon?: string;
+    linkUrl?: string; // Link de afiliado ou externo
     
-    // Subtipo: First Impressions / Review
-    mood?: string;         // Emoção (Empolgado, Confuso, Triste, etc.)
+    // >>>> PROGRESSO (First Impressions)
+    progress?: number; // Porcentagem (0-100)
     
-    // Subtipo: Recommendation
-    reasons?: string[];      // Lista de motivos ("Por que ler?")
-    targetAudience?: string; // "Recomendado para..."
+    // >>>> QUOTE
+    quoteText?: string;    // Se for diferente do content
+    quotePage?: string;    
     
-    // Subtipo: Ranking
+    // >>>> RANKING
     rankingItems?: RankingItem[];
 
-    // >>>> FILMES / SÉRIES
-    director?: string;
-    season?: number;
-    episode?: number;
-    duration?: string;
-    
-    // >>>> GAMES
+    // >>>> GAMES / FILMES (Expansível)
     platform?: string;
-    achievement?: string;
-    
-    // >>>> ESPORTES
-    league?: string;
-    homeTeam?: string;
-    awayTeam?: string;
-    score?: string;
+    director?: string;
   };
 
-  // Links Externos (Compra, Referência, Spotify, etc.)
-  externalLink?: {
-    title?: string;
-    domain?: string;
-    url: string;
-    label?: string; // Ex: "Comprar na Amazon", "Ouvir no Spotify"
-  };
-  
   // Engajamento Social
   likes: number;
   commentsCount: number;
-  topComments?: Comment[]; // Preview de comentários
-  shares: number;
+  topComments?: Comment[]; 
   isLiked?: boolean;
   isSaved?: boolean;
-  
-  tags?: string[];
 };
 
 // --- ALIAS PARA COMPATIBILIDADE ---
-// Isso resolve erros de legado onde "BookReviewPost" era referenciado
 export type BookReviewPost = StoryPost;
-
-// --- COMUNIDADES ---
-export type Community = {
-  id: string;
-  name: string;
-  members: number;
-  image: string;
-  category: StoryCategory;
-};

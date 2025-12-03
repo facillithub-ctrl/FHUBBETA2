@@ -1,103 +1,100 @@
 "use client";
 
-import { useState, useEffect, Suspense, useRef } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-// Components
+// --- COMPONENTES ---
 import StoriesBar from './components/StoriesBar';
-import CreatePostWidget from './components/CreatePostWidget';
 import CategoryTabs from './components/CategoryTabs';
-import TrendingTerms from './components/TrendingTerms';
 import CreateReviewModal from './components/CreateReviewModal';
 import PostDetailModal from './components/PostDetailModal';
+import TrendingTerms from './components/TrendingTerms';
 
-// Types & Actions
+// --- FEEDS (Os componentes que carregam os posts) ---
+import BookFeed from './components/feeds/BookFeed';
+import GeneralFeed from './components/feeds/GeneralFeed';
+import MovieFeed from './components/feeds/MovieFeed';
+import GamesFeed from './components/feeds/GamesFeed';
+
+// --- TIPOS E ACTIONS ---
 import { UserProfile, StoryCategory, StoryPost } from './types';
 import { createStoryPost, getPostById } from './actions';
 import createClient from '@/utils/supabase/client';
 
-// Feeds
-import GeneralFeed from './components/feeds/GeneralFeed';
-import BookFeed from './components/feeds/BookFeed';
-import MovieFeed from './components/feeds/MovieFeed';
-import GamesFeed from './components/feeds/GamesFeed';
-
-// --- SUB-COMPONENTE: CARD DE PERFIL LATERAL (MODERNO) ---
+// --- SUB-COMPONENTE: CARD DE PERFIL (Lateral Esquerda) ---
 const ProfileSideCard = ({ user, onOpenCreate }: { user: UserProfile, onOpenCreate: () => void }) => (
-  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
-    {/* Capa Decorativa */}
-    <div className="h-24 bg-gradient-to-r from-violet-600 to-purple-500 relative">
-        <div className="absolute inset-0 bg-[url('/assets/images/pattern.png')] opacity-10"></div>
-    </div>
-    
-    <div className="px-5 pb-5 relative">
-      {/* Avatar Sobreposto */}
-      <div className="-mt-10 mb-3 flex justify-between items-end">
-        <div className="w-[72px] h-[72px] rounded-full border-4 border-white shadow-md relative bg-gray-200">
+  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 sticky top-24">
+    <div className="flex flex-col items-center text-center">
+      {/* Avatar com Borda Gradiente (Identidade da Marca) */}
+      <div className="p-[2px] rounded-full bg-gradient-to-tr from-brand-purple to-brand-green mb-3">
+        <div className="w-20 h-20 rounded-full border-4 border-white relative overflow-hidden bg-gray-100">
            {user.avatar_url ? (
-             <Image src={user.avatar_url} alt={user.name} fill className="object-cover rounded-full" />
+             <Image src={user.avatar_url} alt={user.name} fill className="object-cover" />
            ) : (
-             <div className="w-full h-full flex items-center justify-center text-gray-400"><i className="fas fa-user text-2xl"></i></div>
+             <div className="w-full h-full flex items-center justify-center text-gray-300">
+               <i className="fas fa-user text-3xl"></i>
+             </div>
            )}
         </div>
-        {user.isVerified && (
-            <span className="mb-8 mr-1 text-blue-500 bg-white rounded-full p-1 shadow-sm" title="Verificado">
-                <i className="fas fa-check-circle text-lg"></i>
-            </span>
-        )}
       </div>
-
-      {/* Infos */}
-      <h3 className="font-bold text-gray-900 text-lg leading-tight">{user.name}</h3>
-      <p className="text-gray-500 text-sm mb-4">{user.username}</p>
-
-      {/* Stats Grid */}
-      <div className="flex justify-between border-t border-b border-gray-50 py-3 mb-4 text-center">
-         <div>
-            <span className="block font-bold text-gray-800 text-sm">{user.readCount || 12}</span>
-            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Lidos</span>
+      
+      <h2 className="font-bold text-gray-900 text-lg leading-tight">{user.name}</h2>
+      <p className="text-gray-500 text-sm mb-6 font-medium">{user.username}</p>
+      
+      {/* Stats Rápidos */}
+      <div className="w-full grid grid-cols-3 gap-2 border-t border-b border-gray-50 py-4 mb-6">
+         <div className="cursor-pointer hover:bg-gray-50 rounded-lg p-1 transition-colors">
+            <span className="block font-bold text-gray-900 text-lg">12</span>
+            <span className="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Lidos</span>
          </div>
-         <div className="border-l border-gray-100 mx-2"></div>
-         <div>
-            <span className="block font-bold text-gray-800 text-sm">{user.followers || 48}</span>
-            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Seguidores</span>
+         <div className="cursor-pointer hover:bg-gray-50 rounded-lg p-1 transition-colors">
+            <span className="block font-bold text-gray-900 text-lg">48</span>
+            <span className="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Seguidores</span>
          </div>
-         <div className="border-l border-gray-100 mx-2"></div>
-         <div>
-            <span className="block font-bold text-gray-800 text-sm">{user.following || 15}</span>
-            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wide">Seguindo</span>
+         <div className="cursor-pointer hover:bg-gray-50 rounded-lg p-1 transition-colors">
+            <span className="block font-bold text-gray-900 text-lg">15</span>
+            <span className="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Seguindo</span>
          </div>
       </div>
 
-      {/* Botão Principal */}
+      {/* Botão de Ação Principal */}
       <button 
         onClick={onOpenCreate}
-        className="w-full py-2.5 bg-gray-900 hover:bg-black text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-gray-200 flex items-center justify-center gap-2 group"
+        className="w-full py-3 bg-brand-purple hover:bg-[#320261] text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-brand-purple/20 hover:shadow-brand-purple/40 flex items-center justify-center gap-2 group"
       >
-        <i className="fas fa-plus bg-white/20 rounded-full w-5 h-5 flex items-center justify-center text-[10px] group-hover:scale-110 transition-transform"></i>
+        <i className="fas fa-plus-circle group-hover:scale-110 transition-transform"></i> 
         Nova Publicação
       </button>
+    </div>
+
+    {/* Links Rápidos do Footer */}
+    <div className="mt-6 text-center">
+       <p className="text-[10px] text-gray-400">
+         Facillit Stories © 2024 <br/>
+         <span className="hover:text-brand-purple cursor-pointer">Privacidade</span> • <span className="hover:text-brand-purple cursor-pointer">Termos</span>
+       </p>
     </div>
   </div>
 );
 
+// --- COMPONENTE PRINCIPAL (LÓGICA) ---
 function StoriesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const postIdFromUrl = searchParams.get('p');
 
-  // Estados
+  // --- ESTADOS ---
   const [activeCategory, setActiveCategory] = useState<StoryCategory>('all');
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [selectedPost, setSelectedPost] = useState<StoryPost | null>(null);
   
-  // Controle de Feed
+  // Controle de Atualização do Feed (Key Force Update)
   const [feedKey, setFeedKey] = useState(0); 
-  const isPostingRef = useRef(false);
 
-  // Carregar Usuário
+  // 1. Carregar Usuário Atual
   useEffect(() => {
     const loadUser = async () => {
       const supabase = createClient();
@@ -116,7 +113,7 @@ function StoriesContent() {
     loadUser();
   }, []);
 
-  // Deep Link
+  // 2. Gerenciar Deep Links (Abrir post direto pela URL)
   useEffect(() => {
     const loadDeepLinkedPost = async () => {
       if (postIdFromUrl) {
@@ -129,179 +126,123 @@ function StoriesContent() {
     loadDeepLinkedPost();
   }, [postIdFromUrl]);
 
-  const closePostModal = () => {
+  // Handlers
+  const handleClosePostModal = () => {
     setSelectedPost(null);
     router.push('/dashboard/applications/global/stories', { scroll: false });
   };
 
-  const handlePostCreate = async (postData: Partial<StoryPost> | string) => {
-    if (!currentUser || isPostingRef.current) return;
-    isPostingRef.current = true;
-    
+  const handlePostCreate = async (postData: Partial<StoryPost>) => {
+    if (!currentUser) return;
     try {
-        if (typeof postData === 'string') {
-            await createStoryPost({
-                content: postData,
-                category: activeCategory === 'all' ? 'all' : activeCategory,
-                type: 'status'
-            });
-        } else {
-            await createStoryPost(postData);
-        }
+        await createStoryPost(postData);
+        // Força o feed a recarregar sem refresh na página
         setFeedKey(prev => prev + 1);
-        setIsReviewModalOpen(false);
+        setIsCreateModalOpen(false);
     } catch (e) {
-        console.error(e);
-        alert("Erro ao publicar.");
-    } finally {
-        setTimeout(() => { isPostingRef.current = false; }, 500);
+        alert("Não foi possível publicar agora. Tente novamente.");
     }
   };
 
+  // Renderizador de Feed Condicional
   const renderFeed = () => {
-    const userId = currentUser?.id;
-    const props = { userId };
-    // Key separada do spread props
-    const key = feedKey;
-
+    const props = { userId: currentUser?.id, key: feedKey };
+    
     switch (activeCategory) {
-      case 'books': return <BookFeed key={key} {...props} />;
-      case 'movies': case 'series': case 'anime': return <MovieFeed key={key} {...props} />;
-      case 'games': return <GamesFeed key={key} {...props} />;
-      default: return <GeneralFeed key={key} {...props} />;
+      case 'books': return <BookFeed {...props} />;
+      case 'movies': 
+      case 'series': 
+      case 'anime': return <MovieFeed category={activeCategory} {...props} />;
+      case 'games': return <GamesFeed {...props} />;
+      default: return <GeneralFeed category={activeCategory} {...props} />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-slate-900 font-sans pb-20">
+    <div className="min-h-screen bg-[#FDFDFD] pb-20">
       
-      {/* MODAIS */}
+      {/* --- CAMADA DE MODAIS --- */}
       {selectedPost && (
-        <PostDetailModal post={selectedPost} currentUser={currentUser} onClose={closePostModal} />
+        <PostDetailModal 
+          post={selectedPost} 
+          currentUser={currentUser} 
+          onClose={handleClosePostModal} 
+        />
       )}
 
       {currentUser && (
         <CreateReviewModal 
-          isOpen={isReviewModalOpen} 
-          onClose={() => setIsReviewModalOpen(false)} 
+          isOpen={isCreateModalOpen} 
+          onClose={() => setIsCreateModalOpen(false)} 
           currentUser={currentUser} 
           onPostCreate={handlePostCreate} 
         />
       )}
 
-      {/* CONTAINER GRID - 3 COLUNAS (MODERNO) */}
+      {/* --- LAYOUT GRID RESPONSIVO --- */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* 1. COLUNA ESQUERDA (PERFIL & NAV) - Visível apenas em telas grandes */}
+          {/* 1. COLUNA ESQUERDA (PERFIL) - Desktop Only */}
           <aside className="hidden lg:block lg:col-span-3">
-             <div className="sticky top-6">
-                {currentUser ? (
-                    <ProfileSideCard user={currentUser} onOpenCreate={() => setIsReviewModalOpen(true)} />
-                ) : (
-                    <div className="h-48 bg-white rounded-2xl animate-pulse mb-6"></div>
-                )}
-                
-                {/* Menu Rápido Lateral */}
-                <nav className="bg-white rounded-2xl shadow-sm border border-gray-100 p-2">
-                    <ul className="space-y-1">
-                        <li>
-                            <button className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-gray-900 bg-gray-50 rounded-xl transition-colors">
-                                <i className="fas fa-home text-purple-600"></i> Feed Principal
-                            </button>
-                        </li>
-                        <li>
-                            <button className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-xl transition-colors">
-                                <i className="far fa-bookmark"></i> Itens Salvos
-                            </button>
-                        </li>
-                        <li>
-                            <button className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-900 rounded-xl transition-colors">
-                                <i className="far fa-bell"></i> Notificações
-                            </button>
-                        </li>
-                    </ul>
-                </nav>
-
-                <div className="mt-6 text-xs text-gray-400 px-4 leading-relaxed">
-                   <p>© 2024 FacillitHub Stories.</p>
-                   <p>Termos • Privacidade • Cookies</p>
-                </div>
-             </div>
+             {currentUser ? (
+                <ProfileSideCard user={currentUser} onOpenCreate={() => setIsCreateModalOpen(true)} />
+             ) : (
+                // Skeleton Loading simples
+                <div className="h-64 bg-gray-50 rounded-2xl animate-pulse border border-gray-100"></div>
+             )}
           </aside>
 
-          {/* 2. COLUNA CENTRAL (FEED) - Principal */}
-          <main className="lg:col-span-6 min-h-screen space-y-6">
+          {/* 2. COLUNA CENTRAL (FEED) */}
+          <main className="lg:col-span-6 space-y-6">
              
-             {/* HEADER MOBILE (Só aparece em telas pequenas) */}
-             <div className="lg:hidden flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                <div className="relative w-28 h-6">
-                    <Image src="/assets/images/marcas/Stories.png" alt="Stories" fill className="object-contain object-left" />
+             {/* Header Mobile (Visível apenas < lg) */}
+             <div className="lg:hidden flex items-center justify-between mb-4 sticky top-0 z-30 bg-[#FDFDFD]/95 backdrop-blur-sm py-2 px-2 -mx-2">
+                <div className="flex items-center gap-2">
+                   <div className="w-8 h-8 rounded-lg bg-brand-purple flex items-center justify-center text-white">
+                      <i className="fas fa-feather-alt"></i>
+                   </div>
+                   <h1 className="font-bold text-xl text-gray-900 tracking-tight">Stories</h1>
                 </div>
                 <button 
-                   onClick={() => setIsReviewModalOpen(true)}
-                   className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center"
+                  onClick={() => setIsCreateModalOpen(true)} 
+                  className="w-9 h-9 bg-gray-900 text-white rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform"
                 >
                    <i className="fas fa-plus"></i>
                 </button>
              </div>
 
-             {/* STORY CIRCLES */}
-             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+             {/* Stories (Círculos no Topo) */}
+             <div className="mb-2">
                 <StoriesBar currentUser={currentUser} />
              </div>
 
-             {/* WIDGET DE CRIAÇÃO (Versão Compacta) */}
-             {currentUser && activeCategory === 'all' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex gap-3 items-center cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setIsReviewModalOpen(true)}>
-                   <div className="w-10 h-10 rounded-full relative bg-gray-200 flex-shrink-0">
-                      {currentUser.avatar_url && <Image src={currentUser.avatar_url} alt="Eu" fill className="object-cover rounded-full" />}
-                   </div>
-                   <div className="flex-1 bg-gray-100 h-10 rounded-full flex items-center px-4 text-gray-400 text-sm">
-                      No que você está pensando, {currentUser.name.split(' ')[0]}?
-                   </div>
-                   <div className="text-purple-600 px-2">
-                      <i className="fas fa-image text-xl"></i>
-                   </div>
-                </div>
-             )}
-
-             {/* ABAS STICKY (Prendem no topo ao rolar, mas abaixo do header do navegador) */}
-             <div className="sticky top-2 z-30 bg-[#FAFAFA]/95 backdrop-blur-sm py-2 -mx-2 px-2 transition-all">
+             {/* Filtros de Categoria (Sticky) */}
+             <div className="sticky top-0 lg:top-0 z-20 bg-[#FDFDFD]/95 backdrop-blur-md pt-2 pb-4">
                 <CategoryTabs activeCategory={activeCategory} onSelect={setActiveCategory} />
              </div>
 
-             {/* FEED INFINITO */}
-             <div className="space-y-6 min-h-[500px]">
+             {/* Área do Feed */}
+             <div className="min-h-[600px] animate-fade-in">
                 {renderFeed()}
              </div>
           </main>
 
-          {/* 3. COLUNA DIREITA (TRENDING) */}
+          {/* 3. COLUNA DIREITA (TRENDING) - Desktop Only */}
           <aside className="hidden lg:block lg:col-span-3">
-             <div className="sticky top-6 space-y-6">
-                
-                {/* Search Bar Visual */}
+             <div className="sticky top-24 space-y-6">
+                {/* Busca */}
                 <div className="relative group">
-                   <i className="fas fa-search absolute left-4 top-3.5 text-gray-400 group-focus-within:text-purple-500 transition-colors"></i>
+                   <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-purple transition-colors"></i>
                    <input 
                       type="text" 
                       placeholder="Buscar no Stories..." 
-                      className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-4 py-3 text-sm focus:ring-2 focus:ring-purple-100 focus:border-purple-300 outline-none transition-all shadow-sm"
+                      className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple outline-none transition-all shadow-sm"
                    />
                 </div>
 
+                {/* Trending Topics */}
                 <TrendingTerms category={activeCategory} />
-
-                {/* Card Promocional (Exemplo) */}
-                <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-5 text-white shadow-lg relative overflow-hidden group">
-                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl group-hover:bg-white/20 transition-all"></div>
-                   <h4 className="font-bold text-lg mb-2 relative z-10">Clube do Livro</h4>
-                   <p className="text-indigo-100 text-xs mb-4 relative z-10">Participe das discussões semanais e ganhe badges exclusivos.</p>
-                   <button className="bg-white text-indigo-700 text-xs font-bold px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors relative z-10">
-                      Entrar Agora
-                   </button>
-                </div>
              </div>
           </aside>
 
@@ -311,10 +252,16 @@ function StoriesContent() {
   );
 }
 
+// --- EXPORT DEFAULT COM SUSPENSE ---
 export default function StoriesPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen bg-gray-50"><div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div></div>}>
+    <Suspense fallback={
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-[#FDFDFD] gap-4">
+        <div className="w-12 h-12 border-4 border-brand-purple/20 border-t-brand-purple rounded-full animate-spin"></div>
+        <p className="text-gray-400 text-sm font-medium animate-pulse">Carregando Stories...</p>
+      </div>
+    }>
       <StoriesContent />
     </Suspense>
   );
-}  
+}
