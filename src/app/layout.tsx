@@ -3,7 +3,8 @@ import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/contexts/ToastContext";
-import Script from "next/script"; // Essencial para o Analytics e SEO
+import Script from "next/script";
+import NextTopLoader from 'nextjs-toploader'; // Importação do Loader
 
 // --- Fontes ---
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -114,6 +115,20 @@ export default function RootLayout({
     <html lang="pt-BR" suppressHydrationWarning>
       <body className={`${inter.variable} ${montserrat.variable} font-sans antialiased bg-[#F8F9FA] text-gray-900 selection:bg-brand-purple/20 selection:text-brand-purple`}>
         
+        {/* --- Barra de Progresso de Navegação --- */}
+        <NextTopLoader
+          color="#7C3AED"
+          initialPosition={0.08}
+          crawlSpeed={200}
+          height={3}
+          crawl={true}
+          showSpinner={false}
+          easing="ease"
+          speed={200}
+          shadow="0 0 10px #7C3AED,0 0 5px #7C3AED"
+          zIndex={1600}
+        />
+
         {/* --- 1. Script do Google Analytics (Carrega a biblioteca) --- */}
         <Script
           strategy="afterInteractive"
