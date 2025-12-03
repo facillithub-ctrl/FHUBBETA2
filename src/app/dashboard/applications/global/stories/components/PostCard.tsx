@@ -22,6 +22,9 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
   const [isDeleted, setIsDeleted] = useState(false);
 
   const isOwner = currentUserId === post.user.id;
+  
+  // CORREÇÃO: Adiciona lógica de fallback para isVerified
+  const badgeToDisplay = post.user.badge || (post.user.isVerified ? 'blue' : null);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -89,10 +92,10 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
                         {post.user.name}
                     </Link>
                     
-                    {/* SELO VERIFICADO: Renderização condicional robusta */}
-                    {post.user.badge && (
+                    {/* SELO VERIFICADO: Renderização condicional robusta com fallback */}
+                    {badgeToDisplay && (
                         <div className="flex-shrink-0 inline-flex items-center pt-[2px]">
-                            <VerificationBadge badge={post.user.badge} size="14px" />
+                            <VerificationBadge badge={badgeToDisplay} size="14px" />
                         </div>
                     )}
                     

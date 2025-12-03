@@ -17,6 +17,12 @@ const badgeDetails: Record<string, { icon: string; color: string; tooltip: strin
     color: 'text-blue-500',
     tooltip: 'Identidade Verificada',
   },
+  // ADICIONADO: Alias comum para garantir compatibilidade com valores como 'verified'
+  verified: { 
+    icon: 'fa-check-circle', 
+    color: 'text-blue-500', 
+    tooltip: 'Conta Verificada' 
+  },
   red: {
     icon: 'fa-star',
     color: 'text-red-500',
