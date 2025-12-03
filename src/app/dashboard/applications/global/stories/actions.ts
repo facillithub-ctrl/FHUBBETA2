@@ -5,13 +5,32 @@ import createClient from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { StoryPost, PostType, StoryCategory } from './types';
 
-// --- MAPPER: Converte dados do Supabase (snake_case) para o Frontend (camelCase) ---
+// --- HELPER: Parse Seguro de Metadata ---
+// Garante que o metadata seja sempre um objeto, mesmo que o banco retorne string ou null
+const parseMetadata = (meta: any) => {
+  if (!meta) return {};
+  
+  // Se o Supabase retornar como string JSON (acontece em algumas versões/configurações)
+  if (typeof meta === 'string') {
+    try {
+      return JSON.parse(meta);
+    } catch (e) {
+      console.error("Erro ao fazer parse do metadata:", e);
+      return {};
+    }
+  }
+  
+  // Se já for objeto
+  return meta;
+};
+
+// --- MAPPER: Converte dados do Banco (snake_case) para Frontend (camelCase) ---
 const mapPost = (post: any, currentUserId?: string): StoryPost => {
   const amILiked = post.my_like && Array.isArray(post.my_like) 
       ? post.my_like.some((l: any) => l.user_id === currentUserId) 
       : false;
   
-  // Tratamento de usuário deletado ou nulo
+  // Proteção para usuário deletado ou nulo
   const postUser = post.user || { 
     id: 'deleted', 
     full_name: 'Usuário Desconhecido', 
@@ -19,6 +38,9 @@ const mapPost = (post: any, currentUserId?: string): StoryPost => {
     username: 'unknown', 
     is_verified: false 
   };
+
+  // Garante que metadata seja um objeto válido
+  const safeMetadata = parseMetadata(post.metadata);
 
   return {
     id: post.id,
@@ -38,8 +60,8 @@ const mapPost = (post: any, currentUserId?: string): StoryPost => {
       year: new Date(post.created_at).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
     }),
     
-    // Campos Principais
-    content: post.content,
+    // Conteúdo Principal (Fallback para string vazia se null)
+    content: post.content || '', 
     mediaUrl: post.media_url,
     isVideo: post.is_video,
     title: post.title,
@@ -48,17 +70,18 @@ const mapPost = (post: any, currentUserId?: string): StoryPost => {
     rating: post.rating,
     
     // Estruturas Complexas (JSONB)
-    progress: post.progress, // ReadingProgress
-    metadata: post.metadata || {}, // Garante objeto vazio se null para evitar erros
+    progress: post.progress,
+    metadata: safeMetadata, // Usa o metadata tratado
     characters: post.characters || [],
     externalLink: post.external_link,
     
+    // Arrays
     tags: post.tags || [],
     
     // Métricas
     likes: post.likes?.[0]?.count || 0,
     commentsCount: post.comments?.[0]?.count || 0,
-    shares: 0, // Placeholder se não houver coluna
+    shares: 0, 
     
     // Estado do Usuário
     isLiked: amILiked,
@@ -75,7 +98,7 @@ export async function getStoriesFeed(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Se não estiver logado, retorna array vazio ou trata conforme regra de negócio
+  // Se não estiver logado, retorna array vazio (ou trate conforme sua regra de negócio)
   if (!user) return [];
 
   let query = supabase
@@ -96,7 +119,6 @@ export async function getStoriesFeed(
   if (targetUserId) {
     query = query.eq('user_id', targetUserId);
   } else if (category !== 'all') {
-    // Agrupamento de categorias de vídeo/entretenimento visual
     if (['movies', 'series', 'anime'].includes(category)) {
         query = query.in('category', ['movies', 'series', 'anime']);
     } else {
@@ -114,7 +136,7 @@ export async function getStoriesFeed(
   return (data || []).map(p => mapPost(p, user.id));
 }
 
-// --- 2. BUSCAR POST ÚNICO (Deep Link / Modal) ---
+// --- 2. BUSCAR POST ÚNICO ---
 export async function getPostById(postId: string): Promise<StoryPost | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -134,22 +156,21 @@ export async function getPostById(postId: string): Promise<StoryPost | null> {
     .single();
 
   if (error || !data) {
-    console.error('Post não encontrado:', error);
+    console.error('Post não encontrado ou erro:', error);
     return null;
   }
   
   return mapPost(data, user?.id);
 }
 
-// --- 3. CRIAR POST (Suporte a Metadata Estendido) ---
+// --- 3. CRIAR POST ---
 export async function createStoryPost(postData: Partial<StoryPost>) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error('Não autorizado');
 
-  // Preparar objeto para inserção no banco
-  // Mapeamos camelCase (Frontend) -> snake_case (Banco)
+  // Preparar payload para o banco
   const dbPayload = {
     user_id: user.id,
     content: postData.content,
@@ -163,16 +184,14 @@ export async function createStoryPost(postData: Partial<StoryPost>) {
     
     // Metadados principais
     title: postData.title,
-    subtitle: postData.subtitle, // Usado como "Autor" em livros simples
+    subtitle: postData.subtitle,
     rating: postData.rating,
     
-    // JSONBs
+    // JSONBs e Arrays
     progress: postData.progress,
-    metadata: postData.metadata, // Aqui vai o JSON completo (ranking, price, etc)
+    metadata: postData.metadata, // O Supabase lida com a conversão de Obj JS para JSONB
     characters: postData.characters,
     external_link: postData.externalLink,
-    
-    // Arrays
     tags: postData.tags || []
   };
 
@@ -181,8 +200,8 @@ export async function createStoryPost(postData: Partial<StoryPost>) {
     .insert(dbPayload);
 
   if (error) {
-    console.error('Erro ao criar post:', error);
-    throw new Error('Falha ao publicar');
+    console.error('Erro ao criar post no Supabase:', error);
+    throw new Error('Falha ao publicar postagem');
   }
 
   revalidatePath('/dashboard/applications/global/stories');
@@ -203,7 +222,7 @@ export async function togglePostLike(postId: string, currentState: boolean) {
         .delete()
         .match({ post_id: postId, user_id: user.id });
     } else {
-      // Adicionar Like (ignore se já existir)
+      // Adicionar Like (upsert para evitar duplicatas)
       await supabase
         .from('stories_likes')
         .upsert(
@@ -212,14 +231,13 @@ export async function togglePostLike(postId: string, currentState: boolean) {
         );
     }
   } catch (error) {
-    console.error('Erro ao curtir:', error);
+    console.error('Erro ao curtir post:', error);
   }
   
-  // Revalida para manter contadores sincronizados em outras sessões
   revalidatePath('/dashboard/applications/global/stories');
 }
 
-// --- 5. DELETAR POST (Opcional, mas útil) ---
+// --- 5. DELETAR POST ---
 export async function deleteStoryPost(postId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -229,9 +247,12 @@ export async function deleteStoryPost(postId: string) {
   const { error } = await supabase
     .from('stories_posts')
     .delete()
-    .match({ id: postId, user_id: user.id }); // Garante que só o dono deleta
+    .match({ id: postId, user_id: user.id });
 
-  if (error) throw error;
+  if (error) {
+    console.error('Erro ao deletar post:', error);
+    throw error;
+  }
   
   revalidatePath('/dashboard/applications/global/stories');
 }
