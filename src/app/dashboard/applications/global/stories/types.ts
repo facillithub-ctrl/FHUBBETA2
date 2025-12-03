@@ -1,7 +1,7 @@
 // CAMINHO: src/app/dashboard/applications/global/stories/types.ts
 
 // --- CORREÇÃO: Adicionado para resolver o erro de build ---
-export type VerificationType = 'blue' | 'gold' | 'green' | 'none' | null;
+export type VerificationType = 'blue' | 'gold' | 'green' | 'red' | 'none' | null;
 
 // --- PERFIL DE USUÁRIO ---
 export type UserProfile = {
@@ -11,7 +11,7 @@ export type UserProfile = {
   username: string;
   isVerified?: boolean;
   // Compatibilidade com o componente VerificationBadge
-  badge?: VerificationType | string | null; 
+  badge?: string | null; 
   bio?: string;
   role?: 'student' | 'teacher' | 'admin';
   level?: number; 
