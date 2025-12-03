@@ -4,9 +4,12 @@ import { StoryPost } from '../../../../types';
 import { Quote } from 'lucide-react';
 
 export default function QuotePost({ post }: { post: StoryPost }) {
-  const { content, coverImage, metadata } = post;
+  // CORREÇÃO: Extraímos 'title' diretamente do post, não do metadata
+  const { content, coverImage, metadata, title } = post;
   const author = metadata?.author || "Autor Desconhecido";
-  const source = metadata?.publisher || metadata?.title;
+  
+  // CORREÇÃO: Usamos 'title' aqui como fallback
+  const source = metadata?.publisher || title; 
 
   return (
     <div className={`relative w-full rounded-2xl overflow-hidden mt-2 group min-h-[240px] flex flex-col justify-center items-center ${!coverImage ? 'bg-brand-gradient' : ''} shadow-md`}>
@@ -26,7 +29,7 @@ export default function QuotePost({ post }: { post: StoryPost }) {
       <div className="relative z-10 p-8 text-center flex flex-col items-center">
         <Quote size={32} className="text-white/40 mb-4 fill-current" />
         
-        {/* CORREÇÃO AQUI: Aspas escapadas (&quot;) */}
+        {/* CORREÇÃO: Aspas HTML escapadas (&quot;) */}
         <blockquote className="text-xl md:text-2xl font-serif text-white font-medium leading-relaxed italic drop-shadow-sm">
           &quot;{metadata?.quoteText || content}&quot;
         </blockquote>
