@@ -1,77 +1,103 @@
 "use client";
+
+import React from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
-import { UserProfile } from '../types';
+import { UserProfile, StoryCategory } from '../types';
+import CategoryTabs from './CategoryTabs';
 
-interface StoryCircle {
-  id: string;
-  user: { avatar_url: string | null; name: string; username: string };
-  hasUnseen: boolean;
-}
-
-// Dados mockados para os círculos de stories
-const mockStories: StoryCircle[] = [
-    { id: '1', user: { avatar_url: '/assets/images/time/pedro.JPG', name: 'Pedro', username: 'pedro_r' }, hasUnseen: true },
-    { id: '2', user: { avatar_url: '/assets/images/time/igor.jpg', name: 'Igor', username: 'igor_dev' }, hasUnseen: false },
-    { id: '3', user: { avatar_url: null, name: 'Comunidade', username: 'community' }, hasUnseen: true },
-    { id: '4', user: { avatar_url: null, name: 'Facillit', username: 'facillit' }, hasUnseen: false },
-    // Adicionar mais, se necessário
+const MOCK_STORIES = [
+    { id: '1', name: 'Facillit', hasUnseen: true, img: '/assets/images/time/igor.jpg' },
+    { id: '2', name: 'Pedro', hasUnseen: false, img: '/assets/images/time/pedro.JPG' },
+    { id: '3', name: 'Escola', hasUnseen: true, img: null },
+    { id: '4', name: 'Clube', hasUnseen: true, img: null },
+    { id: '5', name: 'Evento', hasUnseen: false, img: null },
 ];
 
-export default function StoriesBar({ currentUser }: { currentUser: UserProfile | null }) {
-  const userAvatar = currentUser?.avatar_url || '/assets/images/accont.svg';
+interface StoriesBarProps {
+  currentUser: UserProfile | null;
+  activeCategory: StoryCategory;
+  onSelectCategory: (cat: StoryCategory) => void;
+  onToggleSidebar: () => void; // Nova prop
+}
+
+export default function StoriesBar({ currentUser, activeCategory, onSelectCategory, onToggleSidebar }: StoriesBarProps) {
+  
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
-    <div className="flex space-x-6 overflow-x-auto scrollbar-hide px-4 sm:px-6 py-2">
+    <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm w-full">
       
-      {/* Botão de Criação/Meu Story */}
-      <div className="flex flex-col items-center flex-shrink-0 cursor-pointer group">
-         <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300 relative overflow-hidden transition-all group-hover:scale-105">
-            {currentUser?.avatar_url ? (
-               <Image src={userAvatar} alt="Seu Story" fill className="object-cover rounded-full" />
-            ) : (
-               <i className="fas fa-plus text-lg text-gray-500"></i>
-            )}
-            {/* Círculo + para indicar que pode postar */}
-            <div className="absolute bottom-0 right-0 w-5 h-5 bg-white border-2 border-white rounded-full flex items-center justify-center text-brand-purple">
-               <i className="fas fa-plus text-xs"></i>
-            </div>
+      {/* 1. TÍTULO, HAMBÚRGUER E CABEÇALHO */}
+      <div className="px-4 py-3 cursor-pointer border-b border-gray-50 flex items-center gap-3">
+         {/* Botão Hambúrguer (Só Mobile) */}
+         <button 
+            onClick={(e) => { e.stopPropagation(); onToggleSidebar(); }}
+            className="lg:hidden p-2 -ml-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+         >
+            <i className="fas fa-bars text-xl"></i>
+         </button>
+
+         <div onClick={scrollToTop} className="flex-1">
+            <h1 className="font-bold text-xl text-gray-900">Página Inicial</h1>
          </div>
-         <span className="text-xs font-medium text-gray-700 mt-1.5">Seu Story</span>
+
+         {/* Ícone de perfil mobile (Opcional, direita) */}
+         <div className="lg:hidden w-8 h-8 rounded-full bg-gray-200 relative overflow-hidden">
+            {currentUser?.avatar_url && <Image src={currentUser.avatar_url} alt="Eu" fill className="object-cover" />}
+         </div>
       </div>
 
-      {/* Stories Fixos Solicitados (Links de Navegação) */}
-      <Link href="/dashboard/notifications" className="flex flex-col items-center flex-shrink-0 cursor-pointer group pt-1">
-          <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 transition-all group-hover:scale-105 border-4 border-white shadow-sm">
-             <i className="far fa-bell text-2xl"></i>
-          </div>
-          <span className="text-xs font-medium text-gray-600 mt-1.5">Alertas</span>
-      </Link>
-      
-      <Link href="/dashboard/saved" className="flex flex-col items-center flex-shrink-0 cursor-pointer group pt-1">
-          <div className="w-14 h-14 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-600 transition-all group-hover:scale-105 border-4 border-white shadow-sm">
-             <i className="far fa-bookmark text-2xl"></i>
-          </div>
-          <span className="text-xs font-medium text-gray-600 mt-1.5">Salvos</span>
-      </Link>
-
-      {/* Stories Mockados */}
-      {mockStories.map(story => (
-         <div key={story.id} className="flex flex-col items-center flex-shrink-0 cursor-pointer group">
-             <div className={`w-16 h-16 rounded-full p-[2px] relative transition-all group-hover:scale-105 ${story.hasUnseen ? 'bg-gradient-to-tr from-brand-purple to-brand-green' : 'bg-gray-200'}`}>
-                 <div className="w-full h-full bg-white rounded-full p-[2px]">
-                    <div className="w-full h-full rounded-full bg-gray-100 flex items-center justify-center relative overflow-hidden">
-                       {story.user.avatar_url ? (
-                           <Image src={story.user.avatar_url} alt={story.user.name} fill className="object-cover rounded-full" />
-                       ) : (
-                           <i className="fas fa-user text-xl text-gray-400"></i>
-                       )}
-                    </div>
-                 </div>
+      {/* 2. ÁREA DE STORIES */}
+      <div className="px-4 py-3 bg-white w-full">
+        <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
+          
+          {/* Meu Story */}
+          <div className="flex flex-col items-center gap-1 min-w-[68px] cursor-pointer group">
+             <div className="relative w-[60px] h-[60px] rounded-full p-[2px] border-2 border-dashed border-gray-300 group-hover:border-brand-purple transition-colors">
+                <div className="w-full h-full rounded-full bg-gray-100 overflow-hidden relative">
+                   {currentUser?.avatar_url ? (
+                      <Image src={currentUser.avatar_url} alt="Eu" fill className="object-cover" />
+                   ) : (
+                      <div className="flex items-center justify-center h-full w-full text-gray-400"><i className="fas fa-user"></i></div>
+                   )}
+                </div>
+                {/* 3. GRADIENTE DA MARCA AQUI */}
+                <div className="absolute bottom-0 right-0 bg-brand-gradient text-white rounded-full w-5 h-5 flex items-center justify-center border-2 border-white text-[10px] shadow-sm">
+                   <i className="fas fa-plus"></i>
+                </div>
              </div>
-             <span className="text-xs font-medium text-gray-700 mt-1.5">{story.user.name.split(' ')[0]}</span>
-         </div>
-      ))}
+             <span className="text-[11px] font-medium text-gray-600 truncate w-16 text-center">Seu Story</span>
+          </div>
+
+          {/* Outros Stories */}
+          {MOCK_STORIES.map((story) => (
+            <div key={story.id} className="flex flex-col items-center gap-1 min-w-[68px] cursor-pointer group">
+              {/* 3. GRADIENTE DA MARCA NOS STORIES NÃO VISTOS */}
+              <div className={`relative w-[64px] h-[64px] rounded-full p-[2px] transition-transform duration-200 group-hover:scale-105 ${story.hasUnseen ? 'bg-brand-gradient' : 'bg-gray-200'}`}>
+                 <div className="w-full h-full rounded-full border-2 border-white bg-white overflow-hidden relative">
+                    {story.img ? (
+                       <Image src={story.img} alt={story.name} fill className="object-cover" />
+                    ) : (
+                       <div className="flex items-center justify-center h-full w-full text-gray-300 bg-gray-100">
+                          <i className="fas fa-user"></i>
+                       </div>
+                    )}
+                 </div>
+              </div>
+              <span className="text-[11px] font-medium text-gray-600 truncate w-16 text-center">
+                 {story.name}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 3. ABAS DE CATEGORIA */}
+      <div className="px-4 pb-0 w-full overflow-x-auto scrollbar-hide bg-white">
+         <CategoryTabs activeCategory={activeCategory} onSelect={onSelectCategory} />
+      </div>
     </div>
   );
 }

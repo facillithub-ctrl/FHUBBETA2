@@ -8,105 +8,85 @@ import { ToastProvider } from '@/contexts/ToastContext';
 
 // Componentes
 import StoriesBar from './components/StoriesBar';
-import CategoryTabs from './components/CategoryTabs';
 import CreateReviewModal from './components/CreateReviewModal';
 import CreatePostWidget from './components/CreatePostWidget';
 import PostDetailModal from './components/PostDetailModal';
-import TrendingTerms from './components/TrendingTerms'; // Importado para Sidebar
-
-// Feeds
 import BookFeed from './components/feeds/BookFeed';
 
-// Logic
+// Lógica
 import { UserProfile, StoryCategory, StoryPost } from './types';
 import { createStoryPost, getPostById } from './actions';
 import createClient from '@/utils/supabase/client';
 
-// --- ELEMENTOS ESTRUTURAIS (HOISTED) ---
+// --- SIDEBAR DE NAVEGAÇÃO ---
+const NavigationSidebar = ({ user, onClose }: { user: UserProfile, onClose?: () => void }) => {
+  const navItems = [
+    { icon: 'fas fa-home', label: 'Página Inicial', href: '/dashboard/applications/global/stories', active: true },
+    { icon: 'fas fa-users', label: 'Comunidade', href: '/dashboard/community' },
+    { icon: 'fas fa-fire-alt', label: 'Em Alta', href: '/dashboard/trending' },
+    { icon: 'far fa-bookmark', label: 'Salvos', href: '/dashboard/saved' },
+    { icon: 'far fa-envelope', label: 'Mensagens', href: '/dashboard/messages' },
+    { icon: 'fas fa-search', label: 'Buscar', href: '/dashboard/search' },
+    { icon: 'far fa-bell', label: 'Notificações', href: '/dashboard/notifications' },
+    { icon: 'fas fa-shield-alt', label: 'Clubes', href: '/dashboard/clubs' },
+  ];
 
-// Placeholder (Fixo o erro de ReferenceError)
-const FeedUnderConstruction = ({ category }: { category: string }) => (
-  <div className="flex flex-col items-center justify-center py-20 text-center opacity-60">
-    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 text-2xl grayscale">🚧</div>
-    <p className="text-gray-600 font-medium text-lg">O feed de {category} está sendo preparado.</p>
-  </div>
-);
+  return (
+    <div className="h-full flex flex-col justify-between py-6 px-4 bg-white border-r border-gray-100 overflow-y-auto">
+       <div className="space-y-6">
+          {/* Logo e Fechar (Mobile) */}
+          <div className="flex justify-between items-center pl-2">
+             <Link href="/dashboard" className="text-2xl font-black text-brand-purple hover:opacity-80 transition-opacity flex items-center gap-2">
+                <i className="fas fa-feather-alt"></i>
+                <span className="inline">Facillit Stories</span>
+             </Link>
+             {onClose && (
+                <button onClick={onClose} className="lg:hidden text-gray-500 hover:text-brand-purple">
+                   <i className="fas fa-times text-xl"></i>
+                </button>
+             )}
+          </div>
+          
+          {/* Menu */}
+          <nav className="space-y-1">
+             {navItems.map((item) => (
+               <Link 
+                 key={item.label} 
+                 href={item.href} 
+                 onClick={onClose}
+                 className={`flex items-center gap-4 px-4 py-3 rounded-full transition-all cursor-pointer group ${item.active ? 'font-bold text-brand-purple bg-purple-50' : 'text-gray-700 hover:bg-gray-100'}`}
+               >
+                  <i className={`${item.icon} text-xl w-6 text-center`}></i>
+                  <span className="text-lg inline">{item.label}</span>
+               </Link>
+             ))}
+          </nav>
 
-// Item de Navegação Simples
-const NavItem = ({ icon, label, active }: { icon: string, label: string, active?: boolean }) => (
-    <div className={`flex items-center gap-4 px-4 py-3 rounded-full cursor-pointer transition-all ${active ? 'font-bold text-brand-purple bg-purple-50/50' : 'text-gray-700 hover:bg-gray-100'}`}>
-        <i className={`${icon} text-lg w-6 text-center`}></i>
-        <span className="text-base hidden xl:inline">{label}</span>
+          {/* Botão Publicar */}
+          <button className="w-full py-3 bg-brand-gradient text-white font-bold rounded-full shadow-md hover:opacity-90 transition-all text-lg mt-4 flex items-center justify-center gap-2">
+             <i className="fas fa-pen"></i>
+             <span>Publicar</span>
+          </button>
+       </div>
+
+       {/* Perfil Mini */}
+       <div className="mt-auto pt-4 border-t border-gray-100">
+          <div className="flex items-center gap-3 p-3 rounded-full hover:bg-gray-100 transition-colors cursor-pointer">
+             <div className="w-10 h-10 rounded-full bg-gray-200 relative overflow-hidden border border-gray-100">
+                 {user.avatar_url && <Image src={user.avatar_url} alt="Eu" fill className="object-cover" />}
+             </div>
+             <div className="block leading-tight">
+                <p className="font-bold text-sm text-gray-900 truncate">{user.name}</p>
+                <p className="text-xs text-gray-500 truncate">@{user.username}</p>
+             </div>
+             <i className="fas fa-ellipsis-h ml-auto text-gray-400"></i>
+          </div>
+       </div>
     </div>
-);
-
-// Sidebar Esquerda (Navegação)
-const LeftSidebar = ({ user, onOpenCreate }: { user: UserProfile, onOpenCreate: () => void }) => (
-  <div className="sticky top-0 h-screen overflow-y-auto w-full px-6 py-6 flex flex-col justify-between border-r border-gray-100/80">
-     
-     {/* Topo e Menu */}
-     <div className="space-y-6">
-        <Link href="/dashboard" className="text-xl font-black text-brand-purple hover:opacity-80 transition-opacity flex items-center gap-2">
-           <i className="fas fa-feather-alt text-2xl"></i>
-           <span className="hidden xl:inline">Facillit Stories</span>
-        </Link>
-        
-        <nav className="space-y-1">
-           <NavItem icon="fas fa-home" label="Início" active={true} />
-           <NavItem icon="fas fa-hashtag" label="Explorar" />
-           <NavItem icon="far fa-bell" label="Notificações" />
-           <NavItem icon="far fa-bookmark" label="Salvos" />
-           <NavItem icon="far fa-user" label="Perfil" />
-        </nav>
-
-        <button onClick={onOpenCreate} className="w-full py-3 bg-brand-purple text-white font-bold rounded-full shadow-md hover:bg-[#360366] transition-all text-base mt-6">
-           Publicar
-        </button>
-     </div>
-
-     {/* Rodapé: Perfil Mini */}
-     <div className="py-4 border-t border-gray-100 mt-auto">
-        <div className="flex items-center gap-3 p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer w-max xl:w-full">
-           <div className="w-8 h-8 rounded-full bg-gray-200 relative overflow-hidden">
-               {user.avatar_url && <Image src={user.avatar_url} alt="Eu" fill className="object-cover" />}
-           </div>
-           <div className="hidden xl:block leading-tight">
-              <p className="font-bold text-sm text-gray-900 truncate">{user.name}</p>
-              <p className="text-xs text-gray-500 truncate">@{user.username}</p>
-           </div>
-        </div>
-     </div>
-  </div>
-);
-
-// --- SIDEBAR DIREITA (Trends) ---
-const RightSidebar = ({ category }: { category: string }) => (
-  <div className="sticky top-0 h-screen overflow-y-auto pt-6 px-6 space-y-6">
-      {/* Busca Clean */}
-      <div className="relative group mb-6">
-         <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-         <input 
-           type="text" 
-           placeholder="Buscar..." 
-           className="w-full bg-gray-100 border-none rounded-full py-3 pl-12 pr-4 text-sm focus:bg-white focus:ring-1 focus:ring-brand-purple transition-all outline-none"
-         />
-      </div>
-
-      {/* Trends Clean */}
-      <div className="bg-gray-50/50 rounded-xl p-4 border border-gray-100">
-         <h3 className="font-bold text-gray-900 text-lg mb-4">Em Alta</h3>
-         <TrendingTerms category={category} />
-      </div>
-      
-      <div className="text-[11px] text-gray-400 px-2 leading-relaxed">
-         © 2024 Facillit Hub • Termos • Privacidade
-      </div>
-  </div>
-);
-
+  );
+};
 
 function StoriesContent() {
-  // ... Lógica de estado e handlers ...
   const router = useRouter();
   const searchParams = useSearchParams();
   const postIdFromUrl = searchParams.get('p');
@@ -116,8 +96,8 @@ function StoriesContent() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [selectedPost, setSelectedPost] = useState<StoryPost | null>(null);
   const [feedKey, setFeedKey] = useState(0);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Carregamento de Usuário
   useEffect(() => {
     const load = async () => {
       const supabase = createClient();
@@ -134,7 +114,6 @@ function StoriesContent() {
     load();
   }, []);
 
-  // Deep Link
   useEffect(() => {
     if (postIdFromUrl) {
        getPostById(postIdFromUrl).then(p => { if (p) setSelectedPost(p); });
@@ -154,75 +133,95 @@ function StoriesContent() {
     }
   };
 
-  const handleOpenPost = (post: StoryPost) => {
-    setSelectedPost(post);
-    router.push(`?p=${post.id}`, { scroll: false });
-  };
-
   const handleClosePost = () => {
     setSelectedPost(null);
     router.push('/dashboard/applications/global/stories', { scroll: false });
   };
 
   return (
-    <div className="min-h-screen bg-white font-inter flex justify-center">
+    // "min-h-screen" permite que a página cresça e role naturalmente.
+    <div className="bg-white font-inter min-h-screen">
       
       {/* Modais */}
       {selectedPost && <PostDetailModal post={selectedPost} currentUser={currentUser} onClose={handleClosePost} />}
       {currentUser && <CreateReviewModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} currentUser={currentUser} onPostCreate={handlePostCreate} />}
 
-      {/* GRID PRINCIPAL: Layout com respiro maior (gap-8) */}
-      <div className="w-full max-w-[1300px] mx-auto grid grid-cols-1 lg:grid-cols-[275px_1fr] xl:grid-cols-[275px_1fr_300px] gap-8">
+      {/* --- MENU MOBILE (OVERLAY) --- */}
+      {isMobileMenuOpen && currentUser && (
+        <div className="fixed inset-0 z-[60] lg:hidden">
+           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
+           <div className="absolute left-0 top-0 bottom-0 w-[85%] max-w-[300px] bg-white shadow-2xl overflow-y-auto animate-in slide-in-from-left duration-300">
+              <NavigationSidebar user={currentUser} onClose={() => setIsMobileMenuOpen(false)} />
+           </div>
+        </div>
+      )}
+
+      {/* GRID PRINCIPAL */}
+      <div className="flex w-full max-w-[1600px] mx-auto items-start">
           
-          {/* 1. ESQUERDA (Navegação) */}
-          <aside className="hidden lg:block">
-             {currentUser && <LeftSidebar user={currentUser} onOpenCreate={() => setIsModalOpen(true)} />}
+          {/* 1. SIDEBAR ESQUERDA (FIXA/STICKY) */}
+          {/* "sticky top-0 h-screen" faz com que a sidebar fique presa enquanto a página rola */}
+          <aside className="hidden lg:block w-[275px] flex-shrink-0 sticky top-0 h-screen">
+             {currentUser && <NavigationSidebar user={currentUser} />}
           </aside>
 
-          {/* 2. CENTRO (Feed Principal) */}
-          {/* Main com largura centralizada e bordas para criar o efeito "Timeline" */}
-          <main className="w-full max-w-[650px] min-h-screen border-x border-gray-100/80 bg-white mx-auto">
+          {/* 2. ÁREA DO FEED (NATURAL) */}
+          {/* Rola junto com a página (Window Scroll) */}
+          <main className="flex-1 w-full min-w-0 border-r border-gray-100/50">
              
-             {/* Header Fixo */}
-             <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 px-6 py-3 flex justify-between items-center">
-                <h1 className="font-bold text-xl tracking-tight">Página Inicial</h1>
-                {currentUser && <Link href={`/u/${currentUser.username}`} className="w-8 h-8 rounded-full bg-gray-100 relative overflow-hidden"><Image src={currentUser.avatar_url || ''} alt="Eu" fill className="object-cover" /></Link>}
+             {/* HEADER COMPLETO (Stories + Tabs) */}
+             {/* Sem 'sticky', ele vai rolar pra cima e sumir quando descer o scroll */}
+             <div className="bg-white border-b border-gray-100">
+                 <StoriesBar 
+                    currentUser={currentUser} 
+                    activeCategory={activeCategory} 
+                    onSelectCategory={setActiveCategory} 
+                    onToggleSidebar={() => setIsMobileMenuOpen(true)}
+                 />
              </div>
 
-             {/* Stories Bar */}
-             <div className="pt-4 pb-4 border-b border-gray-100 px-6">
-                 <StoriesBar currentUser={currentUser} />
-             </div>
-
-             {/* WIDGET DE CRIAÇÃO */}
-             {currentUser && (
-                <div className="border-b border-gray-100">
-                    <CreatePostWidget currentUser={currentUser} onPostCreate={handlePostCreate} onOpenAdvancedModal={() => setIsModalOpen(true)} />
-                </div>
-             )}
-
-             {/* Abas de Filtro */}
-             <div className="sticky top-[58px] z-30 bg-white/95 backdrop-blur border-b border-gray-100">
-                <div className="py-2 px-6">
-                   <CategoryTabs activeCategory={activeCategory} onSelect={setActiveCategory} />
-                </div>
-             </div>
-
-             {/* O Feed */}
-             <div className="pb-32">
-                {activeCategory === 'books' || activeCategory === 'all' ? (
-                   <BookFeed key={feedKey} userId={currentUser?.id} onPostClick={handleOpenPost} />
-                ) : (
-                   <FeedUnderConstruction category={activeCategory} />
+             {/* CORPO DO FEED */}
+             <div className="w-full">
+                
+                {/* Widget de Postar */}
+                {currentUser && (
+                   <div className="border-b border-gray-100 bg-white">
+                       <CreatePostWidget 
+                          currentUser={currentUser} 
+                          onPostCreate={handlePostCreate} 
+                          onOpenAdvancedModal={() => setIsModalOpen(true)} 
+                       />
+                   </div>
                 )}
+
+                {/* Lista Infinita */}
+                <div className="pb-32">
+                   {activeCategory === 'books' || activeCategory === 'all' ? (
+                      <BookFeed 
+                        key={feedKey} 
+                        userId={currentUser?.id} 
+                        onPostClick={(p) => {
+                          setSelectedPost(p);
+                          router.push(`?p=${p.id}`, { scroll: false });
+                        }} 
+                      />
+                   ) : (
+                      <div className="p-10 text-center text-gray-500">
+                         <div className="mb-4 text-4xl">🚧</div>
+                         Feed de {activeCategory} em breve.
+                      </div>
+                   )}
+                </div>
              </div>
           </main>
-
-          {/* 3. DIREITA (Trends) */}
-          <aside className="hidden xl:block">
-             <RightSidebar category={activeCategory} />
-          </aside>
-
+      </div>
+      
+      {/* Mobile Bottom Nav */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-3 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+         <Link href="/dashboard" className="text-brand-purple"><i className="fas fa-home text-xl"></i></Link>
+         <Link href="/dashboard/search" className="text-gray-500"><i className="fas fa-search text-xl"></i></Link>
+         <Link href="/dashboard/notifications" className="text-gray-500"><i className="far fa-bell text-xl"></i></Link>
+         <Link href="/dashboard/messages" className="text-gray-500"><i className="far fa-envelope text-xl"></i></Link>
       </div>
     </div>
   );

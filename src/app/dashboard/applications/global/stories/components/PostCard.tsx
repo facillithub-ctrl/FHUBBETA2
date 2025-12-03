@@ -46,12 +46,11 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
   if (isDeleted) return null;
 
   return (
-    // DESIGN CLEAN: Sem background branco isolado, sem sombra.
     <article 
-        className="border-b border-gray-100 px-4 py-4 hover:bg-gray-50/50 transition-colors cursor-pointer bg-white"
+        className="border-b border-gray-100 px-4 py-4 hover:bg-gray-50/20 transition-colors cursor-pointer bg-white w-full"
         onClick={() => onCommentClick?.(post)}
     >
-      <div className="flex gap-3">
+      <div className="flex gap-3 w-full">
          {/* Avatar */}
          <div className="flex-shrink-0">
             <Link href={`/u/${post.user.username.replace('@', '')}`} onClick={e => e.stopPropagation()}>
@@ -65,11 +64,13 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
             </Link>
          </div>
 
+         {/* Conteúdo Principal */}
          <div className="flex-1 min-w-0">
-            {/* Header: Nome e Metadados */}
+            
+            {/* Header */}
             <div className="flex justify-between items-start">
                 <div className="flex items-center gap-1 text-[15px] leading-5 flex-wrap">
-                    <Link href={`/u/${post.user.username.replace('@', '')}`} onClick={e => e.stopPropagation()} className="font-bold text-gray-900 hover:underline truncate">
+                    <Link href={`/u/${post.user.username.replace('@', '')}`} onClick={e => e.stopPropagation()} className="font-bold text-gray-900 hover:underline truncate max-w-[200px]">
                         {post.user.name}
                     </Link>
                     <VerificationBadge badge={post.user.badge} size="4px" />
@@ -78,16 +79,16 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
                     <span className="text-gray-500 text-sm hover:underline">{post.createdAt}</span>
                 </div>
                 
-                {/* Menu 3 Pontos */}
-                <div className="relative group/menu">
+                {/* Menu */}
+                <div className="relative group/menu flex-shrink-0 ml-2">
                     <button 
                         onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
-                        className="text-gray-400 hover:text-brand-purple p-1 rounded-full transition-colors -mt-1 -mr-2"
+                        className="text-gray-400 hover:text-brand-purple p-2 rounded-full hover:bg-purple-50 transition-colors -mt-2 -mr-2"
                     >
                         <i className="fas fa-ellipsis-h text-sm"></i>
                     </button>
                     {isMenuOpen && (
-                        <div className="absolute right-0 top-6 bg-white shadow-xl border border-gray-100 rounded-lg z-50 w-32 py-1 animate-in fade-in zoom-in-95 duration-100">
+                        <div className="absolute right-0 top-8 bg-white shadow-xl border border-gray-100 rounded-lg z-50 w-32 py-1">
                             {isOwner ? (
                                 <button onClick={(e) => { e.stopPropagation(); handleDelete(); }} className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 text-xs font-bold flex items-center gap-2">
                                     <i className="far fa-trash-alt"></i> Excluir
@@ -102,8 +103,8 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
                 </div>
             </div>
 
-            {/* Conteúdo do Post */}
-            <div className="mt-1 text-[15px] text-gray-900 whitespace-pre-wrap leading-normal">
+            {/* Conteúdo */}
+            <div className="mt-1 text-[15px] text-gray-900 whitespace-pre-wrap leading-normal break-words w-full">
                 {post.category === 'books' ? (
                     <BookPostDispatcher post={post} />
                 ) : (
@@ -118,38 +119,21 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
                 )}
             </div>
 
-            {/* Footer de Ações */}
+            {/* Ações */}
             <div className="flex justify-between items-center mt-3 max-w-[425px] text-gray-500">
-                <button 
-                    className="group flex items-center gap-2 hover:text-blue-500 transition-colors"
-                    onClick={(e) => { e.stopPropagation(); onCommentClick?.(post); }}
-                >
-                    <div className="p-2 -ml-2 rounded-full group-hover:bg-blue-50 transition-colors">
-                        <i className="far fa-comment text-[18px]"></i>
-                    </div>
-                    <span className="text-xs">{post.commentsCount > 0 && post.commentsCount}</span>
+                <button onClick={(e) => { e.stopPropagation(); onCommentClick?.(post); }} className="group flex items-center gap-2 hover:text-blue-500 transition-colors">
+                    <div className="p-2 -ml-2 rounded-full group-hover:bg-blue-50 transition-colors"><i className="far fa-comment text-[18px]"></i></div>
+                    <span className="text-xs font-medium">{post.commentsCount > 0 && post.commentsCount}</span>
                 </button>
-
-                <button 
-                    className={`group flex items-center gap-2 transition-colors ${liked ? 'text-pink-600' : 'hover:text-pink-600'}`}
-                    onClick={handleLike}
-                >
-                    <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors">
-                        <i className={`${liked ? 'fas' : 'far'} fa-heart text-[18px]`}></i>
-                    </div>
-                    <span className="text-xs">{likesCount > 0 && likesCount}</span>
+                <button onClick={handleLike} className={`group flex items-center gap-2 transition-colors ${liked ? 'text-pink-600' : 'hover:text-pink-600'}`}>
+                    <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors"><i className={`${liked ? 'fas' : 'far'} fa-heart text-[18px]`}></i></div>
+                    <span className="text-xs font-medium">{likesCount > 0 && likesCount}</span>
                 </button>
-
                 <button className="group flex items-center gap-2 hover:text-green-500 transition-colors">
-                    <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors">
-                        <i className="fas fa-retweet text-[18px]"></i>
-                    </div>
+                    <div className="p-2 rounded-full group-hover:bg-green-50 transition-colors"><i className="fas fa-retweet text-[18px]"></i></div>
                 </button>
-
                 <button onClick={handleShare} className="group flex items-center gap-2 hover:text-brand-purple transition-colors">
-                    <div className="p-2 rounded-full group-hover:bg-purple-50 transition-colors">
-                        <i className="fas fa-share-nodes text-[18px]"></i>
-                    </div>
+                    <div className="p-2 rounded-full group-hover:bg-purple-50 transition-colors"><i className="fas fa-share-nodes text-[18px]"></i></div>
                 </button>
             </div>
          </div>

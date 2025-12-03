@@ -19,12 +19,10 @@ const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
     ? row.my_like.some((l: any) => l.user_id === currentUserId) 
     : false;
 
-  // Fallback seguro para o usuário
   const user = row.user || { 
     id: 'unknown', full_name: 'Usuário', avatar_url: null, username: 'user' 
   };
 
-  // Tenta pegar os dados novos, se não existirem, usa padrão
   const role = user.role || 'student';
   const isVerified = !!user.is_verified;
   
@@ -59,7 +57,7 @@ const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
   };
 };
 
-// --- BUSCAR FEED (Com Fallback Automático) ---
+// --- BUSCAR FEED ---
 export async function getStoriesFeed(
   category: StoryCategory = 'all', 
   limit: number = 20, 
@@ -68,8 +66,6 @@ export async function getStoriesFeed(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // TENTATIVA 1: Query Completa (com role/badge)
-  // Se o seu banco tiver as colunas, isso roda.
   let query = supabase
     .from('stories_posts')
     .select(`
@@ -88,10 +84,8 @@ export async function getStoriesFeed(
   const { data, error } = await query;
 
   if (error) {
-    // TENTATIVA 2: Query de Compatibilidade (Sem role/badge)
-    // Isso resolve o erro 'column does not exist' automaticamente
+    // Fallback de compatibilidade
     if (error.code === '42703' || error.message.includes('does not exist')) {
-        console.warn("⚠️ Usando modo de compatibilidade (Banco desatualizado)");
         const fallbackQuery = supabase
             .from('stories_posts')
             .select(`
@@ -116,12 +110,11 @@ export async function getStoriesFeed(
   return (data || []).map(row => mapToStoryPost(row, user?.id));
 }
 
-// --- RESTANTE DAS AÇÕES ---
+// --- AÇÕES DO POST ---
 export async function getPostById(postId: string): Promise<StoryPost | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
-  // Tenta completo
   const { data, error } = await supabase
     .from('stories_posts')
     .select(`*, user:profiles!stories_posts_user_id_fkey (id, full_name, avatar_url, nickname, is_verified, role, badge), likes:stories_likes(count), comments:stories_comments(count), my_like:stories_likes(user_id)`)
@@ -129,7 +122,6 @@ export async function getPostById(postId: string): Promise<StoryPost | null> {
     .single();
 
   if (error && error.code === '42703') {
-     // Fallback simples
      const { data: fallback } = await supabase
         .from('stories_posts')
         .select(`*, user:profiles!stories_posts_user_id_fkey (id, full_name, avatar_url, nickname, is_verified), likes:stories_likes(count), comments:stories_comments(count), my_like:stories_likes(user_id)`)

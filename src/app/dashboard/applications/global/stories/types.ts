@@ -1,5 +1,8 @@
 // CAMINHO: src/app/dashboard/applications/global/stories/types.ts
 
+// --- CORREÇÃO: Adicionado para resolver o erro de build ---
+export type VerificationType = 'blue' | 'gold' | 'green' | 'none' | null;
+
 // --- PERFIL DE USUÁRIO ---
 export type UserProfile = {
   id: string;
@@ -7,8 +10,8 @@ export type UserProfile = {
   avatar_url: string | null;
   username: string;
   isVerified?: boolean;
-  // Adicionado para compatibilidade com o componente VerificationBadge
-  badge?: string | null; 
+  // Compatibilidade com o componente VerificationBadge
+  badge?: VerificationType | string | null; 
   bio?: string;
   role?: 'student' | 'teacher' | 'admin';
   level?: number; 
@@ -17,7 +20,7 @@ export type UserProfile = {
   following?: number;
 };
 
-// --- STORY CIRCLES (Círculos de Stories no topo) ---
+// --- STORY CIRCLES ---
 export type StoryCircle = {
   id: string;
   user: UserProfile;
@@ -26,7 +29,7 @@ export type StoryCircle = {
   category?: StoryCategory;
 };
 
-// --- CATEGORIAS GERAIS ---
+// --- CATEGORIAS ---
 export type StoryCategory = 
   | 'all' 
   | 'books' 
@@ -38,7 +41,7 @@ export type StoryCategory =
   | 'podcasts' 
   | 'general';
 
-// --- FORMATOS ESPECÍFICOS ---
+// --- FORMATOS ESPECÍFICOS (Mantidos) ---
 export type BookPostType = 
   | 'review'             
   | 'rating'             
@@ -74,7 +77,7 @@ export type RankingItem = {
   description?: string;
 };
 
-// --- TIPO PRINCIPAL DO POST (STORYPOST) ---
+// --- TIPO PRINCIPAL DO POST ---
 export type StoryPost = {
   id: string;
   category: StoryCategory;
@@ -84,7 +87,7 @@ export type StoryPost = {
   
   user: UserProfile;
   createdAt: string; 
-  timestamp?: string; // Útil para ordenação precisa se necessário
+  timestamp?: string;
   
   content: string;       
   title?: string;        
@@ -93,42 +96,43 @@ export type StoryPost = {
   mediaUrl?: string;     
   isVideo?: boolean; 
   
+  // Metadados Ricos (Mantidos)
   metadata?: {
     tags?: string[]; 
     
-    // >>>> DADOS DE LIVRO / OBRA
+    // LIVROS
     author?: string;       
     publisher?: string;    
     pages?: number; 
     genre?: string;        
     year?: string;         
     
-    // >>>> AVALIAÇÃO
+    // AVALIAÇÃO
     rating?: number;       
     mood?: string;         
     
-    // >>>> RECOMENDAÇÃO
+    // RECOMENDAÇÃO
     reasons?: string[];      
     targetAudience?: string; 
     
-    // >>>> PROMOÇÃO
+    // PROMOÇÃO
     price?: number;
     oldPrice?: number;
     discountPercent?: number;
     coupon?: string;
     linkUrl?: string; 
     
-    // >>>> PROGRESSO
+    // PROGRESSO
     progress?: number; 
     
-    // >>>> QUOTE
+    // QUOTE
     quoteText?: string;    
     quotePage?: string;    
     
-    // >>>> RANKING
+    // RANKING
     rankingItems?: RankingItem[];
     
-    // >>>> GAMES
+    // GAMES
     platform?: 'PlayStation' | 'Xbox' | 'PC' | 'Nintendo' | 'Mobile';
     gameTitle?: string;
     achievementName?: string;

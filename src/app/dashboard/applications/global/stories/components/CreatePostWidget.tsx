@@ -16,7 +16,6 @@ export default function CreatePostWidget({ currentUser, onPostCreate, onOpenAdva
   const [isFocused, setIsFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-resize do textarea
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
     e.target.style.height = 'auto';
@@ -41,7 +40,7 @@ export default function CreatePostWidget({ currentUser, onPostCreate, onOpenAdva
   };
 
   return (
-    <div className={`bg-white border-b border-gray-100 pt-4 pb-2 px-4 transition-colors ${isFocused ? 'bg-gray-50/30' : ''}`}>
+    <div className={`pt-4 pb-2 px-4 transition-colors ${isFocused ? 'bg-gray-50/30' : ''}`}>
       <div className="flex gap-3">
         {/* Avatar */}
         <div className="flex-shrink-0 pt-1">
@@ -54,7 +53,7 @@ export default function CreatePostWidget({ currentUser, onPostCreate, onOpenAdva
           </div>
         </div>
 
-        {/* Área de Input */}
+        {/* Input Area */}
         <div className="flex-1 min-w-0">
           <textarea
             ref={textareaRef}
@@ -67,10 +66,10 @@ export default function CreatePostWidget({ currentUser, onPostCreate, onOpenAdva
             disabled={isSubmitting}
           />
 
-          {/* Barra de Ações (Sempre visível para fácil acesso) */}
-          <div className="flex justify-between items-center mt-3 mb-2">
+          {/* Barra de Ações */}
+          <div className="flex justify-between items-center mt-3 mb-2 flex-wrap gap-2">
              
-             <div className="flex items-center gap-0 text-brand-purple">
+             <div className="flex items-center gap-1 text-brand-purple">
                 <button className="p-2 rounded-full hover:bg-purple-50 transition-colors text-brand-purple/80 hover:text-brand-purple" title="Mídia">
                    <i className="far fa-image text-lg"></i>
                 </button>
@@ -81,20 +80,22 @@ export default function CreatePostWidget({ currentUser, onPostCreate, onOpenAdva
                    <i className="fas fa-poll-h text-lg"></i>
                 </button>
                 
-                {/* Botão para criar reviews/listas */}
+                {/* 2. BOTÃO DE POST ESPECÍFICO (REVIEW/LISTA) AQUI */}
                 <button 
                   onClick={onOpenAdvancedModal}
-                  className="ml-2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-50 text-brand-purple text-xs font-bold hover:bg-purple-100 transition-colors"
+                  className="ml-2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-50 text-brand-purple text-xs font-bold hover:bg-purple-100 transition-colors border border-purple-100"
                 >
                    <i className="fas fa-plus"></i>
-                   Criar Review
+                   <span className="hidden sm:inline">Criar Review</span>
+                   <span className="sm:hidden">Review</span>
                 </button>
              </div>
 
+             {/* Botão Publicar com bg-brand-gradient */}
              <button 
                onClick={handleSubmit}
                disabled={!text.trim() || isSubmitting}
-               className="bg-brand-purple text-white font-bold px-5 py-1.5 rounded-full text-sm hover:bg-[#360366] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+               className="bg-brand-gradient text-white font-bold px-5 py-1.5 rounded-full text-sm hover:opacity-90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
              >
                {isSubmitting ? 'Enviando...' : 'Publicar'}
              </button>

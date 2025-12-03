@@ -4,7 +4,7 @@ export default function StoriesLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-[#FAFAFA] min-h-screen">
+    <div className="bg-white min-h-screen">
       {children}
     </div>
   );
