@@ -348,7 +348,7 @@ export default function StoriesPage() {
 
            {/* MOBILE: PERFIL E COMUNIDADES (Topo do Feed) */}
            <div className="lg:hidden px-4 mt-6">
-              <div className="bg-gradient-to-r from-brand-purple to-indigo-600 rounded-2xl p-4 text-white shadow-lg flex items-center gap-4 mb-4">
+              <div className="bg-brand-gradient rounded-2xl p-4 text-white shadow-lg flex items-center gap-4 mb-4">
                  <div className="w-14 h-14 rounded-full border-2 border-white/30 overflow-hidden bg-white/20 relative flex-shrink-0">
                     {currentUser.avatar_url && <Image src={currentUser.avatar_url} alt="Me" fill className="object-cover" />}
                  </div>
@@ -396,7 +396,7 @@ export default function StoriesPage() {
            <div className="sticky top-8 space-y-8 pb-10 pt-6">
               
               {/* Card Perfil */}
-              <div className="bg-gradient-to-br from-brand-purple to-indigo-600 rounded-[2rem] p-6 text-white shadow-xl shadow-purple-200 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
+              <div className="bg-brand-gradient rounded-[2rem] p-6 text-white shadow-xl shadow-purple-200 relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
                  <div className="relative z-10 flex items-center gap-4">
                     <div className="w-16 h-16 rounded-full border-2 border-white/30 p-1">

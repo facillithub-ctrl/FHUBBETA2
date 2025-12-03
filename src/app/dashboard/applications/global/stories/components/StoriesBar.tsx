@@ -31,7 +31,7 @@ export default function StoriesBar({ stories, currentUser }: { stories: StoryCir
         {/* Outros Stories */}
         {stories.map((story) => (
           <div key={story.id} className="flex flex-col items-center gap-2 cursor-pointer group min-w-[70px]">
-            <div className={`w-[68px] h-[68px] rounded-full p-[3px] transition-all duration-300 group-hover:scale-105 ${story.hasUnseen ? 'bg-gradient-to-tr from-brand-purple via-pink-500 to-orange-400' : 'bg-gray-200'}`}>
+            <div className={`w-[68px] h-[68px] rounded-full p-[3px] transition-all duration-300 group-hover:scale-105 ${story.hasUnseen ? 'bg-brand-gradient' : 'bg-gray-200'}`}>
               <div className="w-full h-full rounded-full border-[3px] border-white bg-white overflow-hidden relative">
                 {story.user.avatar_url && (
                    <Image src={story.user.avatar_url} alt={story.user.name} fill className="object-cover" />
