@@ -1,54 +1,82 @@
+import React from 'react';
 import Image from 'next/image';
 import { StoryPost } from '../../../../types';
+import { Tag, ShoppingBag, ExternalLink, Clock } from 'lucide-react';
 
 export default function PromotionPost({ post }: { post: StoryPost }) {
-  const discount = post.metadata?.oldPrice && post.metadata?.price 
-    ? Math.round(((post.metadata.oldPrice - post.metadata.price) / post.metadata.oldPrice) * 100) 
-    : 0;
+  const { title, content, coverImage, metadata } = post;
+  
+  const price = metadata?.price;
+  const oldPrice = metadata?.oldPrice;
+  const discount = metadata?.discountPercent;
+  const link = metadata?.linkUrl || '#';
 
   return (
-    <div className="mt-2 border-2 border-dashed border-purple-200 bg-purple-50/50 rounded-xl p-5 relative overflow-hidden">
-       {/* Badge de Desconto */}
-       {discount > 0 && (
-          <div className="absolute -right-12 top-5 bg-red-500 text-white text-xs font-bold py-1 px-12 rotate-45 shadow-sm">
-             -{discount}% OFF
-          </div>
-       )}
-
-       <div className="flex gap-5 items-center">
-          {post.coverImage && (
-             <div className="w-24 h-32 relative rounded shadow-md flex-shrink-0 bg-white p-1">
-                <div className="relative w-full h-full overflow-hidden rounded">
-                   <Image src={post.coverImage} alt="Promo" fill className="object-contain" />
-                </div>
-             </div>
+    <div className="mt-2 rounded-2xl overflow-hidden border border-slate-100 shadow-sm bg-white">
+      
+      {/* 1. Imagem de Capa (Destaque) */}
+      {coverImage && (
+        <div className="relative w-full h-48 bg-slate-100">
+          <Image 
+            src={coverImage} 
+            alt={title || "Oferta"} 
+            fill 
+            className="object-cover"
+          />
+          {/* Badge de Desconto Flutuante */}
+          {discount && discount > 0 && (
+            <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-md shadow-sm animate-pulse">
+              -{discount}% OFF
+            </div>
           )}
-          
-          <div className="flex-1">
-             <h3 className="font-bold text-gray-900 text-lg mb-1">{post.title}</h3>
-             <p className="text-xs text-gray-500 mb-3 line-through">De: R$ {post.metadata?.oldPrice?.toFixed(2)}</p>
-             
-             <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-sm text-purple-700 font-bold">Por apenas</span>
-                <span className="text-3xl font-black text-brand-purple">R$ {post.metadata?.price?.toFixed(2)}</span>
-             </div>
+        </div>
+      )}
 
-             <a 
-               href={post.metadata?.linkUrl || '#'} 
-               target="_blank"
-               className="inline-flex items-center gap-2 bg-brand-green hover:bg-emerald-400 text-brand-dark font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm w-full sm:w-auto justify-center"
-             >
-                <i className="fas fa-shopping-cart"></i>
-                Aproveitar Oferta
-             </a>
-             
-             {post.metadata?.coupon && (
-                <div className="mt-3 text-xs text-gray-500">
-                   Use o cupom: <span className="font-mono font-bold bg-white px-2 py-1 rounded border border-gray-200 text-gray-800 ml-1 select-all">{post.metadata.coupon}</span>
-                </div>
-             )}
+      {/* 2. Conteúdo da Oferta */}
+      <div className="p-4">
+        <div className="flex justify-between items-start gap-4">
+          <div>
+            <h3 className="font-bold text-slate-900 text-lg line-clamp-2">
+              {title || "Oferta Imperdível"}
+            </h3>
+            <p className="text-slate-500 text-sm mt-1 line-clamp-2">
+              {content}
+            </p>
           </div>
-       </div>
+          
+          {/* Preço */}
+          <div className="text-right flex-shrink-0">
+            {oldPrice && (
+              <span className="block text-xs text-slate-400 line-through">
+                R$ {oldPrice.toFixed(2)}
+              </span>
+            )}
+            {price && (
+              <span className="block text-xl font-black text-green-600">
+                R$ {price.toFixed(2)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* 3. Footer / Ação */}
+        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+          <div className="flex items-center text-xs text-slate-400 gap-1">
+            <Clock size={14} />
+            <span>Expira em breve</span>
+          </div>
+
+          <a 
+            href={link} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-brand-gradient text-white px-4 py-2 rounded-full text-sm font-bold shadow-md hover:opacity-90 transition-all hover:scale-105"
+          >
+            <ShoppingBag size={16} />
+            Pegar Oferta
+          </a>
+        </div>
+      </div>
     </div>
   );
-}   
+}

@@ -13,12 +13,12 @@ import CreatePostWidget from './components/CreatePostWidget';
 import PostDetailModal from './components/PostDetailModal';
 import BookFeed from './components/feeds/BookFeed';
 
-// Lógica
+// Lógica e Tipos
 import { UserProfile, StoryCategory, StoryPost } from './types';
 import { createStoryPost, getPostById } from './actions';
 import createClient from '@/utils/supabase/client';
 
-// --- SIDEBAR DE NAVEGAÇÃO ---
+// --- SIDEBAR DE NAVEGAÇÃO (FIXA NA ESQUERDA) ---
 const NavigationSidebar = ({ user, onClose }: { user: UserProfile, onClose?: () => void }) => {
   const navItems = [
     { icon: 'fas fa-home', label: 'Página Inicial', href: '/dashboard/applications/global/stories', active: true },
@@ -41,13 +41,13 @@ const NavigationSidebar = ({ user, onClose }: { user: UserProfile, onClose?: () 
                 <span className="inline">Facillit Stories</span>
              </Link>
              {onClose && (
-                <button onClick={onClose} className="lg:hidden text-gray-500 hover:text-brand-purple">
+                <button onClick={onClose} className="lg:hidden text-gray-500 hover:text-brand-purple p-2">
                    <i className="fas fa-times text-xl"></i>
                 </button>
              )}
           </div>
           
-          {/* Menu */}
+          {/* Menu de Navegação */}
           <nav className="space-y-1">
              {navItems.map((item) => (
                <Link 
@@ -69,14 +69,14 @@ const NavigationSidebar = ({ user, onClose }: { user: UserProfile, onClose?: () 
           </button>
        </div>
 
-       {/* Perfil Mini */}
+       {/* Perfil Mini (Rodapé da Sidebar) */}
        <div className="mt-auto pt-4 border-t border-gray-100">
-          <div className="flex items-center gap-3 p-3 rounded-full hover:bg-gray-100 transition-colors cursor-pointer">
+          <div className="flex items-center gap-3 p-3 rounded-full hover:bg-gray-100 transition-colors cursor-pointer group">
              <div className="w-10 h-10 rounded-full bg-gray-200 relative overflow-hidden border border-gray-100">
                  {user.avatar_url && <Image src={user.avatar_url} alt="Eu" fill className="object-cover" />}
              </div>
              <div className="block leading-tight">
-                <p className="font-bold text-sm text-gray-900 truncate">{user.name}</p>
+                <p className="font-bold text-sm text-gray-900 truncate group-hover:text-brand-purple transition-colors">{user.name}</p>
                 <p className="text-xs text-gray-500 truncate">@{user.username}</p>
              </div>
              <i className="fas fa-ellipsis-h ml-auto text-gray-400"></i>
@@ -86,18 +86,21 @@ const NavigationSidebar = ({ user, onClose }: { user: UserProfile, onClose?: () 
   );
 };
 
+// --- CONTEÚDO PRINCIPAL DA PÁGINA ---
 function StoriesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const postIdFromUrl = searchParams.get('p');
 
+  // Estados Globais da Página
   const [activeCategory, setActiveCategory] = useState<StoryCategory>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [selectedPost, setSelectedPost] = useState<StoryPost | null>(null);
-  const [feedKey, setFeedKey] = useState(0);
+  const [feedKey, setFeedKey] = useState(0); // Usado para forçar refresh do feed
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // 1. Carregar Usuário
   useEffect(() => {
     const load = async () => {
       const supabase = createClient();
@@ -114,6 +117,7 @@ function StoriesContent() {
     load();
   }, []);
 
+  // 2. Abrir Post via URL (Deep Link)
   useEffect(() => {
     if (postIdFromUrl) {
        getPostById(postIdFromUrl).then(p => { if (p) setSelectedPost(p); });
@@ -122,12 +126,14 @@ function StoriesContent() {
     }
   }, [postIdFromUrl]);
 
-  const handlePostCreate = async (postData: Partial<StoryPost>) => {
+  // 3. Criar Post (Normal ou Review)
+  // Agora aceita FormData para suportar upload de arquivos
+  const handlePostCreate = async (formData: FormData) => {
     if (!currentUser) return;
     try {
-        await createStoryPost(postData);
-        setFeedKey(p => p + 1);
-        setIsModalOpen(false);
+        await createStoryPost(formData);
+        setFeedKey(p => p + 1); // Recarrega o feed
+        setIsModalOpen(false); // Fecha modal se estiver aberta
     } catch {
         alert("Erro ao publicar.");
     }
@@ -139,12 +145,18 @@ function StoriesContent() {
   };
 
   return (
-    // min-h-screen para garantir altura, mas sem travar o scroll do body
     <div className="bg-white font-inter min-h-screen">
       
-      {/* Modais */}
+      {/* --- MODAIS GLOBAIS --- */}
       {selectedPost && <PostDetailModal post={selectedPost} currentUser={currentUser} onClose={handleClosePost} />}
-      {currentUser && <CreateReviewModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} currentUser={currentUser} onPostCreate={handlePostCreate} />}
+      {currentUser && (
+        <CreateReviewModal 
+            isOpen={isModalOpen} 
+            onClose={() => setIsModalOpen(false)} 
+            currentUser={currentUser} 
+            onPostCreate={handlePostCreate} // Modal avançada também usa a mesma função
+        />
+      )}
 
       {/* --- MENU MOBILE (OVERLAY) --- */}
       {isMobileMenuOpen && currentUser && (
@@ -156,21 +168,21 @@ function StoriesContent() {
         </div>
       )}
 
-      {/* GRID PRINCIPAL */}
+      {/* --- GRID PRINCIPAL --- */}
       <div className="flex w-full max-w-[1600px] mx-auto items-start">
           
           {/* 1. SIDEBAR ESQUERDA (FIXA) */}
-          {/* z-10 para ficar acima do feed se houver algo, mas abaixo de modais e sidebar global (normalmente z-40/50) */}
+          {/* sticky top-0 h-screen garante que ela acompanhe o scroll visualmente mas fique fixa */}
           <aside className="hidden lg:block w-[275px] flex-shrink-0 sticky top-0 h-screen z-10">
              {currentUser && <NavigationSidebar user={currentUser} />}
           </aside>
 
           {/* 2. ÁREA DO FEED (FLUIDA) */}
-          {/* min-w-0 evita overflow horizontal em flexbox */}
+          {/* min-w-0 é essencial para o flexbox não estourar com textos longos */}
           <main className="flex-1 w-full min-w-0 border-r border-gray-100/50 relative">
              
-             {/* HEADER COMPLETO (SÓLIDO) */}
-             {/* Sem z-index alto para não cobrir a sidebar global */}
+             {/* A. HEADER COMPLETO (Stories + Tabs) */}
+             {/* Não é sticky, rola junto com a página (comportamento natural) */}
              <div className="bg-white border-b border-gray-100">
                  <StoriesBar 
                     currentUser={currentUser} 
@@ -180,10 +192,10 @@ function StoriesContent() {
                  />
              </div>
 
-             {/* CORPO DO FEED */}
+             {/* B. CORPO DO FEED */}
              <div className="w-full">
                 
-                {/* Widget de Postar */}
+                {/* Widget de Postar Rápido */}
                 {currentUser && (
                    <div className="border-b border-gray-100 bg-white">
                        <CreatePostWidget 
@@ -194,21 +206,23 @@ function StoriesContent() {
                    </div>
                 )}
 
-                {/* Lista Infinita */}
+                {/* Lista Infinita de Posts */}
                 <div className="pb-32">
+                   {/* BookFeed agora é universal, exibe tudo se category='all' */}
                    {activeCategory === 'books' || activeCategory === 'all' ? (
                       <BookFeed 
                         key={feedKey} 
                         userId={currentUser?.id} 
+                        category={activeCategory}
                         onPostClick={(p) => {
                           setSelectedPost(p);
                           router.push(`?p=${p.id}`, { scroll: false });
                         }} 
                       />
                    ) : (
-                      <div className="p-10 text-center text-gray-500">
-                         <div className="mb-4 text-4xl">🚧</div>
-                         Feed de {activeCategory} em breve.
+                      <div className="p-10 text-center text-gray-500 py-20">
+                         <div className="mb-4 text-4xl grayscale opacity-50">🚧</div>
+                         <p className="font-medium">O feed de {activeCategory} está sendo preparado.</p>
                       </div>
                    )}
                 </div>
@@ -216,12 +230,20 @@ function StoriesContent() {
           </main>
       </div>
       
-      {/* Mobile Bottom Nav */}
+      {/* --- MOBILE BOTTOM NAV (Opcional, para acesso rápido) --- */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-3 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-         <Link href="/dashboard" className="text-brand-purple"><i className="fas fa-home text-xl"></i></Link>
-         <Link href="/dashboard/search" className="text-gray-500"><i className="fas fa-search text-xl"></i></Link>
-         <Link href="/dashboard/notifications" className="text-gray-500"><i className="far fa-bell text-xl"></i></Link>
-         <Link href="/dashboard/messages" className="text-gray-500"><i className="far fa-envelope text-xl"></i></Link>
+         <Link href="/dashboard" className="text-brand-purple flex flex-col items-center gap-1">
+            <i className="fas fa-home text-xl"></i>
+         </Link>
+         <Link href="/dashboard/search" className="text-gray-400 hover:text-brand-purple transition-colors flex flex-col items-center gap-1">
+            <i className="fas fa-search text-xl"></i>
+         </Link>
+         <Link href="/dashboard/notifications" className="text-gray-400 hover:text-brand-purple transition-colors flex flex-col items-center gap-1">
+            <i className="far fa-bell text-xl"></i>
+         </Link>
+         <Link href="/dashboard/messages" className="text-gray-400 hover:text-brand-purple transition-colors flex flex-col items-center gap-1">
+            <i className="far fa-envelope text-xl"></i>
+         </Link>
       </div>
     </div>
   );

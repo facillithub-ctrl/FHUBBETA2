@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Image from 'next/image';
-import { UserProfile, StoryPost, BookPostType } from '../types';
+import { UserProfile, BookPostType } from '../types';
+import { Upload, X } from 'lucide-react';
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   currentUser: UserProfile;
-  onPostCreate: (post: Partial<StoryPost>) => void;
+  onPostCreate: (formData: FormData) => void; // Atualizado para aceitar FormData
 };
 
 const POST_TYPES: { id: BookPostType; label: string; icon: string; desc: string }[] = [
@@ -24,17 +25,56 @@ const POST_TYPES: { id: BookPostType; label: string; icon: string; desc: string 
   { id: 'technical', label: 'Ficha', icon: 'fas fa-list-alt', desc: 'Dados técnicos.' },
 ];
 
-export default function CreateReviewModal({ isOpen, onClose, currentUser, onPostCreate }: Props) {
+// Função de compressão (reutilizada para consistência)
+const compressImage = async (file: File, quality = 0.7, maxWidth = 800): Promise<File> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = document.createElement('img');
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
+          } else {
+            resolve(file);
+          }
+        }, 'image/jpeg', quality);
+      };
+    };
+  });
+};
+
+export default function CreateReviewModal({ isOpen, onClose, onPostCreate }: Props) {
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedType, setSelectedType] = useState<BookPostType>('review');
   const [loading, setLoading] = useState(false);
+  
+  // Estado para Imagem
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     title: '',
     author: '', 
     content: '',
     rating: 0,
-    coverImage: '',
     tags: '',
     targetAudience: '',
     reasons: ['', '', ''],
@@ -59,6 +99,21 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
 
   if (!isOpen) return null;
 
+  // Handler de Imagem
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setPreviewUrl(URL.createObjectURL(file)); // Preview instantâneo
+      
+      try {
+        const compressed = await compressImage(file);
+        setSelectedFile(compressed);
+      } catch {
+        setSelectedFile(file);
+      }
+    }
+  };
+
   const handleReasonChange = (index: number, value: string) => {
     const newReasons = [...formData.reasons];
     newReasons[index] = value;
@@ -75,59 +130,51 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
   const handleSubmit = async () => {
     setLoading(true);
     
-    const validRankingItems = formData.rankingItems.filter(i => i.title.trim() !== '');
-    const validReasons = formData.reasons.filter(r => r.trim() !== '');
-
-    // Objeto construído estritamente de acordo com o tipo StoryPost
-    const newPost: Partial<StoryPost> = {
-      category: 'books',
-      type: selectedType,
-      title: formData.title || 'Post sem título',
-      subtitle: formData.author,
-      content: formData.content,
-      coverImage: formData.coverImage,
-      
-      // Tudo que não é 'core' (título, conteúdo) deve ir para metadata
-      metadata: {
-        // Tags
-        tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
-
-        // Dados básicos
-        author: formData.author,
-        publisher: formData.publisher,
-        pages: formData.pages ? parseInt(formData.pages) : undefined,
-        genre: formData.genre,
-        
-        // Avaliação
-        rating: (selectedType === 'review' || selectedType === 'rating') ? formData.rating : undefined,
-        
-        // Promoção
-        price: formData.price ? parseFloat(formData.price) : undefined,
-        oldPrice: formData.oldPrice ? parseFloat(formData.oldPrice) : undefined,
-        discountPercent: (formData.price && formData.oldPrice) 
-            ? Math.round((1 - (parseFloat(formData.price) / parseFloat(formData.oldPrice))) * 100) 
-            : undefined,
-        linkUrl: selectedType === 'promotion' ? formData.affiliateLink : undefined,
-            
-        // Recomendação e Mood
-        targetAudience: formData.targetAudience,
-        reasons: validReasons,
-        mood: formData.mood,
-        
-        // First Impressions (apenas o número é salvo)
-        progress: selectedType === 'first-impressions' ? formData.progress : undefined,
-        
-        // Citação
-        quoteText: formData.quote,
-        quotePage: formData.quotePage,
-        
-        // Ranking
-        rankingItems: validRankingItems,
-      }
-    };
-
     try {
-        await onPostCreate(newPost);
+        const validRankingItems = formData.rankingItems.filter(i => i.title.trim() !== '');
+        const validReasons = formData.reasons.filter(r => r.trim() !== '');
+
+        // 1. Construir objeto de metadados
+        const metadata = {
+            tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
+            author: formData.author,
+            publisher: formData.publisher,
+            pages: formData.pages ? parseInt(formData.pages) : undefined,
+            genre: formData.genre,
+            rating: (selectedType === 'review' || selectedType === 'rating') ? formData.rating : undefined,
+            price: formData.price ? parseFloat(formData.price) : undefined,
+            oldPrice: formData.oldPrice ? parseFloat(formData.oldPrice) : undefined,
+            discountPercent: (formData.price && formData.oldPrice) 
+                ? Math.round((1 - (parseFloat(formData.price) / parseFloat(formData.oldPrice))) * 100) 
+                : undefined,
+            linkUrl: selectedType === 'promotion' ? formData.affiliateLink : undefined,
+            targetAudience: formData.targetAudience,
+            reasons: validReasons,
+            mood: formData.mood,
+            progress: selectedType === 'first-impressions' ? formData.progress : undefined,
+            quoteText: formData.quote,
+            quotePage: formData.quotePage,
+            rankingItems: validRankingItems,
+        };
+
+        // 2. Criar FormData para envio
+        const data = new FormData();
+        data.append('category', 'books'); // Categoria fixa para reviews
+        data.append('type', selectedType);
+        data.append('title', formData.title || 'Post sem título');
+        data.append('subtitle', formData.author); // Usamos subtitle para guardar autor no banco plano
+        data.append('content', formData.content);
+        data.append('metadata', JSON.stringify(metadata)); // Metadados serializados
+
+        // 3. Anexar imagem se houver
+        if (selectedFile) {
+            data.append('file', selectedFile);
+        }
+
+        // 4. Enviar
+        await onPostCreate(data);
+        
+        // Reset
         setStep(1);
         setFormData({ 
             ...formData, 
@@ -135,10 +182,13 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
             content: '', 
             tags: '',
             rankingItems: formData.rankingItems.map(i => ({...i, title: ''})) 
-        }); 
+        });
+        setSelectedFile(null);
+        setPreviewUrl(null);
+
     } catch (error) {
         console.error("Erro ao submeter modal:", error);
-        alert("Erro ao criar post. Verifique os dados.");
+        alert("Erro ao criar post. Tente novamente.");
     } finally {
         setLoading(false);
     }
@@ -147,29 +197,41 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
   const renderCommonFields = () => (
     <div className="space-y-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
       <div className="flex gap-4">
-          <div className="w-24 h-32 bg-white rounded-lg flex-shrink-0 flex items-center justify-center border border-dashed border-gray-300 relative overflow-hidden group hover:border-purple-400 transition-colors">
-             {formData.coverImage ? (
-                <Image src={formData.coverImage} alt="Capa" fill className="object-cover" />
+          {/* UPLOAD DE CAPA */}
+          <div 
+            className="w-24 h-32 bg-white rounded-lg flex-shrink-0 flex items-center justify-center border border-dashed border-gray-300 relative overflow-hidden group hover:border-purple-400 transition-colors cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
+             {previewUrl ? (
+                <>
+                    <Image src={previewUrl} alt="Capa" fill className="object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                        <Upload className="text-white w-6 h-6" />
+                    </div>
+                </>
              ) : (
                 <div className="text-center p-2">
-                   <i className="fas fa-camera text-gray-300 mb-1"></i>
-                   <p className="text-[9px] text-gray-400 leading-tight">URL da Capa</p>
+                   <i className="fas fa-camera text-gray-300 mb-1 text-xl"></i>
+                   <p className="text-[9px] text-gray-400 leading-tight font-bold">ADICIONAR CAPA</p>
                 </div>
              )}
              <input 
-                type="text" 
-                className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                onChange={(e) => setFormData({...formData, coverImage: e.target.value})}
+                type="file" 
+                accept="image/*"
+                ref={fileInputRef}
+                className="hidden"
+                onChange={handleImageSelect}
              />
           </div>
+
           <div className="flex-1 space-y-3">
              <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">
-                    {selectedType === 'ranking' ? 'Título da Lista' : 'Título do Livro'}
+                    {selectedType === 'ranking' ? 'Título da Lista' : 'Título do Livro/Obra'}
                 </label>
                 <input 
                     className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none font-bold text-gray-800"
-                    placeholder="Digite o título..."
+                    placeholder="Ex: Harry Potter e a Pedra Filosofal"
                     value={formData.title}
                     onChange={e => setFormData({...formData, title: e.target.value})}
                 />
@@ -177,7 +239,7 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
              <div>
                 <input 
                     className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none"
-                    placeholder="Autor / Subtítulo"
+                    placeholder="Autor (Opcional)"
                     value={formData.author}
                     onChange={e => setFormData({...formData, author: e.target.value})}
                 />
@@ -204,7 +266,7 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                   {selectedType === 'review' && (
                      <textarea 
                         className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm h-32 focus:ring-2 focus:ring-purple-500 outline-none resize-none"
-                        placeholder="Escreva sua resenha completa..."
+                        placeholder="Escreva sua resenha completa aqui..."
                         value={formData.content}
                         onChange={e => setFormData({...formData, content: e.target.value})}
                      />
@@ -319,7 +381,7 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
       <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
         <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
           <div className="flex items-center gap-3">

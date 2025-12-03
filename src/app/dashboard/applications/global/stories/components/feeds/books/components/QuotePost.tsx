@@ -1,36 +1,48 @@
+import React from 'react';
 import Image from 'next/image';
 import { StoryPost } from '../../../../types';
+import { Quote } from 'lucide-react';
 
 export default function QuotePost({ post }: { post: StoryPost }) {
+  const { content, coverImage, metadata } = post;
+  const author = metadata?.author || "Desconhecido";
+  const source = metadata?.publisher || metadata?.title; // Usa publisher ou titulo como fonte
+
   return (
-    <div className="relative rounded-xl overflow-hidden mt-2 bg-gray-900 text-white min-h-[300px] flex items-center justify-center text-center p-8 group">
-      {/* Background com Blur */}
-      {post.coverImage && (
-        <div className="absolute inset-0 opacity-40 group-hover:opacity-30 transition-opacity duration-700">
-           <Image src={post.coverImage} alt="Background" fill className="object-cover blur-[2px] scale-110" />
-           <div className="absolute inset-0 bg-black/40"></div>
-        </div>
-      )}
+    <div className={`relative w-full rounded-2xl overflow-hidden mt-2 group min-h-[200px] flex flex-col justify-center ${!coverImage ? 'bg-gradient-to-br from-brand-purple to-purple-900' : ''}`}>
       
-      {/* Conteúdo */}
-      <div className="relative z-10 max-w-md">
-        <i className="fas fa-quote-left text-4xl text-brand-green/80 mb-6 block"></i>
+      {/* 1. Imagem de Fundo (Se houver upload) */}
+      {coverImage && (
+        <>
+          <Image 
+            src={coverImage} 
+            alt="Background" 
+            fill 
+            className="object-cover transition-transform duration-700 group-hover:scale-110"
+          />
+          {/* Overlay escuro para legibilidade */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+        </>
+      )}
+
+      {/* 2. Conteúdo da Citação */}
+      <div className="relative z-10 p-8 text-center flex flex-col items-center">
+        <Quote size={40} className="text-white/30 mb-4 fill-current" />
         
-        {/* CORREÇÃO: Aspas escapadas (&quot;) */}
-        <p className="font-serif text-2xl md:text-3xl leading-relaxed tracking-wide text-gray-100 italic">
-           &quot;{post.metadata?.quoteText || post.content}&quot;
-        </p>
-        
-        <div className="mt-8 flex items-center justify-center gap-3">
-           <div className="h-[1px] w-8 bg-brand-green"></div>
-           <div className="text-sm font-medium text-brand-green uppercase tracking-widest">
-              {post.title}
-           </div>
-           <div className="h-[1px] w-8 bg-brand-green"></div>
+        <blockquote className="text-xl md:text-2xl font-serif text-white font-medium leading-relaxed italic drop-shadow-sm">
+          "{metadata?.quoteText || content}"
+        </blockquote>
+
+        <div className="mt-6 flex flex-col items-center gap-1">
+          <cite className="not-italic text-white font-bold text-base tracking-wide">
+            — {author}
+          </cite>
+          {(source || metadata?.quotePage) && (
+            <span className="text-white/60 text-xs uppercase tracking-wider font-medium">
+              {source} {metadata?.quotePage ? `• Pág. ${metadata.quotePage}` : ''}
+            </span>
+          )}
         </div>
-        {post.metadata?.quotePage && (
-           <p className="text-xs text-gray-400 mt-2">Página {post.metadata.quotePage}</p>
-        )}
       </div>
     </div>
   );
