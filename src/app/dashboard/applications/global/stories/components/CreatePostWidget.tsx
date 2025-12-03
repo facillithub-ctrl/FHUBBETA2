@@ -1,48 +1,37 @@
 // CAMINHO: src/app/dashboard/applications/global/stories/components/CreatePostWidget.tsx
 "use client";
 
-import { createPost } from '../actions';
-import { useRef } from 'react';
+import Image from 'next/image';
+import { UserProfile } from '../types';
 
-export default function CreatePostWidget({ userAvatar }: { userAvatar?: string | null }) {
-  const formRef = useRef<HTMLFormElement>(null);
-
-  const handleSubmit = async (formData: FormData) => {
-    await createPost(formData);
-    formRef.current?.reset();
-  };
-
+export default function CreatePostWidget({ 
+  currentUser, 
+  onOpenReviewModal 
+}: { 
+  currentUser: UserProfile, 
+  onOpenReviewModal: () => void 
+}) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-      <form ref={formRef} action={handleSubmit}>
-        <div className="flex gap-4">
-          <div className="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0 overflow-hidden">
-            {userAvatar ? (
-               <img src={userAvatar} alt="User" className="w-full h-full object-cover" />
-            ) : (
-               <div className="w-full h-full flex items-center justify-center"><i className="fas fa-user text-gray-400"></i></div>
-            )}
-          </div>
-          <div className="flex-1">
-            <input 
-              name="content"
-              type="text" 
-              placeholder="Que história você está vivendo hoje?" 
-              className="w-full bg-gray-50 hover:bg-gray-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/20 focus:bg-white transition-all"
-              required
-            />
-          </div>
-        </div>
-        <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-50">
-           <div className="flex gap-1 text-gray-400">
-             <button type="button" className="p-2 hover:bg-brand-purple/5 hover:text-brand-purple rounded-lg transition-colors"><i className="fas fa-book"></i></button>
-             <button type="button" className="p-2 hover:bg-brand-purple/5 hover:text-brand-purple rounded-lg transition-colors"><i className="fas fa-image"></i></button>
-           </div>
-           <button type="submit" className="px-4 py-1.5 bg-brand-purple text-white text-sm font-bold rounded-full hover:bg-brand-dark transition-colors">
-             Publicar
-           </button>
-        </div>
-      </form>
+    <div className="bg-white rounded-3xl p-4 mb-6 flex gap-4 items-center shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+      <div className="w-12 h-12 rounded-full bg-gray-100 overflow-hidden relative flex-shrink-0 border border-gray-100">
+        {currentUser.avatar_url ? (
+           <Image src={currentUser.avatar_url} alt="Me" fill className="object-cover" />
+        ) : (
+           <div className="w-full h-full flex items-center justify-center text-gray-400"><i className="fas fa-user"></i></div>
+        )}
+      </div>
+      
+      <button 
+        onClick={onOpenReviewModal}
+        className="flex-1 bg-gray-50 hover:bg-gray-100 text-left rounded-full px-5 py-3 text-gray-400 transition-colors text-sm font-medium flex justify-between items-center group"
+      >
+        <span>Escreva sobre sua leitura...</span>
+        <i className="fas fa-feather-alt text-brand-purple opacity-50 group-hover:opacity-100 transition-opacity"></i>
+      </button>
+
+      <button onClick={onOpenReviewModal} className="p-3 rounded-full hover:bg-brand-purple/10 text-brand-purple transition-colors">
+         <i className="fas fa-camera text-xl"></i>
+      </button>
     </div>
   );
 }

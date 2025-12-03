@@ -1,71 +1,78 @@
 // CAMINHO: src/app/dashboard/applications/global/stories/types.ts
 
-export type Profile = {
+export type UserProfile = {
   id: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  username?: string | null;
-};
-
-export type StoryPost = {
-  id: string;
-  user_id: string;
-  content: string | null;
-  book_title?: string | null;
-  book_author?: string | null;
-  book_cover_url?: string | null;
-  rating?: number | null;
-  created_at: string;
-  likes_count: number;
-  comments_count: number;
-  
-  // Joins
-  profiles?: Profile;
-  user_has_liked?: boolean; // Campo calculado no backend
-};
-
-export type StoryList = {
-  id: string;
-  type: 'reading' | 'read' | 'want_to_read' | 'custom';
   name: string;
-  count?: number;
+  avatar_url: string | null;
+  username: string;
+  isVerified?: boolean;
+  bio?: string;
+  followers?: number;
+  following?: number;
+  readCount?: number;
+  role?: 'student' | 'teacher' | 'admin';
 };
 
-type BookReview = {
+export type StoryCircle = {
   id: string;
-  user: { name: string; avatar: string };
-  book_title: string;
-  book_author: string;
-  book_cover: string;
-  rating: number; // 1-5
-  tags: string[]; // ex: "Chocante", "Leitura Rápida", "Plot Twist"
+  user: UserProfile;
+  hasUnseen: boolean;
+  isLive?: boolean;
+};
+
+export type CharacterInfo = {
+  name: string;
+  role?: string;
+};
+
+export type ReadingProgress = {
+  current: number;
+  total: number;
+  percentage: number;
+  status: 'Lendo' | 'Concluído' | 'Abandonado' | 'Quero Ler';
+};
+
+export type Comment = {
+  id: string;
+  user: string; // Nome do usuário
   text: string;
-  created_at: string;
 };
 
-type ReadingLog = {
+export type BookReviewPost = {
   id: string;
-  book_title: string;
-  total_pages: number;
-  current_page: number;
-  last_update: string; // "Há 2 horas"
-  status: 'Lendo' | 'Pausado';
-};
-
-type QuotePost = {
-  id: string;
-  text: string;
-  page?: number;
-  book_title: string;
-  theme: 'dark' | 'light' | 'paper'; // Temas visuais
-};
-
-type Comment = {
-  id: string;
-  user_name: string;
-  user_avatar: string;
-  text: string;
+  type: 'review' | 'video' | 'quote' | 'status' | 'link' | 'recommendation';
+  user: UserProfile;
+  createdAt: string; 
+  
+  // Conteúdo do Livro
+  bookTitle?: string;
+  bookAuthor?: string;
+  bookCover?: string;
+  rating?: number; // 0-5
+  
+  // Conteúdo Rico
+  content: string;
+  mediaUrl?: string; // Imagem, Video ou Preview de Link
+  isVideo?: boolean; 
+  
+  // Detalhes da Leitura
+  readingProgress?: ReadingProgress;
+  characters?: CharacterInfo[];
+  
+  // Links Externos
+  externalLink?: {
+    title?: string;
+    domain?: string;
+    url: string;
+  };
+  
+  // Social
   likes: number;
-  time_ago: string;
-  replies?: Comment[]; // Aninhamento
+  commentsCount: number;
+  topComments?: Comment[]; // Comentários para exibir no feed
+  shares: number;
+  isLiked?: boolean;
+  isSaved?: boolean;
+  
+  tags?: string[];
 };

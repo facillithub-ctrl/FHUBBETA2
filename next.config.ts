@@ -1,3 +1,4 @@
+// CAMINHO: next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -20,7 +21,7 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/storage/v1/object/public/**',
       },
-      // --- CORREÇÃO: Adicionado o hostname do Supabase Library ---
+      // Configuração do Supabase Library
       {
         protocol: 'https',
         hostname: 'xtwlxqdnrsnsrzhgyxvo.supabase.co',
@@ -34,10 +35,17 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
-      // NOVA ENTRADA: Permite imagens da Amazon (usadas nos mockups de livros)
+      // Permite imagens da Amazon (Capas de Livros)
       {
         protocol: 'https',
         hostname: 'm.media-amazon.com',
+        port: '',
+        pathname: '/**',
+      },
+      // NOVA CORREÇÃO: Permite imagens do Unsplash (Links e Placeholders)
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
         port: '',
         pathname: '/**',
       },
