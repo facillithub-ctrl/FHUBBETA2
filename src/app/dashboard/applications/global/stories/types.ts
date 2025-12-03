@@ -9,15 +9,13 @@ export type UserProfile = {
   isVerified?: boolean;
   bio?: string;
   role?: 'student' | 'teacher' | 'admin';
-  // Gamificação leve (Opcional)
   level?: number; 
   readCount?: number;
   followers?: number;
   following?: number;
 };
 
-// --- STORY CIRCLES (Círculos de Stories no topo) ---
-// Usado pelo componente StoriesBar
+// --- STORY CIRCLES ---
 export type StoryCircle = {
   id: string;
   user: UserProfile;
@@ -26,7 +24,8 @@ export type StoryCircle = {
   category?: StoryCategory;
 };
 
-// --- CATEGORIAS GERAIS ---
+// --- CATEGORIAS GERAIS (CORRIGIDO) ---
+// Adicionamos 'sports' e 'podcasts' para bater com o CategoryTabs.tsx
 export type StoryCategory = 
   | 'all' 
   | 'books' 
@@ -34,23 +33,32 @@ export type StoryCategory =
   | 'series' 
   | 'anime' 
   | 'games' 
+  | 'sports'    // <--- Adicionado
+  | 'podcasts'  // <--- Adicionado
   | 'general';
 
-// --- FORMATOS ESPECÍFICOS DE LIVROS (E OUTRAS MÍDIAS) ---
-// Estes são os tipos que definem qual componente visual será carregado
+// --- FORMATOS ESPECÍFICOS ---
 export type BookPostType = 
-  | 'review'             // Análise aprofundada
-  | 'rating'             // Avaliação rápida
-  | 'recommendation'     // "Recomendado para..."
-  | 'indication'         // Indicação simples
-  | 'promotion'          // Oferta/Promoção
-  | 'discussion'         // Debate/Pergunta
-  | 'first-impressions'  // Primeiras impressões (com barra de progresso)
-  | 'quote'              // Citação visual
-  | 'technical'          // Ficha Técnica
-  | 'ranking';           // Top X Listas
+  | 'review'             
+  | 'rating'             
+  | 'recommendation'     
+  | 'indication'         
+  | 'promotion'          
+  | 'discussion'         
+  | 'first-impressions'  
+  | 'quote'              
+  | 'technical'          
+  | 'ranking';           
 
-// --- TIPOS DE CONTEÚDO AUXILIAR ---
+// --- GAMES ---
+export type GamePostType = 
+  | 'game-review'       
+  | 'achievement'       
+  | 'clip'              
+  | 'setup'             
+  | 'looking-for-group' 
+  | 'ranking';          
+
 export type Comment = {
   id: string;
   user: UserProfile;
@@ -66,67 +74,57 @@ export type RankingItem = {
   description?: string;
 };
 
-// --- TIPO PRINCIPAL DO POST (STORYPOST) ---
+// --- TIPO PRINCIPAL DO POST ---
 export type StoryPost = {
   id: string;
   category: StoryCategory;
   
-  // O 'type' decide o layout. Se não for livro, usa 'status' ou 'media'
-  type: BookPostType | 'status' | 'media'; 
+  // União de todos os tipos possíveis
+  type: BookPostType | GamePostType | 'status' | 'media'; 
   
   user: UserProfile;
   createdAt: string; 
   
-  // Conteúdo Base (Comum a todos)
-  content: string;       // Texto principal ou descrição
-  title?: string;        // Título do Livro/Filme/Post
-  subtitle?: string;     // Autor do Livro ou Subtítulo
-  coverImage?: string;   // Capa do livro ou Imagem do post
-  mediaUrl?: string;     // Para vídeos ou mídia extra
+  content: string;       
+  title?: string;        
+  subtitle?: string;     
+  coverImage?: string;   
+  mediaUrl?: string;     
   isVideo?: boolean; 
   
-  // --- METADADOS FLEXÍVEIS (JSONB) ---
-  // Aqui vive a mágica de cada formato específico
   metadata?: {
-    // >>>> DADOS DE LIVRO / OBRA
     author?: string;       
     publisher?: string;    
     pages?: number; 
     genre?: string;        
     year?: string;         
-    
-    // >>>> AVALIAÇÃO
-    rating?: number;       // 0 a 5
-    mood?: string;         // Emoção (ex: "Chocado", "Feliz")
-    tags?: string[];       // Ex: ["Romance", "Plot Twist"]
-    
-    // >>>> RECOMENDAÇÃO
-    reasons?: string[];      // Lista de motivos ("Por que ler?")
-    targetAudience?: string; // "Recomendado para..."
-    
-    // >>>> PROMOÇÃO
+    rating?: number;       
+    mood?: string;         
+    tags?: string[];       
+    reasons?: string[];      
+    targetAudience?: string; 
     price?: number;
     oldPrice?: number;
     discountPercent?: number;
     coupon?: string;
-    linkUrl?: string; // Link de afiliado ou externo
-    
-    // >>>> PROGRESSO (First Impressions)
-    progress?: number; // Porcentagem (0-100)
-    
-    // >>>> QUOTE
-    quoteText?: string;    // Se for diferente do content
+    linkUrl?: string; 
+    progress?: number; 
+    quoteText?: string;    
     quotePage?: string;    
-    
-    // >>>> RANKING
     rankingItems?: RankingItem[];
-
-    // >>>> GAMES / FILMES (Expansível)
-    platform?: string;
-    director?: string;
+    
+    // Games
+    platform?: 'PlayStation' | 'Xbox' | 'PC' | 'Nintendo' | 'Mobile';
+    gameTitle?: string;
+    achievementName?: string;
+    achievementRarity?: 'Common' | 'Rare' | 'Epic' | 'Legendary';
+    score?: string;
+    rank?: string;
+    graphics?: number;
+    gameplay?: number;
+    story?: number;
   };
 
-  // Engajamento Social
   likes: number;
   commentsCount: number;
   topComments?: Comment[]; 
@@ -134,5 +132,4 @@ export type StoryPost = {
   isSaved?: boolean;
 };
 
-// --- ALIAS PARA COMPATIBILIDADE ---
 export type BookReviewPost = StoryPost;
