@@ -1,4 +1,3 @@
-// CAMINHO: next.config.ts
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -35,14 +34,21 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
-      // Permite imagens da Amazon (Capas de Livros)
+      // Amazon / IMDb (Capas de Filmes/Livros)
       {
         protocol: 'https',
         hostname: 'm.media-amazon.com',
         port: '',
         pathname: '/**',
       },
-      // NOVA CORREÇÃO: Permite imagens do Unsplash (Links e Placeholders)
+      // PlayStation (Games)
+      {
+        protocol: 'https',
+        hostname: 'image.api.playstation.com',
+        port: '',
+        pathname: '/**',
+      },
+      // Unsplash (Fotos genéricas)
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
@@ -53,4 +59,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default nextConfig;  

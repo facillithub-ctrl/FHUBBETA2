@@ -1,12 +1,11 @@
-// CAMINHO: src/app/dashboard/applications/global/stories/actions.ts
-'use server';
+"use server";
 
 import createClient from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { BookReviewPost } from './types';
+import { StoryPost } from './types';
 
 // Buscar o Feed de Histórias
-export async function getStoriesFeed(limit = 20): Promise<BookReviewPost[]> {
+export async function getStoriesFeed(limit = 20): Promise<StoryPost[]> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -19,13 +18,15 @@ export async function getStoriesFeed(limit = 20): Promise<BookReviewPost[]> {
       content,
       created_at,
       type,
+      category,
       media_url,
       is_video,
-      book_title,
-      book_author,
-      book_cover,
+      title,
+      subtitle,
+      cover_image,
       rating,
-      reading_progress,
+      progress,
+      metadata,
       characters,
       tags,
       external_link,
@@ -40,7 +41,7 @@ export async function getStoriesFeed(limit = 20): Promise<BookReviewPost[]> {
       comments:stories_comments(count),
       my_like:stories_likes!inner(user_id)
     `)
-    .eq('my_like.user_id', user.id) // Ajuste para verificar se o usuário curtiu (usando left join ou lógica similar no DB)
+    .eq('my_like.user_id', user.id) 
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -49,10 +50,11 @@ export async function getStoriesFeed(limit = 20): Promise<BookReviewPost[]> {
     return [];
   }
 
-  // Mapeamento dos dados do banco para o tipo da aplicação
+  // Mapeamento dos dados
   return data.map((post: any) => ({
     id: post.id,
     type: post.type || 'status',
+    category: post.category || 'all',
     user: {
       id: post.user.id,
       name: post.user.full_name,
@@ -64,24 +66,25 @@ export async function getStoriesFeed(limit = 20): Promise<BookReviewPost[]> {
     content: post.content,
     mediaUrl: post.media_url,
     isVideo: post.is_video,
-    bookTitle: post.book_title,
-    bookAuthor: post.book_author,
-    bookCover: post.book_cover,
+    title: post.title,
+    subtitle: post.subtitle,
+    coverImage: post.cover_image,
     rating: post.rating,
-    readingProgress: post.reading_progress,
+    progress: post.progress, // JSONB
+    metadata: post.metadata, // JSONB
     characters: post.characters,
     externalLink: post.external_link,
     tags: post.tags,
     likes: post.likes[0]?.count || 0,
     commentsCount: post.comments[0]?.count || 0,
-    shares: 0, // Implementar se houver tabela de shares
+    shares: 0, 
     isLiked: post.my_like?.length > 0,
     isSaved: false
   }));
 }
 
 // Criar um novo Post/Review
-export async function createStoryPost(postData: Partial<BookReviewPost>) {
+export async function createStoryPost(postData: Partial<StoryPost>) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -91,15 +94,17 @@ export async function createStoryPost(postData: Partial<BookReviewPost>) {
     user_id: user.id,
     content: postData.content,
     type: postData.type || 'status',
+    category: postData.category || 'all',
     media_url: postData.mediaUrl,
     is_video: postData.isVideo || false,
-    book_title: postData.bookTitle,
-    book_author: postData.bookAuthor,
-    book_cover: postData.bookCover,
+    title: postData.title,
+    subtitle: postData.subtitle,
+    cover_image: postData.coverImage,
     rating: postData.rating,
-    reading_progress: postData.readingProgress, // JSONB
+    progress: postData.progress, // JSONB
+    metadata: postData.metadata, // JSONB
     characters: postData.characters, // JSONB
-    tags: postData.tags, // Array
+    tags: postData.tags, 
     external_link: postData.externalLink // JSONB
   });
 

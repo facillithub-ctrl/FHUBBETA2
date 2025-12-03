@@ -1,9 +1,8 @@
-// CAMINHO: src/app/dashboard/applications/global/stories/components/CreateReviewModal.tsx
 "use client";
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { UserProfile, BookReviewPost } from '../types';
+import { UserProfile, StoryPost } from '../types';
 
 export default function CreateReviewModal({ 
   isOpen, 
@@ -14,9 +13,9 @@ export default function CreateReviewModal({
   isOpen: boolean; 
   onClose: () => void; 
   currentUser: UserProfile; 
-  onPostCreate: (post: BookReviewPost) => void; 
+  onPostCreate: (post: StoryPost) => void; 
 }) {
-  // --- CORREÇÃO: Hooks movidos para o topo (antes do return) ---
+  // Hooks no nível superior
   const [bookTitle, setBookTitle] = useState('');
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
@@ -28,7 +27,6 @@ export default function CreateReviewModal({
   const [charName, setCharName] = useState('');
   const [charRole, setCharRole] = useState('');
 
-  // Se não estiver aberto, não renderiza nada (mas os hooks já foram registrados)
   if (!isOpen) return null;
 
   const mockCover = "https://m.media-amazon.com/images/I/81ym3QUd3KL._AC_UF1000,1000_QL80_.jpg";
@@ -50,18 +48,19 @@ export default function CreateReviewModal({
   };
 
   const handleSubmit = () => {
-    const newPost: BookReviewPost = {
+    const newPost: StoryPost = {
       id: Date.now().toString(),
+      category: 'books',
       type: 'review',
       user: currentUser,
       createdAt: 'Agora',
       content: reviewText,
-      bookTitle: bookTitle || 'Livro Sem Título',
-      bookAuthor: 'Autor Desconhecido',
-      bookCover: mockCover,
+      title: bookTitle || 'Livro Sem Título',
+      subtitle: 'Autor Desconhecido',
+      coverImage: mockCover,
       rating: rating,
       tags: tags,
-      readingProgress: {
+      progress: {
         current: progress,
         total: totalPages,
         percentage: Math.round((progress / totalPages) * 100),
@@ -88,7 +87,7 @@ export default function CreateReviewModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
       <div className="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
