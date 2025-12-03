@@ -9,7 +9,8 @@ import {
     LayoutDashboard, PenTool, FileText, GraduationCap, BookOpen, 
     Gamepad2, Calendar, PlayCircle, Users, Target, FlaskConical, 
     CheckSquare, Lightbulb, ChevronLeft, ChevronRight,
-    ShieldCheck, X, Sparkles, Home, Book, Grid, Info, Box
+    ShieldCheck, X, Sparkles, Home, Book, Grid, Info, Box,
+    MessagesSquare,
 } from 'lucide-react';
 
 // Configuração de Navegação com Badges e Seções
@@ -40,7 +41,7 @@ const navSections = [
             { href: '/dashboard/applications/connect', slug: 'connect', icon: Users, label: 'Connect' },
             { href: '/dashboard/applications/task', slug: 'task', icon: CheckSquare, label: 'Tarefas' },
             { href: '/dashboard/applications/create', slug: 'create', icon: Lightbulb, label: 'Create', badge: 'Beta' },
-            { href: '/dashboard/applications/global/stories', slug: 'stories', icon: Lightbulb, label: 'Stories', badge: 'Beta' },
+            { href: '/dashboard/applications/global/stories', slug: 'stories', icon: MessagesSquare, label: 'Stories', badge: 'Beta' },
         ]
     },
     {

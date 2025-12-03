@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { 
     getEssayDetails, 
     getCorrectionForEssay, 
@@ -16,8 +15,9 @@ import { VerificationBadge } from '@/components/VerificationBadge';
 import { useToast } from '@/contexts/ToastContext';
 import { ShareWriteButton } from '@/components/sharing/ShareWriteButton';
 import { UserProfile } from '@/app/dashboard/types';
+import Link from 'next/link';
 
-// --- TIPOS ---
+// --- TIPOS LOCAIS ---
 type CorrectionWithDetails = EssayCorrection & {
   profiles: { full_name: string | null; verification_badge: string | null } | null;
   ai_feedback: AIFeedback | null;
@@ -82,7 +82,16 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
             if (result.success && result.data) {
                 setCorrection(prev => {
                     if (!prev) {
-                        return { ai_feedback: result.data } as CorrectionWithDetails;
+                        return { 
+                            ai_feedback: result.data,
+                            id: 'temp', 
+                            essay_id: data.id,
+                            corrector_id: '',
+                            created_at: new Date().toISOString(),
+                            final_grade: 0,
+                            grade_c1: 0, grade_c2: 0, grade_c3: 0, grade_c4: 0, grade_c5: 0,
+                            feedback: ''
+                        } as CorrectionWithDetails;
                     }
                     return { ...prev, ai_feedback: result.data };
                 });
@@ -141,18 +150,18 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
     const aiData = (Array.isArray(rawAiData) ? rawAiData[0] : rawAiData) as AIFeedback | null | undefined;
     const hasHumanCorrection = !!correction?.feedback;
 
-    // --- CORREÇÃO DO ERRO DE BUILD ---
-    // Preenchemos todos os campos obrigatórios do tipo UserProfile, mesmo que com null/vazio
+    // --- CORREÇÃO DO PERFIL ---
+    // Ajuste: id recebe student_id (campo correto do tipo Essay no actions.ts)
     const studentProfileForShare: UserProfile = {
-        id: data.user_id || '',
+        id: data.student_id || '', // CORRIGIDO AQUI: de user_id para student_id
         
-        // Campos snake_case (Novos)
+        // Campos snake_case
         full_name: data.profiles?.full_name || 'Estudante',
         avatar_url: data.profiles?.avatar_url || null,
         user_category: 'aluno',
         nickname: data.profiles?.nickname || '',
         
-        // Campos CamelCase (Legados - Obrigatórios para satisfazer o Type)
+        // Campos CamelCase (Legacy)
         fullName: data.profiles?.full_name || 'Estudante',
         avatarUrl: data.profiles?.avatar_url || null,
         userCategory: 'aluno',
@@ -160,7 +169,7 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
         birthDate: null,
         schoolName: null,
         
-        // Outros campos opcionais
+        // Outros
         email: '',
         organization_id: null,
         target_exam: null,
@@ -226,7 +235,7 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                         <div className="p-8 md:p-10 min-h-[500px]">
                             {data.image_submission_url ? (
                                 <div className="rounded-xl overflow-hidden border border-gray-200 bg-slate-100 relative group shadow-inner">
-                                    <Image src={data.image_submission_url} alt="Redação" width={800} height={1000} className="w-full h-auto" />
+                                    <Image src={data.image_submission_url} alt="Redação" width={800} height={1000} className="w-full h-auto object-contain" />
                                     {correction?.annotations?.filter(a => a.type === 'image').map(a => (
                                         <div key={a.id} className="absolute w-6 h-6 -ml-3 -mt-3 bg-brand-purple text-white rounded-full flex items-center justify-center text-xs font-bold shadow-lg border-2 border-white cursor-pointer hover:scale-110 transition-transform z-10 group/marker" 
                                              style={{ left: `${a.position!.x}%`, top: `${a.position!.y}%` }}>
@@ -291,7 +300,7 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                                         score: correction.final_grade,
                                         title: data.title || "Redação Prática",
                                         essayDate: data.submitted_at || undefined,
-                                        badge: correction.badge
+                                        badge: correction.badge || undefined
                                     }}
                                     className="w-full"
                                 />
