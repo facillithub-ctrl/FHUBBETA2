@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from 'react';
+import Image from 'next/image'; // Importado Image
 
 export type ReadingLogData = {
   id: string;
@@ -19,7 +20,6 @@ export default function ReadingLogItem({ log }: { log: ReadingLogData }) {
 
   const progress = Math.min(100, Math.round((currentPage / log.totalPages) * 100));
 
-  // Simula atualização rápida (+10 páginas)
   const handleQuickUpdate = (e: React.MouseEvent) => {
     e.stopPropagation();
     const newPage = Math.min(log.totalPages, currentPage + 10);
@@ -32,16 +32,15 @@ export default function ReadingLogItem({ log }: { log: ReadingLogData }) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Barra de Progresso de Fundo (Subtil) */}
       <div 
         className="absolute bottom-0 left-0 h-1 bg-brand-purple transition-all duration-500 ease-out opacity-20" 
         style={{ width: `${progress}%` }}
       ></div>
 
       <div className="flex gap-3">
-        {/* Capa Pequena */}
+        {/* CORREÇÃO: next/image */}
         <div className="w-10 h-14 bg-gray-200 rounded shadow-sm flex-shrink-0 relative overflow-hidden">
-             <img src={log.bookCover} alt="Capa" className="w-full h-full object-cover" />
+             <Image src={log.bookCover} alt="Capa" fill className="object-cover" />
         </div>
 
         <div className="flex-1 min-w-0">

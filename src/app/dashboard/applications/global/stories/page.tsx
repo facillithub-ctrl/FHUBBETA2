@@ -4,13 +4,13 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import StoriesBar from './components/StoriesBar';
-import PostCard from './components/PostCard'; // IMPORTANTE: Usa o novo PostCard
+import PostCard from './components/PostCard'; 
 import CreatePostWidget from './components/CreatePostWidget';
 import CreateReviewModal from './components/CreateReviewModal';
 import { StoryCircle, BookReviewPost, UserProfile } from './types';
 import createClient from '@/utils/supabase/client';
 
-// --- DADOS MOCK RICOS E DIVERSIFICADOS ---
+// --- DADOS MOCK INICIAIS ---
 
 const INITIAL_POSTS: BookReviewPost[] = [
   {
@@ -181,7 +181,7 @@ export default function BookgramPage() {
                     <div className="text-center mb-6">
                        <h2 className="text-xl font-bold text-dark-text">{currentUser.name}</h2>
                        <p className="text-sm text-brand-purple font-medium mb-2">{currentUser.username}</p>
-                       <p className="text-sm text-gray-500 italic leading-relaxed">"{currentUser.bio}"</p>
+                       <p className="text-sm text-gray-500 italic leading-relaxed">&quot;{currentUser.bio}&quot;</p>
                     </div>
 
                     <div className="flex justify-between items-center py-4 border-t border-gray-50 text-center">

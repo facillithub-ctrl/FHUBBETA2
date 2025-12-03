@@ -87,9 +87,12 @@ export default function PostCard({ post }: { post: BookReviewPost }) {
                <div className="md:w-2/3 p-6 flex flex-col justify-center">
                   <h3 className="font-bold text-xl text-dark-text leading-tight mb-1">{post.bookTitle}</h3>
                   <p className="text-sm text-gray-500 mb-4">{post.bookAuthor}</p>
+                  
+                  {/* --- CORREÇÃO: Aspas Escapadas --- */}
                   <p className="text-sm text-gray-700 leading-relaxed italic border-l-4 border-brand-purple/20 pl-4 py-1 mb-4">
-                     "{post.content}"
+                     &quot;{post.content}&quot;
                   </p>
+                  
                   {/* Tags de Personagens */}
                   {post.characters && (
                      <div className="flex flex-wrap gap-2">

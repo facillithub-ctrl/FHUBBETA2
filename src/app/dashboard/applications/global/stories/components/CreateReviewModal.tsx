@@ -16,21 +16,21 @@ export default function CreateReviewModal({
   currentUser: UserProfile; 
   onPostCreate: (post: BookReviewPost) => void; 
 }) {
-  if (!isOpen) return null;
-
-  // Estados do Formulário
+  // --- CORREÇÃO: Hooks movidos para o topo (antes do return) ---
   const [bookTitle, setBookTitle] = useState('');
   const [rating, setRating] = useState(0);
   const [reviewText, setReviewText] = useState('');
   const [progress, setProgress] = useState(0);
-  const [totalPages, setTotalPages] = useState(300); // Valor padrão
+  const [totalPages, setTotalPages] = useState(300);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [characters, setCharacters] = useState<{name: string, role: string}[]>([]);
   const [charName, setCharName] = useState('');
   const [charRole, setCharRole] = useState('');
 
-  // Capa simulada (idealmente viria de uma busca de API Google Books/OpenLibrary)
+  // Se não estiver aberto, não renderiza nada (mas os hooks já foram registrados)
+  if (!isOpen) return null;
+
   const mockCover = "https://m.media-amazon.com/images/I/81ym3QUd3KL._AC_UF1000,1000_QL80_.jpg";
 
   const handleAddTag = (e: React.KeyboardEvent) => {
@@ -51,13 +51,13 @@ export default function CreateReviewModal({
 
   const handleSubmit = () => {
     const newPost: BookReviewPost = {
-      id: Date.now().toString(), // ID temporário para update otimista
+      id: Date.now().toString(),
       type: 'review',
       user: currentUser,
       createdAt: 'Agora',
       content: reviewText,
       bookTitle: bookTitle || 'Livro Sem Título',
-      bookAuthor: 'Autor Desconhecido', // Poderia ser um input
+      bookAuthor: 'Autor Desconhecido',
       bookCover: mockCover,
       rating: rating,
       tags: tags,
@@ -68,7 +68,7 @@ export default function CreateReviewModal({
         status: progress >= totalPages ? 'Concluído' : 'Lendo'
       },
       characters: characters,
-      mediaUrl: mockCover, // A capa serve como mídia principal do card
+      mediaUrl: mockCover,
       likes: 0,
       commentsCount: 0,
       shares: 0,
