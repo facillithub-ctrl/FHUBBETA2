@@ -77,10 +77,8 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
     
     const validRankingItems = formData.rankingItems.filter(i => i.title.trim() !== '');
     const validReasons = formData.reasons.filter(r => r.trim() !== '');
-    
-    // Tratamento de tags
-    const tagsArray = formData.tags.split(',').map(t => t.trim()).filter(t => t);
 
+    // Objeto construído estritamente de acordo com o tipo StoryPost
     const newPost: Partial<StoryPost> = {
       category: 'books',
       type: selectedType,
@@ -88,45 +86,56 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
       subtitle: formData.author,
       content: formData.content,
       coverImage: formData.coverImage,
-      // REMOVIDO: tags: tagsArray (Isso causava o erro pois tags não existe na raiz de StoryPost)
       
+      // Tudo que não é 'core' (título, conteúdo) deve ir para metadata
       metadata: {
-        // Tags movidas para cá
-        tags: tagsArray,
-        
+        // Tags
+        tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
+
+        // Dados básicos
         author: formData.author,
+        publisher: formData.publisher,
+        pages: formData.pages ? parseInt(formData.pages) : undefined,
+        genre: formData.genre,
+        
+        // Avaliação
+        rating: (selectedType === 'review' || selectedType === 'rating') ? formData.rating : undefined,
+        
+        // Promoção
         price: formData.price ? parseFloat(formData.price) : undefined,
         oldPrice: formData.oldPrice ? parseFloat(formData.oldPrice) : undefined,
         discountPercent: (formData.price && formData.oldPrice) 
             ? Math.round((1 - (parseFloat(formData.price) / parseFloat(formData.oldPrice))) * 100) 
             : undefined,
+        linkUrl: selectedType === 'promotion' ? formData.affiliateLink : undefined,
+            
+        // Recomendação e Mood
         targetAudience: formData.targetAudience,
         reasons: validReasons,
         mood: formData.mood,
-        publisher: formData.publisher,
-        pages: formData.pages ? parseInt(formData.pages) : undefined,
-        genre: formData.genre,
+        
+        // First Impressions (apenas o número é salvo)
+        progress: selectedType === 'first-impressions' ? formData.progress : undefined,
+        
+        // Citação
         quoteText: formData.quote,
         quotePage: formData.quotePage,
+        
+        // Ranking
         rankingItems: validRankingItems,
-      },
-      
-      rating: (selectedType === 'review' || selectedType === 'rating') ? formData.rating : undefined,
-      
-      progress: selectedType === 'first-impressions' ? { 
-         current: 0, total: 100, percentage: formData.progress, status: 'Lendo' 
-      } : undefined,
-      
-      externalLink: selectedType === 'promotion' && formData.affiliateLink ? {
-         url: formData.affiliateLink,
-         label: 'Ver Oferta'
-      } : undefined
+      }
     };
 
     try {
         await onPostCreate(newPost);
         setStep(1);
-        setFormData({ ...formData, title: '', content: '', rankingItems: formData.rankingItems.map(i => ({...i, title: ''})) }); 
+        setFormData({ 
+            ...formData, 
+            title: '', 
+            content: '', 
+            tags: '',
+            rankingItems: formData.rankingItems.map(i => ({...i, title: ''})) 
+        }); 
     } catch (error) {
         console.error("Erro ao submeter modal:", error);
         alert("Erro ao criar post. Verifique os dados.");
@@ -269,6 +278,34 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                    <input className="bg-gray-50 border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Nº Páginas" value={formData.pages} onChange={e => setFormData({...formData, pages: e.target.value})} />
                 </div>
              );
+        case 'first-impressions':
+            return (
+                <div className="space-y-4 animate-in fade-in">
+                    <div className="bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Progresso de Leitura ({formData.progress}%)</label>
+                        <input 
+                            type="range" 
+                            min="0" 
+                            max="100" 
+                            value={formData.progress} 
+                            onChange={e => setFormData({...formData, progress: parseInt(e.target.value)})}
+                            className="w-full accent-purple-600 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                         <button onClick={() => setFormData({...formData, mood: 'Empolgado'})} className={`py-2 rounded-lg text-sm border ${formData.mood === 'Empolgado' ? 'bg-green-50 border-green-200 text-green-700 font-bold' : 'border-gray-200 text-gray-500'}`}>🤩 Empolgado</button>
+                         <button onClick={() => setFormData({...formData, mood: 'Confuso'})} className={`py-2 rounded-lg text-sm border ${formData.mood === 'Confuso' ? 'bg-orange-50 border-orange-200 text-orange-700 font-bold' : 'border-gray-200 text-gray-500'}`}>🤔 Confuso</button>
+                         <button onClick={() => setFormData({...formData, mood: 'Triste'})} className={`py-2 rounded-lg text-sm border ${formData.mood === 'Triste' ? 'bg-blue-50 border-blue-200 text-blue-700 font-bold' : 'border-gray-200 text-gray-500'}`}>😢 Triste</button>
+                         <button onClick={() => setFormData({...formData, mood: 'Chocado'})} className={`py-2 rounded-lg text-sm border ${formData.mood === 'Chocado' ? 'bg-purple-50 border-purple-200 text-purple-700 font-bold' : 'border-gray-200 text-gray-500'}`}>😱 Chocado</button>
+                    </div>
+                    <textarea 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm h-24 outline-none"
+                        placeholder="O que você está achando até agora?"
+                        value={formData.content}
+                        onChange={e => setFormData({...formData, content: e.target.value})}
+                    />
+                </div>
+            );
         default: 
             return (
                <textarea 
