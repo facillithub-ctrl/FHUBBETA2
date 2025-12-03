@@ -2,36 +2,52 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { StoryPost } from '../types';
-import { togglePostLike } from '../actions'; 
+import { useRealtimeLikes, useRealtimeComments } from '@/hooks/useStoryInteractions';
 
-export default function BookgramCard({ post }: { post: StoryPost }) {
-  const [liked, setLiked] = useState(post.isLiked || false);
-  const [likesCount, setLikesCount] = useState(post.likes);
+const getCategoryColor = (cat: string) => {
+  switch(cat) {
+      case 'movies': return 'text-red-500 bg-red-50';
+      case 'series': return 'text-pink-500 bg-pink-50';
+      case 'anime': return 'text-orange-500 bg-orange-50';
+      case 'sports': return 'text-green-600 bg-green-50';
+      case 'games': return 'text-violet-600 bg-violet-50';
+      case 'podcasts': return 'text-cyan-600 bg-cyan-50';
+      case 'book-club': return 'text-indigo-600 bg-indigo-50';
+      default: return 'text-purple-600 bg-purple-50';
+  }
+};
+
+interface BookgramCardProps {
+  post: StoryPost;
+  currentUserId?: string;
+}
+
+export default function BookgramCard({ post, currentUserId }: BookgramCardProps) {
+  // Hooks de interação em tempo real (Firebase)
+  const { likesCount, isLiked, toggleLike } = useRealtimeLikes(post.id, currentUserId);
+  const { comments } = useRealtimeComments(post.id);
   const [saved, setSaved] = useState(post.isSaved || false);
-
-  const handleLike = async () => {
-    const newLikedState = !liked;
-    setLiked(newLikedState);
-    setLikesCount(prev => newLikedState ? prev + 1 : prev - 1);
-    try { await togglePostLike(post.id, liked); } catch (e) { /* rollback */ }
-  };
-
-  // Cores por categoria
-  const getCategoryColor = (cat: string) => {
-    switch(cat) {
-        case 'movies': return 'text-red-500 bg-red-50';
-        case 'series': return 'text-pink-500 bg-pink-50';
-        case 'anime': return 'text-orange-500 bg-orange-50';
-        case 'sports': return 'text-green-600 bg-green-50';
-        case 'games': return 'text-violet-600 bg-violet-50';
-        case 'podcasts': return 'text-cyan-600 bg-cyan-50';
-        case 'book-club': return 'text-indigo-600 bg-indigo-50';
-        default: return 'text-purple-600 bg-purple-50';
-    }
-  };
-
+  
   const themeClass = getCategoryColor(post.category);
+
+  // Navegação e Deep Link
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Remove o '@' do username para criar a URL correta (ex: /u/joao)
+  const cleanUsername = post.user.username.replace('@', '');
+  const profileLink = `/u/${cleanUsername}`;
+
+  const openComments = () => {
+    // Adiciona ?p=ID à URL atual para abrir o modal
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.set('p', post.id);
+    router.push(`${pathname}?${newParams.toString()}`, { scroll: false });
+  };
 
   return (
     <div className="bg-white rounded-[2rem] shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100/50 group">
@@ -39,16 +55,30 @@ export default function BookgramCard({ post }: { post: StoryPost }) {
       {/* HEADER */}
       <div className="p-5 pb-3 flex items-start justify-between">
         <div className="flex gap-3.5">
-          <div className="w-[42px] h-[42px] rounded-full relative cursor-pointer ring-2 ring-gray-100 overflow-hidden">
-             {post.user.avatar_url ? (
-                <Image src={post.user.avatar_url} alt={post.user.name} fill className="object-cover" />
-             ) : (
-                <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300"><i className="fas fa-user"></i></div>
-             )}
-          </div>
+          {/* Avatar com Link para Perfil */}
+          <Link href={profileLink}>
+            <div className="w-[42px] h-[42px] rounded-full relative cursor-pointer ring-2 ring-gray-100 overflow-hidden hover:ring-purple-300 transition-all">
+               {post.user.avatar_url ? (
+                  <Image src={post.user.avatar_url} alt={post.user.name} fill className="object-cover" />
+               ) : (
+                  <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300"><i className="fas fa-user"></i></div>
+               )}
+            </div>
+          </Link>
+          
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-dark-text text-sm">{post.user.name}</span>
+            <div className="flex items-center gap-1">
+              {/* Nome com Link para Perfil */}
+              <Link href={profileLink} className="hover:underline flex items-center gap-1">
+                 <span className="font-bold text-dark-text text-sm">{post.user.name}</span>
+                 {/* SELO DE VERIFICADO */}
+                 {post.user.isVerified && (
+                    <i className="fas fa-check-circle text-blue-500 text-[10px]" title="Verificado"></i>
+                 )}
+              </Link>
+              
+              <span className="mx-1 text-gray-300">•</span>
+              
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${themeClass}`}>
                  {post.category === 'all' ? 'Geral' : post.category}
               </span>
@@ -59,8 +89,10 @@ export default function BookgramCard({ post }: { post: StoryPost }) {
         <button className="text-gray-300 hover:text-dark-text"><i className="fas fa-ellipsis-h"></i></button>
       </div>
 
-      {/* CONTEÚDO VISUAL */}
-      <div className="relative w-full bg-gray-50 border-y border-gray-50/50">
+      {/* CONTEÚDO VISUAL (Interativo: Abre comentários ao clicar) */}
+      <div className="relative w-full bg-gray-50 border-y border-gray-50/50 cursor-pointer" onClick={openComments}>
+         
+         {/* Lógica Visual baseada na Categoria */}
          
          {/* SPORTS (Placar) */}
          {post.category === 'sports' && post.metadata?.homeTeam && (
@@ -85,9 +117,9 @@ export default function BookgramCard({ post }: { post: StoryPost }) {
             </div>
          )}
 
-         {/* CINEMATOGRÁFICO */}
+         {/* CINEMATOGRÁFICO (Filmes/Séries/Anime) */}
          {['movies', 'series', 'anime'].includes(post.category) && post.coverImage && (
-            <div className="relative w-full h-72 md:h-80 overflow-hidden group cursor-pointer">
+            <div className="relative w-full h-72 md:h-80 overflow-hidden group">
                <Image src={post.coverImage} alt="Cover" fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent"></div>
                <div className="absolute bottom-5 left-5 right-5 text-white">
@@ -114,7 +146,7 @@ export default function BookgramCard({ post }: { post: StoryPost }) {
 
          {/* GAMES (Progresso) */}
          {post.category === 'games' && (
-            <div className="relative w-full h-60 overflow-hidden bg-gray-900 text-white group cursor-pointer">
+            <div className="relative w-full h-60 overflow-hidden bg-gray-900 text-white group">
                {post.coverImage && <Image src={post.coverImage} alt="Game" fill className="object-cover opacity-80 group-hover:opacity-60 transition-opacity" />}
                <div className="absolute bottom-0 w-full p-6 bg-gradient-to-t from-black via-black/60 to-transparent">
                   <div className="flex justify-between items-end mb-3">
@@ -135,7 +167,7 @@ export default function BookgramCard({ post }: { post: StoryPost }) {
             </div>
          )}
 
-         {/* LIVROS */}
+         {/* LIVROS (Capa) */}
          {post.category === 'books' && post.coverImage && (
             <div className="flex bg-white p-5 gap-5">
                <div className="w-28 h-40 bg-gray-200 rounded-lg shadow-lg flex-shrink-0 relative overflow-hidden group-hover:-translate-y-1 transition-transform duration-300">
@@ -189,11 +221,6 @@ export default function BookgramCard({ post }: { post: StoryPost }) {
                         {post.subtitle} {post.metadata?.duration && `• ${post.metadata.duration}`}
                      </p>
                   </div>
-                  {post.externalLink?.url && (
-                     <a href={post.externalLink.url} target="_blank" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors backdrop-blur-sm border border-white/10">
-                        <i className="fas fa-external-link-alt text-sm"></i>
-                     </a>
-                  )}
                </div>
             </div>
          )}
@@ -202,22 +229,33 @@ export default function BookgramCard({ post }: { post: StoryPost }) {
 
       {/* AÇÕES & LEGENDA */}
       <div className="p-5 pt-4">
-         <p className="text-sm text-gray-700 leading-relaxed mb-3 font-medium">
+         <p className="text-sm text-gray-700 leading-relaxed mb-3 font-medium cursor-pointer" onClick={openComments}>
             {post.content}
          </p>
          
          <div className="flex items-center justify-between border-t border-gray-50 pt-3 mt-2">
             <div className="flex gap-6 text-gray-500">
-               <button onClick={handleLike} className={`flex items-center gap-2 transition-colors group ${liked ? 'text-red-500' : 'hover:text-red-500'}`}>
-                  <i className={`${liked ? 'fas' : 'far'} fa-heart text-xl group-active:scale-110 transition-transform`}></i> 
+               {/* BOTÃO LIKE */}
+               <button 
+                 onClick={toggleLike} 
+                 className={`flex items-center gap-2 transition-colors group ${isLiked ? 'text-red-500' : 'hover:text-red-500'}`}
+               >
+                  <i className={`${isLiked ? 'fas' : 'far'} fa-heart text-xl group-active:scale-110 transition-transform`}></i> 
                   <span className="text-xs font-bold">{likesCount}</span>
                </button>
-               <button className={`flex items-center gap-2 hover:opacity-80 transition-colors group ${themeClass.split(' ')[0]}`}>
+               
+               {/* BOTÃO COMENTÁRIOS (Funcionando) */}
+               <button 
+                 onClick={openComments}
+                 className={`flex items-center gap-2 hover:opacity-80 transition-colors group ${themeClass.split(' ')[0]}`}
+               >
                   <i className="far fa-comment text-xl"></i> 
-                  <span className="text-xs font-bold">{post.commentsCount}</span>
+                  <span className="text-xs font-bold">{comments.length}</span>
                </button>
+               
                <button className="hover:text-slate-900 transition-colors"><i className="far fa-paper-plane text-xl"></i></button>
             </div>
+            
             <button onClick={() => setSaved(!saved)}>
                <i className={`${saved ? 'fas' : 'far'} fa-bookmark text-xl ${saved ? themeClass.split(' ')[0] : 'text-gray-400 hover:text-gray-600'}`}></i>
             </button>

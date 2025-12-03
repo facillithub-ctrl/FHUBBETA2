@@ -1,5 +1,7 @@
-// src/lib/firebase.ts
-import { initializeApp, getApps } from 'firebase/app';
+// ARQUIVO: src/lib/firebase.ts
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import { getMessaging, getToken, isSupported } from 'firebase/messaging';
 
 const firebaseConfig = {
@@ -11,9 +13,17 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// Evita inicializar múltiplas vezes no Next.js (Hot Reload)
+// Singleton: Evita inicializar múltiplas vezes no Next.js (Hot Reload)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
+// Inicializa os serviços necessários para o Stories
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// Exporta as instâncias para uso no resto do app
+export { app, db, storage };
+
+// Função de notificações (Mantida do seu código original)
 export const requestNotificationPermission = async () => {
   try {
     const supported = await isSupported();
@@ -26,7 +36,7 @@ export const requestNotificationPermission = async () => {
       const token = await getToken(messaging, {
         vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
       });
-      return token; // Salve este token no perfil do usuário no Supabase!
+      return token;
     }
   } catch (error) {
     console.error('Erro ao pedir permissão de notificação:', error);

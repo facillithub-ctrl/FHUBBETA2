@@ -53,6 +53,7 @@ export type StoryPost = {
   user: UserProfile;
   createdAt: string; 
   
+  
   // Conteúdo Principal
   title?: string;
   subtitle?: string;
@@ -111,3 +112,4 @@ export type Community = {
   image: string;
   category: StoryCategory;
 };
+
