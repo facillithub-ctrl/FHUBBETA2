@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { StoryPost } from '../types';
 import { togglePostLike } from '../actions'; 
-import BookPostRenderer from './feeds/BookLayouts'; // Importação do Renderer
+import BookPostRenderer from './feeds/BookLayouts'; 
 
 export default function PostCard({ post }: { post: StoryPost }) {
   const [liked, setLiked] = useState(post.isLiked || false);
@@ -32,7 +32,7 @@ export default function PostCard({ post }: { post: StoryPost }) {
     <div className="mb-8 bg-white rounded-[2rem] shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100/50 group">
       
       {/* HEADER */}
-      <div className="p-5 pb-3 flex items-start justify-between">
+      <div className="p-5 pb-0 flex items-start justify-between">
         <div className="flex gap-3.5">
           <div className="w-[42px] h-[42px] rounded-full relative cursor-pointer ring-2 ring-gray-100">
              {post.user.avatar_url ? (
@@ -44,10 +44,11 @@ export default function PostCard({ post }: { post: StoryPost }) {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-dark-text text-sm">{post.user.name}</span>
-              {/* Badge de Categoria ou Tipo */}
+              
+              {/* Badge Dinâmica */}
               {isBookPost ? (
-                  <span className="text-[9px] uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200">
-                      {post.type === 'status' ? 'Geral' : post.type}
+                  <span className="text-[9px] uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 tracking-wide font-semibold">
+                      {post.type === 'status' ? 'Geral' : post.type?.replace('-', ' ')}
                   </span>
               ) : (
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${themeClass}`}>
@@ -62,18 +63,18 @@ export default function PostCard({ post }: { post: StoryPost }) {
       </div>
 
       {/* CONTEÚDO */}
-      <div className="px-5 pb-2">
+      <div className="px-5 pb-2 pt-1">
          {isBookPost ? (
              <BookPostRenderer post={post} />
          ) : (
              /* Layout Genérico para outros feeds */
-             <div className="bg-gray-50 rounded-xl p-4">
+             <div className="bg-gray-50 rounded-xl p-4 mt-2">
                  {post.coverImage && (
                     <div className="relative w-full h-64 mb-4 rounded-lg overflow-hidden bg-gray-200">
                        <Image src={post.coverImage} alt="Media" fill className="object-cover" />
                     </div>
                  )}
-                 <p className="text-sm text-gray-700 leading-relaxed">{post.content}</p>
+                 <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{post.content}</p>
              </div>
          )}
       </div>
