@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import StoriesBar from './components/StoriesBar';
@@ -13,27 +13,25 @@ import { UserProfile, StoryCategory, StoryPost } from './types';
 import createClient from '@/utils/supabase/client';
 import { createStoryPost, getPostById } from './actions';
 
-// Importação dos componentes de Feed
+// Feeds
 import GeneralFeed from './components/feeds/GeneralFeed';
 import BookFeed from './components/feeds/BookFeed';
 import MovieFeed from './components/feeds/MovieFeed';
 import GamesFeed from './components/feeds/GamesFeed';
 
-// Componente Wrapper para conteúdo com useSearchParams
 function StoriesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const postIdFromUrl = searchParams.get('p'); // Pega ID se houver na URL
+  const postIdFromUrl = searchParams.get('p');
 
   const [activeCategory, setActiveCategory] = useState<StoryCategory>('all');
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   
-  // Controle de recarregamento do Feed (evita duplicatas)
-  const [feedKey, setFeedKey] = useState(0);
-  const [isPosting, setIsPosting] = useState(false);
+  // Controle de Feed e Travas
+  const [feedKey, setFeedKey] = useState(0); 
+  const isPostingRef = useRef(false); // Trava para impedir duplo clique no postar
   
-  // Estado para Modal de Post
   const [selectedPost, setSelectedPost] = useState<StoryPost | null>(null);
 
   // 1. Carregar Usuário
@@ -55,7 +53,7 @@ function StoriesContent() {
     loadUser();
   }, []);
 
-  // 2. Abrir Modal se houver ID na URL (Deep Linking)
+  // 2. Deep Link (Modal)
   useEffect(() => {
     const loadDeepLinkedPost = async () => {
       if (postIdFromUrl) {
@@ -68,17 +66,18 @@ function StoriesContent() {
     loadDeepLinkedPost();
   }, [postIdFromUrl]);
 
-  // Fechar Modal = Limpar URL
   const closePostModal = () => {
     setSelectedPost(null);
     router.push('/dashboard/applications/global/stories', { scroll: false });
   };
 
-  // Criar Post (Sem duplicar estado local)
+  // 3. Criar Post (Com Trava de Duplicação)
   const handlePostCreate = async (postData: StoryPost | string) => {
-    if (!currentUser || isPosting) return; // Evita duplo clique
+    // Se já estiver postando ou sem usuário, ignora
+    if (!currentUser || isPostingRef.current) return;
     
-    setIsPosting(true);
+    isPostingRef.current = true; // Ativa trava
+    
     try {
         if (typeof postData === 'string') {
             await createStoryPost({
@@ -90,48 +89,40 @@ function StoriesContent() {
             await createStoryPost(postData);
         }
         
-        // APENAS mudamos a chave. O componente de Feed vai recarregar do servidor.
-        // Não adicionamos manualmente ao array para evitar duplicação.
+        // SUCESSO: Força o feed a recarregar do servidor
+        // NÃO ADICIONAMOS MANUALMENTE AO ARRAY PARA EVITAR DUPLICATAS
         setFeedKey(prev => prev + 1);
         
     } catch (e) {
-        alert("Erro ao publicar.");
+        alert("Erro ao publicar. Tente novamente.");
     } finally {
-        setIsPosting(false);
+        // Delay pequeno para garantir que a transição de estado ocorra antes de liberar
+        setTimeout(() => {
+            isPostingRef.current = false;
+        }, 500);
     }
   };
 
-  // Renderiza o Feed correto baseado na categoria
+  // Renderizador dos Feeds com KEY explícita
   const renderFeed = () => {
     const userId = currentUser?.id;
-    // Passamos key explicitamente para forçar remontagem quando feedKey mudar
+    // A key={feedKey} é crucial: quando ela muda, o componente é destruído e recriado,
+    // buscando os dados novos do servidor limpos.
     switch (activeCategory) {
-      case 'books': 
-        return <BookFeed key={feedKey} userId={userId} />;
-      case 'movies': 
-      case 'series': 
-      case 'anime': 
-        return <MovieFeed key={feedKey} userId={userId} />;
-      case 'games': 
-        return <GamesFeed key={feedKey} userId={userId} />;
-      default: 
-        return <GeneralFeed key={feedKey} userId={userId} />;
+      case 'books': return <BookFeed key={feedKey} userId={userId} />;
+      case 'movies': case 'series': case 'anime': return <MovieFeed key={feedKey} userId={userId} />;
+      case 'games': return <GamesFeed key={feedKey} userId={userId} />;
+      default: return <GeneralFeed key={feedKey} userId={userId} />;
     }
   };
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] text-slate-900 font-sans pb-20 relative">
       
-      {/* MODAL DE COMENTÁRIOS / POST */}
       {selectedPost && (
-        <PostDetailModal 
-          post={selectedPost} 
-          currentUser={currentUser} 
-          onClose={closePostModal} 
-        />
+        <PostDetailModal post={selectedPost} currentUser={currentUser} onClose={closePostModal} />
       )}
 
-      {/* MODAL DE CRIAÇÃO COMPLETA */}
       {currentUser && (
         <CreateReviewModal 
           isOpen={isReviewModalOpen} 
@@ -142,11 +133,8 @@ function StoriesContent() {
       )}
 
       <div className="max-w-[1250px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-0 lg:gap-8 px-0 lg:px-4">
-        
-        {/* COLUNA PRINCIPAL */}
         <main className="lg:col-span-8 min-h-screen">
-           
-           {/* HEADER ESTÁTICO (Não acompanha o scroll) */}
+           {/* Header Estático */}
            <div className="bg-[#FDFDFD] border-b border-gray-100 pt-6 pb-2 px-4 shadow-sm relative z-10">
               <div className="flex items-center justify-between mb-4">
                  <div className="relative w-32 h-8">
@@ -161,9 +149,7 @@ function StoriesContent() {
                     </button>
                  </div>
               </div>
-              
               <StoriesBar currentUser={currentUser} />
-              
               <div className="mt-4">
                  <CategoryTabs activeCategory={activeCategory} onSelect={setActiveCategory} />
               </div>
@@ -175,25 +161,20 @@ function StoriesContent() {
                     <CreatePostWidget currentUser={currentUser} onPostCreate={handlePostCreate} />
                   </div>
               )}
-              
-              {/* FEED */}
               {renderFeed()}
            </div>
         </main>
 
-        {/* SIDEBAR */}
         <aside className="hidden lg:block lg:col-span-4 pl-6">
            <div className="sticky top-8 space-y-8 pb-10 pt-6">
               <TrendingTerms category={activeCategory} />
            </div>
         </aside>
-
       </div>
     </div>
   );
 }
 
-// Exportação com Suspense
 export default function StoriesPage() {
   return (
     <Suspense fallback={<div className="p-10 text-center">Carregando...</div>}>
