@@ -8,7 +8,6 @@ export default function FirstImpressionsPost({ post }: { post: StoryPost }) {
   const progress = metadata?.progress || 0;
   const mood = metadata?.mood || 'Neutro';
 
-  // Mapa de cores/icones para moods
   const moodMap: Record<string, { color: string; icon: string }> = {
     'Empolgado': { color: 'bg-green-100 text-green-700', icon: '🤩' },
     'Confuso': { color: 'bg-orange-100 text-orange-700', icon: '🤔' },
@@ -61,7 +60,8 @@ export default function FirstImpressionsPost({ post }: { post: StoryPost }) {
        <div className="px-4 pb-4">
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 relative">
              <div className="absolute -top-1.5 left-6 w-3 h-3 bg-slate-50 border-t border-l border-slate-100 transform rotate-45"></div>
-             <p className="text-sm text-slate-700 italic">"{content}"</p>
+             {/* CORREÇÃO: Aspas escapadas para evitar erro de build */}
+             <p className="text-sm text-slate-700 italic">&quot;{content}&quot;</p>
           </div>
        </div>
     </div>
