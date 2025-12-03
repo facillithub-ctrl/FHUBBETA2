@@ -4,97 +4,76 @@ import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-// --- COMPONENTES ---
+// --- COMPONENTES GLOBAIS ---
 import StoriesBar from './components/StoriesBar';
 import CategoryTabs from './components/CategoryTabs';
 import CreateReviewModal from './components/CreateReviewModal';
 import PostDetailModal from './components/PostDetailModal';
 import TrendingTerms from './components/TrendingTerms';
 
-// --- FEEDS (Os componentes que carregam os posts) ---
-import BookFeed from './components/feeds/BookFeed';
-import GeneralFeed from './components/feeds/GeneralFeed';
-import MovieFeed from './components/feeds/MovieFeed';
-import GamesFeed from './components/feeds/GamesFeed';
+// --- FEEDS ---
+// Importamos APENAS o BookFeed por enquanto
+import BookFeed from './components/feeds/BookFeed'; // O Next.js vai buscar o index.tsx dentro da pasta
 
 // --- TIPOS E ACTIONS ---
 import { UserProfile, StoryCategory, StoryPost } from './types';
 import { createStoryPost, getPostById } from './actions';
 import createClient from '@/utils/supabase/client';
 
-// --- SUB-COMPONENTE: CARD DE PERFIL (Lateral Esquerda) ---
+// --- COMPONENTE: EM DESENVOLVIMENTO (Placeholder) ---
+const FeedUnderConstruction = ({ category }: { category: string }) => (
+  <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-[2rem] border border-dashed border-gray-200">
+    <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4 text-3xl text-gray-300">
+      {category === 'games' ? '🎮' : category === 'movies' ? '🎬' : '🚧'}
+    </div>
+    <h3 className="font-bold text-gray-900 text-lg mb-2">Feed de {category} em Breve</h3>
+    <p className="text-sm text-gray-500 max-w-xs">
+      Estamos preparando algo incrível para os fãs de {category}. Fique ligado!
+    </p>
+  </div>
+);
+
+// --- SIDEBAR PERFIL ---
 const ProfileSideCard = ({ user, onOpenCreate }: { user: UserProfile, onOpenCreate: () => void }) => (
-  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 sticky top-24">
+  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 sticky top-24 transition-all hover:shadow-md">
     <div className="flex flex-col items-center text-center">
-      {/* Avatar com Borda Gradiente (Identidade da Marca) */}
-      <div className="p-[2px] rounded-full bg-gradient-to-tr from-brand-purple to-brand-green mb-3">
+      <div className="p-[3px] rounded-full bg-gradient-to-tr from-brand-purple via-purple-400 to-brand-green mb-3 shadow-sm">
         <div className="w-20 h-20 rounded-full border-4 border-white relative overflow-hidden bg-gray-100">
            {user.avatar_url ? (
              <Image src={user.avatar_url} alt={user.name} fill className="object-cover" />
            ) : (
-             <div className="w-full h-full flex items-center justify-center text-gray-300">
-               <i className="fas fa-user text-3xl"></i>
-             </div>
+             <div className="w-full h-full flex items-center justify-center text-gray-300"><i className="fas fa-user text-3xl"></i></div>
            )}
         </div>
       </div>
-      
       <h2 className="font-bold text-gray-900 text-lg leading-tight">{user.name}</h2>
-      <p className="text-gray-500 text-sm mb-6 font-medium">{user.username}</p>
+      <p className="text-gray-500 text-sm mb-6 font-medium tracking-wide">{user.username}</p>
       
-      {/* Stats Rápidos */}
-      <div className="w-full grid grid-cols-3 gap-2 border-t border-b border-gray-50 py-4 mb-6">
-         <div className="cursor-pointer hover:bg-gray-50 rounded-lg p-1 transition-colors">
-            <span className="block font-bold text-gray-900 text-lg">12</span>
-            <span className="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Lidos</span>
-         </div>
-         <div className="cursor-pointer hover:bg-gray-50 rounded-lg p-1 transition-colors">
-            <span className="block font-bold text-gray-900 text-lg">48</span>
-            <span className="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Seguidores</span>
-         </div>
-         <div className="cursor-pointer hover:bg-gray-50 rounded-lg p-1 transition-colors">
-            <span className="block font-bold text-gray-900 text-lg">15</span>
-            <span className="text-[10px] text-gray-400 uppercase tracking-wide font-bold">Seguindo</span>
-         </div>
-      </div>
-
-      {/* Botão de Ação Principal */}
       <button 
         onClick={onOpenCreate}
-        className="w-full py-3 bg-brand-purple hover:bg-[#320261] text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-brand-purple/20 hover:shadow-brand-purple/40 flex items-center justify-center gap-2 group"
+        className="w-full py-3 bg-brand-purple hover:bg-[#320261] text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-brand-purple/20 hover:shadow-brand-purple/40 flex items-center justify-center gap-2 group active:scale-95"
       >
         <i className="fas fa-plus-circle group-hover:scale-110 transition-transform"></i> 
         Nova Publicação
       </button>
     </div>
-
-    {/* Links Rápidos do Footer */}
-    <div className="mt-6 text-center">
-       <p className="text-[10px] text-gray-400">
-         Facillit Stories © 2024 <br/>
-         <span className="hover:text-brand-purple cursor-pointer">Privacidade</span> • <span className="hover:text-brand-purple cursor-pointer">Termos</span>
-       </p>
-    </div>
   </div>
 );
 
-// --- COMPONENTE PRINCIPAL (LÓGICA) ---
 function StoriesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const postIdFromUrl = searchParams.get('p');
 
   // --- ESTADOS ---
-  const [activeCategory, setActiveCategory] = useState<StoryCategory>('all');
+  // Default para 'books' já que é o foco agora
+  const [activeCategory, setActiveCategory] = useState<StoryCategory>('books'); 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [selectedPost, setSelectedPost] = useState<StoryPost | null>(null);
-  
-  // Controle de Atualização do Feed (Key Force Update)
   const [feedKey, setFeedKey] = useState(0); 
 
-  // 1. Carregar Usuário Atual
+  // Carregar Usuário
   useEffect(() => {
     const loadUser = async () => {
       const supabase = createClient();
@@ -113,7 +92,7 @@ function StoriesContent() {
     loadUser();
   }, []);
 
-  // 2. Gerenciar Deep Links (Abrir post direto pela URL)
+  // Deep Link
   useEffect(() => {
     const loadDeepLinkedPost = async () => {
       if (postIdFromUrl) {
@@ -126,7 +105,6 @@ function StoriesContent() {
     loadDeepLinkedPost();
   }, [postIdFromUrl]);
 
-  // Handlers
   const handleClosePostModal = () => {
     setSelectedPost(null);
     router.push('/dashboard/applications/global/stories', { scroll: false });
@@ -136,40 +114,29 @@ function StoriesContent() {
     if (!currentUser) return;
     try {
         await createStoryPost(postData);
-        // Força o feed a recarregar sem refresh na página
         setFeedKey(prev => prev + 1);
         setIsCreateModalOpen(false);
     } catch (e) {
-        alert("Não foi possível publicar agora. Tente novamente.");
+        alert("Erro ao publicar. Tente novamente.");
     }
   };
 
-  // Renderizador de Feed Condicional
+  // --- RENDERIZAÇÃO DO FEED ---
   const renderFeed = () => {
     const props = { userId: currentUser?.id, key: feedKey };
     
-    switch (activeCategory) {
-      case 'books': return <BookFeed {...props} />;
-      case 'movies': 
-      case 'series': 
-      case 'anime': return <MovieFeed category={activeCategory} {...props} />;
-      case 'games': return <GamesFeed {...props} />;
-      default: return <GeneralFeed category={activeCategory} {...props} />;
+    // Se for Books, renderiza o feed real. Se for qualquer outro, mostra o placeholder.
+    if (activeCategory === 'books' || activeCategory === 'all') {
+        return <BookFeed {...props} />;
     }
+    
+    return <FeedUnderConstruction category={activeCategory} />;
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] pb-20">
-      
-      {/* --- CAMADA DE MODAIS --- */}
-      {selectedPost && (
-        <PostDetailModal 
-          post={selectedPost} 
-          currentUser={currentUser} 
-          onClose={handleClosePostModal} 
-        />
-      )}
-
+    <div className="min-h-screen bg-[#FDFDFD] pb-20 font-inter">
+      {/* Modais */}
+      {selectedPost && <PostDetailModal post={selectedPost} currentUser={currentUser} onClose={handleClosePostModal} />}
       {currentUser && (
         <CreateReviewModal 
           isOpen={isCreateModalOpen} 
@@ -179,69 +146,43 @@ function StoriesContent() {
         />
       )}
 
-      {/* --- LAYOUT GRID RESPONSIVO --- */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* 1. COLUNA ESQUERDA (PERFIL) - Desktop Only */}
+          {/* ESQUERDA */}
           <aside className="hidden lg:block lg:col-span-3">
              {currentUser ? (
                 <ProfileSideCard user={currentUser} onOpenCreate={() => setIsCreateModalOpen(true)} />
              ) : (
-                // Skeleton Loading simples
-                <div className="h-64 bg-gray-50 rounded-2xl animate-pulse border border-gray-100"></div>
+                <div className="h-64 bg-gray-50 rounded-2xl animate-pulse"></div>
              )}
           </aside>
 
-          {/* 2. COLUNA CENTRAL (FEED) */}
+          {/* CENTRO */}
           <main className="lg:col-span-6 space-y-6">
              
-             {/* Header Mobile (Visível apenas < lg) */}
-             <div className="lg:hidden flex items-center justify-between mb-4 sticky top-0 z-30 bg-[#FDFDFD]/95 backdrop-blur-sm py-2 px-2 -mx-2">
-                <div className="flex items-center gap-2">
-                   <div className="w-8 h-8 rounded-lg bg-brand-purple flex items-center justify-center text-white">
-                      <i className="fas fa-feather-alt"></i>
-                   </div>
-                   <h1 className="font-bold text-xl text-gray-900 tracking-tight">Stories</h1>
-                </div>
-                <button 
-                  onClick={() => setIsCreateModalOpen(true)} 
-                  className="w-9 h-9 bg-gray-900 text-white rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform"
-                >
+             {/* Header Mobile */}
+             <div className="lg:hidden flex items-center justify-between mb-4 sticky top-0 z-30 bg-[#FDFDFD]/95 backdrop-blur-sm py-3 px-2">
+                <h1 className="font-bold text-xl text-gray-900">Stories</h1>
+                <button onClick={() => setIsCreateModalOpen(true)} className="w-9 h-9 bg-brand-purple text-white rounded-full shadow-lg">
                    <i className="fas fa-plus"></i>
                 </button>
              </div>
 
-             {/* Stories (Círculos no Topo) */}
-             <div className="mb-2">
-                <StoriesBar currentUser={currentUser} />
-             </div>
+             <div className="mb-2"><StoriesBar currentUser={currentUser} /></div>
 
-             {/* Filtros de Categoria (Sticky) */}
-             <div className="sticky top-0 lg:top-0 z-20 bg-[#FDFDFD]/95 backdrop-blur-md pt-2 pb-4">
+             <div className="sticky top-0 z-20 bg-[#FDFDFD]/95 backdrop-blur-md pt-2 pb-4">
                 <CategoryTabs activeCategory={activeCategory} onSelect={setActiveCategory} />
              </div>
 
-             {/* Área do Feed */}
-             <div className="min-h-[600px] animate-fade-in">
+             <div className="min-h-[600px] animate-fade-in-up">
                 {renderFeed()}
              </div>
           </main>
 
-          {/* 3. COLUNA DIREITA (TRENDING) - Desktop Only */}
+          {/* DIREITA */}
           <aside className="hidden lg:block lg:col-span-3">
              <div className="sticky top-24 space-y-6">
-                {/* Busca */}
-                <div className="relative group">
-                   <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-purple transition-colors"></i>
-                   <input 
-                      type="text" 
-                      placeholder="Buscar no Stories..." 
-                      className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-brand-purple/20 focus:border-brand-purple outline-none transition-all shadow-sm"
-                   />
-                </div>
-
-                {/* Trending Topics */}
                 <TrendingTerms category={activeCategory} />
              </div>
           </aside>
@@ -252,15 +193,9 @@ function StoriesContent() {
   );
 }
 
-// --- EXPORT DEFAULT COM SUSPENSE ---
 export default function StoriesPage() {
   return (
-    <Suspense fallback={
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-[#FDFDFD] gap-4">
-        <div className="w-12 h-12 border-4 border-brand-purple/20 border-t-brand-purple rounded-full animate-spin"></div>
-        <p className="text-gray-400 text-sm font-medium animate-pulse">Carregando Stories...</p>
-      </div>
-    }>
+    <Suspense fallback={<div className="h-screen w-full flex items-center justify-center"><div className="animate-spin text-brand-purple text-2xl"><i className="fas fa-circle-notch"></i></div></div>}>
       <StoriesContent />
     </Suspense>
   );
