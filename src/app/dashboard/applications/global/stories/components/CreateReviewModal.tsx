@@ -3,29 +3,30 @@
 import { useState, useRef } from 'react';
 import Image from 'next/image';
 import { UserProfile, BookPostType } from '../types';
-import { Upload, X } from 'lucide-react';
+import { Upload, X, Camera, Star, ListOrdered, Quote, Tag, MessageCircle, Eye, FileText, ThumbsUp, Megaphone } from 'lucide-react';
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   currentUser: UserProfile;
-  onPostCreate: (formData: FormData) => void; // Atualizado para aceitar FormData
+  onPostCreate: (formData: FormData) => void;
 };
 
-const POST_TYPES: { id: BookPostType; label: string; icon: string; desc: string }[] = [
-  { id: 'review', label: 'Resenha', icon: 'fas fa-book-open', desc: 'Análise aprofundada com nota.' },
-  { id: 'rating', label: 'Avaliação', icon: 'fas fa-star', desc: 'Apenas nota rápida.' },
-  { id: 'ranking', label: 'Top Lista', icon: 'fas fa-list-ol', desc: 'Crie um ranking (Top 3, 5...)' },
-  { id: 'recommendation', label: 'Recomendação', icon: 'fas fa-thumbs-up', desc: 'Indique para um público.' },
-  { id: 'indication', label: 'Indicação', icon: 'fas fa-bullhorn', desc: 'Sugestão simples.' },
-  { id: 'promotion', label: 'Promoção', icon: 'fas fa-tag', desc: 'Oferta e preço.' },
-  { id: 'discussion', label: 'Debate', icon: 'fas fa-comments', desc: 'Levante uma questão.' },
-  { id: 'first-impressions', label: '1ª Impressões', icon: 'fas fa-eye', desc: 'Reação inicial.' },
-  { id: 'quote', label: 'Citação', icon: 'fas fa-quote-right', desc: 'Trecho favorito.' },
-  { id: 'technical', label: 'Ficha', icon: 'fas fa-list-alt', desc: 'Dados técnicos.' },
+// Configuração dos Tipos de Post com Ícones Lucide
+const POST_TYPES: { id: BookPostType; label: string; icon: React.ElementType; desc: string }[] = [
+  { id: 'review', label: 'Resenha', icon: FileText, desc: 'Análise aprofundada com nota.' },
+  { id: 'rating', label: 'Avaliação', icon: Star, desc: 'Apenas nota rápida.' },
+  { id: 'ranking', label: 'Top Lista', icon: ListOrdered, desc: 'Crie um ranking (Top 3, 5...)' },
+  { id: 'recommendation', label: 'Recomendação', icon: ThumbsUp, desc: 'Indique para um público.' },
+  { id: 'indication', label: 'Indicação', icon: Megaphone, desc: 'Sugestão simples.' },
+  { id: 'promotion', label: 'Promoção', icon: Tag, desc: 'Oferta e preço.' },
+  { id: 'discussion', label: 'Debate', icon: MessageCircle, desc: 'Levante uma questão.' },
+  { id: 'first-impressions', label: '1ª Impressões', icon: Eye, desc: 'Reação inicial.' },
+  { id: 'quote', label: 'Citação', icon: Quote, desc: 'Trecho favorito.' },
+  { id: 'technical', label: 'Ficha', icon: FileText, desc: 'Dados técnicos.' },
 ];
 
-// Função de compressão (reutilizada para consistência)
+// Utilitário de Compressão de Imagem
 const compressImage = async (file: File, quality = 0.7, maxWidth = 800): Promise<File> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -70,6 +71,7 @@ export default function CreateReviewModal({ isOpen, onClose, onPostCreate }: Pro
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Estado do Formulário
   const [formData, setFormData] = useState({
     title: '',
     author: '', 
@@ -99,12 +101,11 @@ export default function CreateReviewModal({ isOpen, onClose, onPostCreate }: Pro
 
   if (!isOpen) return null;
 
-  // Handler de Imagem
+  // Handlers
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setPreviewUrl(URL.createObjectURL(file)); // Preview instantâneo
-      
+      setPreviewUrl(URL.createObjectURL(file));
       try {
         const compressed = await compressImage(file);
         setSelectedFile(compressed);
@@ -129,12 +130,11 @@ export default function CreateReviewModal({ isOpen, onClose, onPostCreate }: Pro
 
   const handleSubmit = async () => {
     setLoading(true);
-    
     try {
         const validRankingItems = formData.rankingItems.filter(i => i.title.trim() !== '');
         const validReasons = formData.reasons.filter(r => r.trim() !== '');
 
-        // 1. Construir objeto de metadados
+        // 1. Construir metadados
         const metadata = {
             tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
             author: formData.author,
@@ -157,98 +157,36 @@ export default function CreateReviewModal({ isOpen, onClose, onPostCreate }: Pro
             rankingItems: validRankingItems,
         };
 
-        // 2. Criar FormData para envio
+        // 2. Criar FormData
         const data = new FormData();
-        data.append('category', 'books'); // Categoria fixa para reviews
+        data.append('category', 'books');
         data.append('type', selectedType);
         data.append('title', formData.title || 'Post sem título');
-        data.append('subtitle', formData.author); // Usamos subtitle para guardar autor no banco plano
+        data.append('subtitle', formData.author); 
         data.append('content', formData.content);
-        data.append('metadata', JSON.stringify(metadata)); // Metadados serializados
+        data.append('metadata', JSON.stringify(metadata));
 
-        // 3. Anexar imagem se houver
         if (selectedFile) {
             data.append('file', selectedFile);
         }
 
-        // 4. Enviar
         await onPostCreate(data);
         
-        // Reset
+        // Reset e Fechar
         setStep(1);
-        setFormData({ 
-            ...formData, 
-            title: '', 
-            content: '', 
-            tags: '',
-            rankingItems: formData.rankingItems.map(i => ({...i, title: ''})) 
-        });
+        setFormData({ ...formData, title: '', content: '', tags: '', rankingItems: formData.rankingItems.map(i => ({...i, title: ''})) });
         setSelectedFile(null);
         setPreviewUrl(null);
 
     } catch (error) {
-        console.error("Erro ao submeter modal:", error);
-        alert("Erro ao criar post. Tente novamente.");
+        console.error("Erro submit:", error);
+        alert("Erro ao criar post.");
     } finally {
         setLoading(false);
     }
   };
 
-  const renderCommonFields = () => (
-    <div className="space-y-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
-      <div className="flex gap-4">
-          {/* UPLOAD DE CAPA */}
-          <div 
-            className="w-24 h-32 bg-white rounded-lg flex-shrink-0 flex items-center justify-center border border-dashed border-gray-300 relative overflow-hidden group hover:border-purple-400 transition-colors cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
-          >
-             {previewUrl ? (
-                <>
-                    <Image src={previewUrl} alt="Capa" fill className="object-cover" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                        <Upload className="text-white w-6 h-6" />
-                    </div>
-                </>
-             ) : (
-                <div className="text-center p-2">
-                   <i className="fas fa-camera text-gray-300 mb-1 text-xl"></i>
-                   <p className="text-[9px] text-gray-400 leading-tight font-bold">ADICIONAR CAPA</p>
-                </div>
-             )}
-             <input 
-                type="file" 
-                accept="image/*"
-                ref={fileInputRef}
-                className="hidden"
-                onChange={handleImageSelect}
-             />
-          </div>
-
-          <div className="flex-1 space-y-3">
-             <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">
-                    {selectedType === 'ranking' ? 'Título da Lista' : 'Título do Livro/Obra'}
-                </label>
-                <input 
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none font-bold text-gray-800"
-                    placeholder="Ex: Harry Potter e a Pedra Filosofal"
-                    value={formData.title}
-                    onChange={e => setFormData({...formData, title: e.target.value})}
-                />
-             </div>
-             <div>
-                <input 
-                    className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none"
-                    placeholder="Autor (Opcional)"
-                    value={formData.author}
-                    onChange={e => setFormData({...formData, author: e.target.value})}
-                />
-             </div>
-          </div>
-      </div>
-    </div>
-  );
-
+  // Renderização dos Campos Específicos
   const renderSpecificFields = () => {
     switch(selectedType) {
         case 'review':
@@ -383,6 +321,8 @@ export default function CreateReviewModal({ isOpen, onClose, onPostCreate }: Pro
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
       <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+        
+        {/* Header */}
         <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
           <div className="flex items-center gap-3">
              {step === 2 && (
@@ -392,11 +332,15 @@ export default function CreateReviewModal({ isOpen, onClose, onPostCreate }: Pro
                 {step === 1 ? 'Criar Nova Postagem' : POST_TYPES.find(t => t.id === selectedType)?.label}
              </h2>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors"><i className="fas fa-times"></i></button>
+          <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors">
+             <X size={20} />
+          </button>
         </div>
 
+        {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
            {step === 1 ? (
+              // SELEÇÃO DE TIPO
               <div className="grid grid-cols-2 gap-3">
                  {POST_TYPES.map(type => (
                     <button 
@@ -405,7 +349,7 @@ export default function CreateReviewModal({ isOpen, onClose, onPostCreate }: Pro
                        className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-purple-300 hover:bg-purple-50/50 transition-all text-left group"
                     >
                        <div className="w-10 h-10 rounded-full bg-gray-50 text-gray-500 group-hover:bg-white group-hover:text-purple-600 flex items-center justify-center shadow-sm transition-colors border border-gray-200 flex-shrink-0">
-                          <i className={type.icon}></i>
+                          <type.icon size={18} />
                        </div>
                        <div>
                            <span className="font-bold text-sm text-gray-700 group-hover:text-purple-700 block">{type.label}</span>
@@ -415,8 +359,61 @@ export default function CreateReviewModal({ isOpen, onClose, onPostCreate }: Pro
                  ))}
               </div>
            ) : (
+              // FORMULÁRIO
               <div>
-                 {renderCommonFields()}
+                 {/* Upload de Capa + Campos Básicos */}
+                 <div className="space-y-4 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <div className="flex gap-4">
+                        <div 
+                          className="w-24 h-32 bg-white rounded-lg flex-shrink-0 flex items-center justify-center border border-dashed border-gray-300 relative overflow-hidden group hover:border-purple-400 transition-colors cursor-pointer"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                           {previewUrl ? (
+                              <>
+                                  <Image src={previewUrl} alt="Capa" fill className="object-cover" />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                      <Upload className="text-white w-6 h-6" />
+                                  </div>
+                              </>
+                           ) : (
+                              <div className="text-center p-2">
+                                 <Camera className="text-gray-300 mb-1 mx-auto" size={24} />
+                                 <p className="text-[9px] text-gray-400 leading-tight font-bold">ADICIONAR CAPA</p>
+                              </div>
+                           )}
+                           <input 
+                              type="file" 
+                              accept="image/*"
+                              ref={fileInputRef}
+                              className="hidden"
+                              onChange={handleImageSelect}
+                           />
+                        </div>
+
+                        <div className="flex-1 space-y-3">
+                           <div>
+                              <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">
+                                  {selectedType === 'ranking' ? 'Título da Lista' : 'Título da Obra'}
+                              </label>
+                              <input 
+                                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none font-bold text-gray-800"
+                                  placeholder="Digite aqui..."
+                                  value={formData.title}
+                                  onChange={e => setFormData({...formData, title: e.target.value})}
+                              />
+                           </div>
+                           <div>
+                              <input 
+                                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none"
+                                  placeholder="Autor / Subtítulo (Opcional)"
+                                  value={formData.author}
+                                  onChange={e => setFormData({...formData, author: e.target.value})}
+                              />
+                           </div>
+                        </div>
+                    </div>
+                 </div>
+
                  {renderSpecificFields()}
                  
                  <div className="mt-4 pt-4 border-t border-gray-100">
@@ -431,6 +428,7 @@ export default function CreateReviewModal({ isOpen, onClose, onPostCreate }: Pro
            )}
         </div>
 
+        {/* Footer */}
         {step === 2 && (
            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
               <button onClick={onClose} className="px-4 py-2 text-gray-500 text-sm font-bold hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button>
@@ -439,8 +437,7 @@ export default function CreateReviewModal({ isOpen, onClose, onPostCreate }: Pro
                  disabled={loading || !formData.title}
                  className="px-6 py-2 bg-purple-600 text-white text-sm font-bold rounded-lg hover:bg-purple-700 shadow-lg shadow-purple-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
               >
-                 {loading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-paper-plane"></i>}
-                 Publicar
+                 {loading ? "Publicando..." : "Publicar"}
               </button>
            </div>
         )}

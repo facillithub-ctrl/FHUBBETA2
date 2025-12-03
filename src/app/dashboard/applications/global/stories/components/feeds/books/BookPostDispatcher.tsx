@@ -1,26 +1,20 @@
-"use client";
-
+import React from 'react';
 import { StoryPost } from '../../../types';
 
-// Importe os componentes que criamos (e crie Placeholders para os que faltam por enquanto)
+// Componentes de Visualização
 import ReviewPost from './components/ReviewPost';
 import RankingPost from './components/RankingPost';
 import QuotePost from './components/QuotePost';
 import PromotionPost from './components/PromotionPost';
-
-// Placeholder simples para tipos que ainda vamos criar visualmente
-const DefaultBookPost = ({ post }: { post: StoryPost }) => (
-    <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-100">
-        <h3 className="font-bold text-gray-800">{post.title}</h3>
-        <p className="text-sm text-gray-600 mt-2">{post.content}</p>
-    </div>
-);
+import RecommendationPost from './components/RecommendationPost';
+import DiscussionPost from './components/DiscussionPost';
+import FirstImpressionsPost from './components/FirstImpressionsPost';
+import TechnicalPost from './components/TechnicalPost';
 
 export default function BookPostDispatcher({ post }: { post: StoryPost }) {
-  // A mágica acontece aqui: SEPARAÇÃO TOTAL DE VISUAL
   switch (post.type) {
     case 'review':
-    case 'rating': // Pode compartilhar o mesmo layout ou ter um próprio
+    case 'rating': // Usa o mesmo layout de Review, mas focado na nota
       return <ReviewPost post={post} />;
       
     case 'ranking':
@@ -31,14 +25,26 @@ export default function BookPostDispatcher({ post }: { post: StoryPost }) {
       
     case 'promotion':
       return <PromotionPost post={post} />;
-    
-    // Futuros tipos (crie os arquivos depois)
+      
     case 'recommendation':
-    case 'first-impressions':
+    case 'indication':
+      return <RecommendationPost post={post} />;
+      
     case 'discussion':
+      return <DiscussionPost post={post} />;
+      
+    case 'first-impressions':
+      return <FirstImpressionsPost post={post} />;
+      
     case 'technical':
+      return <TechnicalPost post={post} />;
+      
     default:
-      // Fallback para o review padrão se não tiver específico ainda, ou o genérico
-      return <ReviewPost post={post} />; 
+      // Fallback para conteúdo genérico se o tipo não tiver layout específico
+      return (
+        <div className="text-sm text-slate-700 whitespace-pre-wrap">
+          {post.content}
+        </div>
+      );
   }
 }
