@@ -139,7 +139,7 @@ function StoriesContent() {
   };
 
   return (
-    // "min-h-screen" permite que a página cresça e role naturalmente.
+    // min-h-screen para garantir altura, mas sem travar o scroll do body
     <div className="bg-white font-inter min-h-screen">
       
       {/* Modais */}
@@ -159,18 +159,18 @@ function StoriesContent() {
       {/* GRID PRINCIPAL */}
       <div className="flex w-full max-w-[1600px] mx-auto items-start">
           
-          {/* 1. SIDEBAR ESQUERDA (FIXA/STICKY) */}
-          {/* "sticky top-0 h-screen" faz com que a sidebar fique presa enquanto a página rola */}
-          <aside className="hidden lg:block w-[275px] flex-shrink-0 sticky top-0 h-screen">
+          {/* 1. SIDEBAR ESQUERDA (FIXA) */}
+          {/* z-10 para ficar acima do feed se houver algo, mas abaixo de modais e sidebar global (normalmente z-40/50) */}
+          <aside className="hidden lg:block w-[275px] flex-shrink-0 sticky top-0 h-screen z-10">
              {currentUser && <NavigationSidebar user={currentUser} />}
           </aside>
 
-          {/* 2. ÁREA DO FEED (NATURAL) */}
-          {/* Rola junto com a página (Window Scroll) */}
-          <main className="flex-1 w-full min-w-0 border-r border-gray-100/50">
+          {/* 2. ÁREA DO FEED (FLUIDA) */}
+          {/* min-w-0 evita overflow horizontal em flexbox */}
+          <main className="flex-1 w-full min-w-0 border-r border-gray-100/50 relative">
              
-             {/* HEADER COMPLETO (Stories + Tabs) */}
-             {/* Sem 'sticky', ele vai rolar pra cima e sumir quando descer o scroll */}
+             {/* HEADER COMPLETO (SÓLIDO) */}
+             {/* Sem z-index alto para não cobrir a sidebar global */}
              <div className="bg-white border-b border-gray-100">
                  <StoriesBar 
                     currentUser={currentUser} 

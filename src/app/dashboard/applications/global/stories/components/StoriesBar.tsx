@@ -17,7 +17,7 @@ interface StoriesBarProps {
   currentUser: UserProfile | null;
   activeCategory: StoryCategory;
   onSelectCategory: (cat: StoryCategory) => void;
-  onToggleSidebar: () => void; // Nova prop
+  onToggleSidebar: () => void;
 }
 
 export default function StoriesBar({ currentUser, activeCategory, onSelectCategory, onToggleSidebar }: StoriesBarProps) {
@@ -27,14 +27,15 @@ export default function StoriesBar({ currentUser, activeCategory, onSelectCatego
   };
 
   return (
-    <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm w-full">
+    // Sem Z-Index aqui para evitar sobreposição da Sidebar Global
+    <div className="w-full bg-white relative">
       
       {/* 1. TÍTULO, HAMBÚRGUER E CABEÇALHO */}
       <div className="px-4 py-3 cursor-pointer border-b border-gray-50 flex items-center gap-3">
          {/* Botão Hambúrguer (Só Mobile) */}
          <button 
             onClick={(e) => { e.stopPropagation(); onToggleSidebar(); }}
-            className="lg:hidden p-2 -ml-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
+            className="lg:hidden p-2 -ml-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors focus:outline-none"
          >
             <i className="fas fa-bars text-xl"></i>
          </button>
@@ -43,14 +44,14 @@ export default function StoriesBar({ currentUser, activeCategory, onSelectCatego
             <h1 className="font-bold text-xl text-gray-900">Página Inicial</h1>
          </div>
 
-         {/* Ícone de perfil mobile (Opcional, direita) */}
-         <div className="lg:hidden w-8 h-8 rounded-full bg-gray-200 relative overflow-hidden">
+         {/* Ícone de perfil mobile (Opcional) */}
+         <div className="lg:hidden w-8 h-8 rounded-full bg-gray-200 relative overflow-hidden border border-gray-100">
             {currentUser?.avatar_url && <Image src={currentUser.avatar_url} alt="Eu" fill className="object-cover" />}
          </div>
       </div>
 
       {/* 2. ÁREA DE STORIES */}
-      <div className="px-4 py-3 bg-white w-full">
+      <div className="px-4 py-3 w-full">
         <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
           
           {/* Meu Story */}
@@ -63,7 +64,7 @@ export default function StoriesBar({ currentUser, activeCategory, onSelectCatego
                       <div className="flex items-center justify-center h-full w-full text-gray-400"><i className="fas fa-user"></i></div>
                    )}
                 </div>
-                {/* 3. GRADIENTE DA MARCA AQUI */}
+                {/* GRADIENTE */}
                 <div className="absolute bottom-0 right-0 bg-brand-gradient text-white rounded-full w-5 h-5 flex items-center justify-center border-2 border-white text-[10px] shadow-sm">
                    <i className="fas fa-plus"></i>
                 </div>
@@ -74,7 +75,6 @@ export default function StoriesBar({ currentUser, activeCategory, onSelectCatego
           {/* Outros Stories */}
           {MOCK_STORIES.map((story) => (
             <div key={story.id} className="flex flex-col items-center gap-1 min-w-[68px] cursor-pointer group">
-              {/* 3. GRADIENTE DA MARCA NOS STORIES NÃO VISTOS */}
               <div className={`relative w-[64px] h-[64px] rounded-full p-[2px] transition-transform duration-200 group-hover:scale-105 ${story.hasUnseen ? 'bg-brand-gradient' : 'bg-gray-200'}`}>
                  <div className="w-full h-full rounded-full border-2 border-white bg-white overflow-hidden relative">
                     {story.img ? (
@@ -95,7 +95,7 @@ export default function StoriesBar({ currentUser, activeCategory, onSelectCatego
       </div>
 
       {/* 3. ABAS DE CATEGORIA */}
-      <div className="px-4 pb-0 w-full overflow-x-auto scrollbar-hide bg-white">
+      <div className="px-4 pb-0 w-full overflow-x-auto scrollbar-hide">
          <CategoryTabs activeCategory={activeCategory} onSelect={onSelectCategory} />
       </div>
     </div>
