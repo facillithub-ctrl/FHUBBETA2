@@ -40,6 +40,7 @@ const navSections = [
             { href: '/dashboard/applications/connect', slug: 'connect', icon: Users, label: 'Connect' },
             { href: '/dashboard/applications/task', slug: 'task', icon: CheckSquare, label: 'Tarefas' },
             { href: '/dashboard/applications/create', slug: 'create', icon: Lightbulb, label: 'Create', badge: 'Beta' },
+            { href: '/dashboard/applications/global/stories', slug: 'stories', icon: Lightbulb, label: 'Stories', badge: 'Beta' },
         ]
     },
     {

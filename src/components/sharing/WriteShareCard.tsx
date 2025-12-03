@@ -5,40 +5,45 @@ import { UserProfile } from '@/app/dashboard/types';
 import { RefObject } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
-// Adapte esta interface conforme os dados reais da sua redação
 export interface WriteShareStats {
-    score: number;       // Nota da redação
-    title: string;       // Título ou Tema
-    essayDate?: string;  // Data de envio
-    competency1?: number; // Exemplo de detalhe opcional
+    score: number;
+    title: string;
+    essayDate?: string;
+    badge?: string | null; // A tag do professor (Ex: "Exemplar", "Superação")
 }
-
-export type CardTheme = 'light';
 
 interface WriteShareCardProps {
     profile: UserProfile;
     stats: WriteShareStats;
     innerRef: RefObject<HTMLDivElement>;
-    avatarOverride?: string | null;
     logoOverride?: string | null;
     isExporting?: boolean;
-    theme?: CardTheme;
-    showAvatar?: boolean;
 }
 
 const BRAND = {
     purple: '#42047e',
     green: '#07f49e',
-    dark: '#0f0f11',
-    light: '#ffffff',
-    gray: '#f4f4f5',
-    gradient: 'linear-gradient(135deg, #42047e 0%, #07f49e 100%)'
+    black: '#0f0f11',
+    white: '#ffffff',
+    grayBg: '#f8f9fa',
+    grayText: '#666666',
+    gradientPrimary: 'linear-gradient(135deg, #42047e 0%, #07f49e 100%)'
 };
 
-const VerifiedBadge = () => (
-    <div className="flex items-center justify-center w-6 h-6 ml-2">
+const getScoreTheme = (score: number) => {
+    if (score < 600) {
+        return { mainColor: BRAND.black, label: 'Prática' };
+    } else if (score < 840) {
+        return { mainColor: BRAND.purple, label: 'Mandou Bem!' };
+    } else {
+        return { mainColor: BRAND.green, label: 'Excelente!' };
+    }
+};
+
+const VerifiedBadge = ({ color }: { color: string }) => (
+    <div className="flex items-center justify-center w-6 h-6 ml-1.5">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" fill={BRAND.green} />
+            <circle cx="12" cy="12" r="10" fill={color === BRAND.black ? BRAND.purple : color} />
             <path d="M7.5 12L10.5 15L16.5 9" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
     </div>
@@ -48,142 +53,123 @@ export const WriteShareCard = ({
     profile, 
     stats, 
     innerRef, 
-    avatarOverride, 
     logoOverride, 
     isExporting = false,
-    showAvatar = true
 }: WriteShareCardProps) => {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://facillithub.com';
-    // Link direto para validar a redação ou perfil
     const shareUrl = `${baseUrl}/u/${profile.nickname}`;
-
-    const safeAvatar = avatarOverride || (isExporting ? null : profile.avatar_url);
-    const safeLogo = logoOverride || (isExporting ? null : "/assets/images/accont.svg");
+    const theme = getScoreTheme(stats.score);
+    const safeLogo = logoOverride || (isExporting ? null : "/assets/images/write-logo-placeholder.svg"); 
+    
+    // Tag Prioritária: Se tiver badge do professor, usa ela. Senão, usa a do score.
+    const displayTag = stats.badge || theme.label;
 
     return (
         <div
             ref={innerRef}
-            className="w-[540px] h-[960px] flex flex-col items-center relative overflow-hidden font-sans box-border bg-white"
+            className="w-[540px] h-[960px] flex flex-col relative overflow-hidden font-sans box-border bg-white"
         >
-            {/* 1. BARRA DE GRADIENTE */}
-            <div className="w-full h-5" style={{ background: BRAND.gradient }}></div>
-
-            {/* CONTEÚDO PRINCIPAL */}
-            <div className="flex-1 flex flex-col items-center w-full px-10 pt-10 pb-10">
+            {/* 1. HEADER GRADIENT (Com Tag do Professor) */}
+            <div className="w-full h-[360px] flex flex-col items-center pt-14 rounded-b-[60px] text-white shadow-xl relative z-0" 
+                 style={{ background: BRAND.gradientPrimary }}>
                 
-                {/* 2. LOGO */}
-                <div className="mb-6 w-full flex justify-center">
-                    {safeLogo ? (
+                {/* Logo Branco */}
+                <div className="mb-6 opacity-95">
+                     {safeLogo ? (
                         <img 
                             src={safeLogo} 
                             alt="Facillit" 
-                            className="h-16 object-contain"
-                            // Importante para evitar erro de CORS no html-to-image
+                            className="h-20 w-auto object-contain brightness-0 invert"
                             {...(!safeLogo.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
                         />
                     ) : (
-                        <span className="text-3xl font-black tracking-tighter" style={{ color: BRAND.purple }}>
-                            FACILLIT
-                        </span>
+                        <div className="flex flex-col items-center text-white">
+                            <i className="fas fa-file-signature text-5xl mb-2"></i>
+                            <span className="text-2xl font-black tracking-tighter">FACILLIT WRITE</span>
+                        </div>
                     )}
                 </div>
 
-                {/* TAG DE CONTEXTO */}
-                <div className="mb-6 px-6 py-2 rounded-full border border-gray-100 bg-gray-50/50">
-                    <span className="text-xs font-extrabold tracking-[0.25em] uppercase text-gray-400">
-                        Resultado Oficial
+                {/* TAG EM DESTAQUE */}
+                <div className="bg-white/20 backdrop-blur-md px-8 py-2.5 rounded-full border border-white/30 flex items-center gap-3 shadow-sm">
+                    <i className="fas fa-medal text-white text-lg"></i>
+                    <span className="text-base font-bold uppercase tracking-widest text-white">
+                        {displayTag}
                     </span>
                 </div>
+            </div>
 
-                {/* 3. TÍTULO/TEMA DA REDAÇÃO */}
-                <div className="w-full text-center mb-4 px-4">
-                    <h2 className="text-xl font-bold text-gray-400 uppercase tracking-widest mb-2">
+            {/* 2. SCORE CARD (Flutuante com Nota e Tema) */}
+            <div className="absolute top-[280px] left-1/2 transform -translate-x-1/2 w-[440px] bg-white rounded-[40px] p-8 flex flex-col items-center text-center shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] border border-gray-100 z-10">
+                <span className="text-xs font-bold uppercase tracking-[0.25em] mb-2" style={{ color: BRAND.grayText }}>
+                    Nota da Redação
+                </span>
+                
+                <div className="relative leading-none my-2">
+                    <span className="text-[10rem] font-[900] tracking-tighter" style={{ color: theme.mainColor }}>
+                        {stats.score}
+                    </span>
+                </div>
+                
+                <div className="w-full h-px bg-gray-100 my-6"></div>
+
+                <div className="w-full px-4">
+                    <span className="text-[10px] font-bold uppercase tracking-widest block mb-2 text-gray-400">
                         Tema da Redação
-                    </h2>
-                    <p className="text-2xl font-bold text-[#0f0f11] leading-tight line-clamp-3">
-                        {/* Se o título tiver aspas, o React renderiza bem aqui, mas cuidado se fosse HTML puro */}
+                    </span>
+                    <h2 className="text-xl font-bold leading-snug line-clamp-3 text-[#0f0f11]">
                         &ldquo;{stats.title}&rdquo;
-                    </p>
+                    </h2>
                 </div>
+            </div>
 
-                {/* 4. NOTA EM DESTAQUE (HERO) */}
-                <div className="my-auto flex flex-col items-center justify-center relative">
-                    <div className="relative z-10">
-                        <span className="text-[10rem] font-[900] leading-[0.85] tracking-tighter text-transparent bg-clip-text" style={{ backgroundImage: BRAND.gradient }}>
-                            {stats.score}
-                        </span>
+            {/* 3. FOOTER INFO (Nome, ID, Link) */}
+            <div className="flex-1 flex flex-col items-center justify-end w-full px-10 pb-12 mt-auto">
+                
+                {/* Info do Aluno (Nome + Verificado + ID) */}
+                <div className="flex flex-col items-center mb-12 animate-fade-in-up">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                        <h3 className="text-3xl font-[900] tracking-tight text-[#0f0f11] text-center leading-tight">
+                            {profile.full_name}
+                        </h3>
+                        {profile.verification_badge && <VerifiedBadge color={theme.mainColor} />}
                     </div>
-                    <div className="mt-4 px-6 py-2 bg-[#07f49e] rounded-full shadow-lg transform -rotate-2">
-                        <span className="text-sm font-black text-[#0f0f11] uppercase tracking-widest">
-                            Pontuação Total
-                        </span>
-                    </div>
-                </div>
-
-                {/* 5. PERFIL DO ALUNO */}
-                <div className="w-full mt-auto mb-8 flex items-center gap-4 bg-gray-50 p-4 rounded-3xl border border-gray-100">
-                    {showAvatar && (
-                        <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white shadow-sm flex-shrink-0 bg-gray-200">
-                             {safeAvatar ? (
-                                <img
-                                    src={safeAvatar}
-                                    alt="Avatar"
-                                    className="w-full h-full object-cover"
-                                    {...(!safeAvatar.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                                    N/A
-                                </div>
-                            )}
-                        </div>
-                    )}
-                    <div className="flex flex-col text-left overflow-hidden">
-                        <div className="flex items-center gap-1">
-                            <span className="text-lg font-bold text-[#0f0f11] truncate">
-                                {profile.full_name}
-                            </span>
-                            {profile.verification_badge && <VerifiedBadge />}
-                        </div>
-                        <span className="text-sm font-medium text-purple-700">
+                    
+                    {/* Chip de ID para Busca */}
+                    <div className="flex items-center gap-2 bg-gray-50 px-5 py-2 rounded-full border border-gray-100">
+                        <i className="fas fa-search text-gray-400 text-xs"></i>
+                        <span className="text-lg font-bold" style={{ color: theme.mainColor }}>
                             @{profile.nickname}
                         </span>
                     </div>
                 </div>
 
-                {/* 6. FOOTER COM QR CODE */}
-                <div className="w-full bg-[#f8f9fa] rounded-3xl p-3 flex items-center justify-between border border-gray-200/60 shadow-sm">
-                    <div className="flex items-center gap-4 pl-4">
-                        <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm" style={{ background: BRAND.gradient }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <line x1="16" y1="17" x2="8" y2="17"></line>
-                                <polyline points="10 9 9 9 8 9"></polyline>
-                            </svg>
+                {/* Footer Link & QR */}
+                <div className="w-full rounded-2xl p-4 flex items-center justify-between border border-gray-200 bg-gray-50/80">
+                    <div className="flex items-center gap-4 pl-2">
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-md" style={{ background: BRAND.gradientPrimary }}>
+                            <i className="fas fa-arrow-right transform -rotate-45"></i>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#42047e]">
-                                PRATIQUE EM
+                            <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]" style={{ color: BRAND.purple }}>
+                                ACESSE PERFIL
                             </span>
-                            <span className="text-xl font-bold text-[#0f0f11] tracking-tight">
+                            <span className="text-xl font-bold tracking-tight text-[#0f0f11]">
                                 facillithub.com
                             </span>
                         </div>
                     </div>
                     
-                    <div className="bg-white p-1.5 rounded-xl border border-gray-100">
+                    <div className="bg-white p-2 rounded-xl border border-gray-200">
                         <QRCodeSVG 
                             value={shareUrl} 
-                            size={60}
-                            fgColor="#000000" 
-                            bgColor="#ffffff"
+                            size={55}
+                            fgColor={BRAND.black} 
+                            bgColor={BRAND.white}
                             level={"M"}
                         />
                     </div>
                 </div>
-
             </div>
         </div>
     );

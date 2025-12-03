@@ -30,6 +30,7 @@ const ecossistema = {
   "Global": [
  { title: "Facillit Day", href: "/modulos/facillit-day", desc: "Agenda e Hábitos", icon: "fa-calendar-alt" },
  { title: "Facillit Finances", href: "/modulos/facillit-finances", desc: "Gestão Financeira", icon: "fa-chart-line" },
+ { title: "Facillit Stories", href: "/modulos/facillit-stories", desc: "Comunidade literária", icon: "fa-comments" },
  ],
 };
 

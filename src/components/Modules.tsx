@@ -22,10 +22,12 @@ const allModules = [
   { id: 'task', vertical: 'Global', slug: 'facillit-task', icon: 'fa-tasks', title: 'Facillit Task', desc: 'Gestão de tarefas pessoais e projetos.', status: 'active' },
   { id: 'connect', vertical: 'Global', slug: 'facillit-connect', icon: 'fa-users', title: 'Facillit Connect', desc: 'Rede social para comunidades de estudo.', status: 'active' },
   { id: 'coach', vertical: 'Global', slug: 'facillit-coach-career', icon: 'fa-compass', title: 'Coach & Career', desc: 'Orientação vocacional e soft skills.', status: 'active' },
+  { id: 'stories', vertical: 'Global', slug: 'facillit-coach-career', icon: 'fa-comments', title: 'Facillit Stories', desc: 'Onde leitores se encontram: conecte-se, crie listas e descubra histórias.', status: 'active' },
   
   // Business (Novos - Em Breve)
   { id: 'center', vertical: 'Business', slug: '#', icon: 'fa-chart-line', title: 'Facillit Center', desc: 'Gestão de startups e negócios.', status: 'coming_soon' },
   { id: 'people', vertical: 'Business', slug: '#', icon: 'fa-users-cog', title: 'Facillit People', desc: 'Gestão de RH e talentos.', status: 'coming_soon' },
+  
 ];
 
 const tabs = ['Todos', 'Education', 'Schools', 'Business', 'Global'];

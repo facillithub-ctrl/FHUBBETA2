@@ -100,10 +100,8 @@ export function ShareWriteButton({
                    innerRef={cardRef} 
                    profile={profile} 
                    stats={stats} 
-                   avatarOverride={safeAvatarUrl ?? null}
                    logoOverride={safeLogoUrl ?? null} 
                    isExporting={true}
-                   showAvatar={showAvatar}
                 />
             )}
         </div>

@@ -141,14 +141,31 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
     const aiData = (Array.isArray(rawAiData) ? rawAiData[0] : rawAiData) as AIFeedback | null | undefined;
     const hasHumanCorrection = !!correction?.feedback;
 
-    // Converte os dados parciais para o formato de UserProfile esperado pelo botão
+    // --- CORREÇÃO DO ERRO DE BUILD ---
+    // Preenchemos todos os campos obrigatórios do tipo UserProfile, mesmo que com null/vazio
     const studentProfileForShare: UserProfile = {
         id: data.user_id || '',
+        
+        // Campos snake_case (Novos)
         full_name: data.profiles?.full_name || 'Estudante',
-        nickname: data.profiles?.nickname || '', // Garante string vazia se undefined
         avatar_url: data.profiles?.avatar_url || null,
+        user_category: 'aluno',
+        nickname: data.profiles?.nickname || '',
+        
+        // Campos CamelCase (Legados - Obrigatórios para satisfazer o Type)
+        fullName: data.profiles?.full_name || 'Estudante',
+        avatarUrl: data.profiles?.avatar_url || null,
+        userCategory: 'aluno',
+        pronoun: null,
+        birthDate: null,
+        schoolName: null,
+        
+        // Outros campos opcionais
         email: '',
-        user_category: 'aluno'
+        organization_id: null,
+        target_exam: null,
+        active_modules: [],
+        verification_badge: null
     };
 
     return (
@@ -273,7 +290,8 @@ export default function EssayCorrectionView({ essayId, onBack }: { essayId: stri
                                     stats={{
                                         score: correction.final_grade,
                                         title: data.title || "Redação Prática",
-                                        essayDate: data.submitted_at || undefined
+                                        essayDate: data.submitted_at || undefined,
+                                        badge: correction.badge
                                     }}
                                     className="w-full"
                                 />

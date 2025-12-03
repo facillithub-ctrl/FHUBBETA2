@@ -34,6 +34,13 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      // NOVA ENTRADA: Permite imagens da Amazon (usadas nos mockups de livros)
+      {
+        protocol: 'https',
+        hostname: 'm.media-amazon.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };

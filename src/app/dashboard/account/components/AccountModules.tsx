@@ -18,6 +18,7 @@ const allModules = [
   { slug: 'day', icon: 'fa-calendar-check', title: 'Facillit Day', group: 'Global' },
   { slug: 'finances', icon: 'fa-wallet', title: 'Facillit Finances', group: 'Global' },
   { slug: 'coach-career', icon: 'fa-bullseye', title: 'Facillit C&C', group: 'Global' },
+  { slug: 'stories', icon: 'fa-comment', title: 'Facillit Stories', group: 'Global' }
   // ... (adicionar outros módulos como People, Center, etc., se necessário)
 ];
 
