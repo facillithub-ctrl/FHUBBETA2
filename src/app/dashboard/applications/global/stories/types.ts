@@ -7,6 +7,8 @@ export type UserProfile = {
   avatar_url: string | null;
   username: string;
   isVerified?: boolean;
+  // Adicionado para compatibilidade com o componente VerificationBadge
+  badge?: string | null; 
   bio?: string;
   role?: 'student' | 'teacher' | 'admin';
   level?: number; 
@@ -15,7 +17,7 @@ export type UserProfile = {
   following?: number;
 };
 
-// --- STORY CIRCLES ---
+// --- STORY CIRCLES (Círculos de Stories no topo) ---
 export type StoryCircle = {
   id: string;
   user: UserProfile;
@@ -72,13 +74,17 @@ export type RankingItem = {
   description?: string;
 };
 
-// --- TIPO PRINCIPAL DO POST ---
+// --- TIPO PRINCIPAL DO POST (STORYPOST) ---
 export type StoryPost = {
   id: string;
   category: StoryCategory;
+  
+  // União de todos os tipos possíveis
   type: BookPostType | GamePostType | 'status' | 'media'; 
+  
   user: UserProfile;
   createdAt: string; 
+  timestamp?: string; // Útil para ordenação precisa se necessário
   
   content: string;       
   title?: string;        
@@ -88,28 +94,41 @@ export type StoryPost = {
   isVideo?: boolean; 
   
   metadata?: {
-    tags?: string[]; // Tags fica AQUI dentro
+    tags?: string[]; 
     
+    // >>>> DADOS DE LIVRO / OBRA
     author?: string;       
     publisher?: string;    
     pages?: number; 
     genre?: string;        
     year?: string;         
+    
+    // >>>> AVALIAÇÃO
     rating?: number;       
     mood?: string;         
+    
+    // >>>> RECOMENDAÇÃO
     reasons?: string[];      
     targetAudience?: string; 
+    
+    // >>>> PROMOÇÃO
     price?: number;
     oldPrice?: number;
     discountPercent?: number;
     coupon?: string;
     linkUrl?: string; 
+    
+    // >>>> PROGRESSO
     progress?: number; 
+    
+    // >>>> QUOTE
     quoteText?: string;    
     quotePage?: string;    
+    
+    // >>>> RANKING
     rankingItems?: RankingItem[];
     
-    // Games
+    // >>>> GAMES
     platform?: 'PlayStation' | 'Xbox' | 'PC' | 'Nintendo' | 'Mobile';
     gameTitle?: string;
     achievementName?: string;

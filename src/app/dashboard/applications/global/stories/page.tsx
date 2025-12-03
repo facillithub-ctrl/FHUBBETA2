@@ -1,162 +1,221 @@
-import { redirect } from 'next/navigation';
-import createClient from '@/utils/supabase/server';
-import Link from 'next/link';
-import Image from 'next/image'; // Import obrigatório para evitar o erro de build
+"use client";
 
-export default async function StoriesPage() {
-  const supabase = await createClient();
+import { useState, useEffect, Suspense } from 'react';
+import Image from 'next/image';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ToastProvider, useToast } from '@/contexts/ToastContext';
+
+// Componentes
+import StoriesBar from './components/StoriesBar';
+import CategoryTabs from './components/CategoryTabs';
+import CreateReviewModal from './components/CreateReviewModal';
+import CreatePostWidget from './components/CreatePostWidget'; // Novo Widget
+import PostDetailModal from './components/PostDetailModal';
+import TrendingTerms from './components/TrendingTerms';
+
+// Feeds
+import BookFeed from './components/feeds/BookFeed';
+
+// Logic
+import { UserProfile, StoryCategory, StoryPost } from './types';
+import { createStoryPost, getPostById } from './actions';
+import createClient from '@/utils/supabase/client';
+
+// --- NOTIFICAÇÕES EM TEMPO REAL (Mock/Hook) ---
+const useRealtimeNotifications = (userId?: string) => {
+  const { showToast } = useToast();
   
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) {
-    redirect('/login?next=/stories');
-  }
+  useEffect(() => {
+    if (!userId) return;
+    const supabase = createClient();
+    // Escuta inserções na tabela de notificações (se existir)
+    const channel = supabase
+      .channel('realtime-notifications')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` }, 
+      (payload) => {
+         showToast(payload.new.message || "Nova interação!", "info");
+      })
+      .subscribe();
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, avatar_url')
-    .eq('id', user.id)
-    .single();
+    return () => { supabase.removeChannel(channel); };
+  }, [userId, showToast]);
+};
+
+const ProfileSideCard = ({ user }: { user: UserProfile }) => (
+  <div className="bg-white rounded-xl p-5 border border-gray-100 sticky top-24">
+      <div className="flex items-center gap-3 mb-4">
+         <div className="w-12 h-12 rounded-full bg-gray-200 overflow-hidden relative border border-gray-200">
+            {user.avatar_url && <Image src={user.avatar_url} alt="Eu" fill className="object-cover" />}
+         </div>
+         <div>
+            <h3 className="font-bold text-gray-900 text-sm">{user.name}</h3>
+            <p className="text-gray-500 text-xs">@{user.username}</p>
+         </div>
+      </div>
+      <div className="flex justify-between text-center border-t border-gray-50 pt-3">
+          <div><span className="block font-bold text-sm">12</span><span className="text-[10px] text-gray-400">Lidos</span></div>
+          <div><span className="block font-bold text-sm">482</span><span className="text-[10px] text-gray-400">Seguidores</span></div>
+          <div><span className="block font-bold text-sm">35</span><span className="text-[10px] text-gray-400">Seguindo</span></div>
+      </div>
+  </div>
+);
+
+function StoriesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const postIdFromUrl = searchParams.get('p');
+
+  const [activeCategory, setActiveCategory] = useState<StoryCategory>('all');
+  const [isAdvancedModalOpen, setIsAdvancedModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [selectedPost, setSelectedPost] = useState<StoryPost | null>(null);
+  const [feedKey, setFeedKey] = useState(0); 
+
+  // Setup Inicial
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        setCurrentUser({
+          id: user.id,
+          name: profile?.full_name || 'User',
+          avatar_url: profile?.avatar_url,
+          username: profile?.nickname || 'user',
+          isVerified: profile?.is_verified,
+          verificationType: profile?.role === 'teacher' ? 'green' : (profile?.is_verified ? 'blue' : null)
+        });
+      }
+    };
+    load();
+  }, []);
+
+  // Ativa notificações
+  useRealtimeNotifications(currentUser?.id);
+
+  // Deep Link Handler
+  useEffect(() => {
+    if (postIdFromUrl) {
+       getPostById(postIdFromUrl).then(post => {
+          if (post) setSelectedPost(post);
+       });
+    } else {
+       setSelectedPost(null);
+    }
+  }, [postIdFromUrl]);
+
+  const handlePostCreate = async (postData: Partial<StoryPost>) => {
+    if (!currentUser) return;
+    try {
+        await createStoryPost(postData);
+        setFeedKey(p => p + 1);
+        setIsAdvancedModalOpen(false);
+    } catch {
+        alert("Erro ao publicar.");
+    }
+  };
+
+  const handleOpenPost = (post: StoryPost) => {
+    setSelectedPost(post);
+    window.history.pushState(null, '', `?p=${post.id}`);
+  };
+
+  const handleClosePost = () => {
+    setSelectedPost(null);
+    router.push('/dashboard/applications/global/stories', { scroll: false });
+  };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm px-4 py-3">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2 text-gray-500 hover:text-brand-purple transition-colors">
-            <i className="fas fa-arrow-left"></i>
-            <span className="hidden sm:inline">Voltar ao Hub</span>
-          </Link>
+    <div className="min-h-screen bg-white md:bg-[#FAFAFA] font-inter">
+      {selectedPost && <PostDetailModal post={selectedPost} currentUser={currentUser} onClose={handleClosePost} />}
+      
+      {currentUser && (
+        <CreateReviewModal 
+          isOpen={isAdvancedModalOpen} 
+          onClose={() => setIsAdvancedModalOpen(false)} 
+          currentUser={currentUser} 
+          onPostCreate={handlePostCreate} 
+        />
+      )}
+
+      <div className="max-w-7xl mx-auto md:px-4 lg:px-8 pt-0 md:pt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          <h1 className="text-xl font-bold text-brand-purple flex items-center gap-2">
-            <i className="fas fa-book-reader"></i> Facillit Stories
-          </h1>
+          {/* COLUNA ESQUERDA (Desktop) */}
+          <aside className="hidden lg:block lg:col-span-3">
+             {currentUser && <ProfileSideCard user={currentUser} />}
+             <div className="mt-4 text-xs text-gray-400 px-2">
+                © 2024 Facillit Stories • Privacidade • Termos
+             </div>
+          </aside>
 
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-gray-700 hidden sm:block">
-              {profile?.full_name?.split(' ')[0]}
-            </span>
-            {/* CORREÇÃO: Usando div relativa + Image fill para passar no build */}
-            <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden border border-gray-300 relative">
-               {profile?.avatar_url ? (
-                 <Image 
-                   src={profile.avatar_url} 
-                   alt="Perfil" 
-                   fill 
-                   className="object-cover" 
-                   sizes="32px"
-                 />
-               ) : (
-                 <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                   <i className="fas fa-user"></i>
-                 </div>
-               )}
-            </div>
-          </div>
-        </div>
-      </header>
+          {/* COLUNA CENTRAL (Feed Infinito) */}
+          <main className="lg:col-span-6 bg-white min-h-screen border-x border-gray-100 pb-20">
+             
+             {/* Header Mobile */}
+             <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center justify-between lg:hidden">
+                <div className="w-8 h-8 rounded-full bg-brand-purple flex items-center justify-center text-white"><i className="fas fa-feather-alt"></i></div>
+                <h1 className="font-bold text-lg">Início</h1>
+                <div className="w-8"></div>
+             </div>
 
-      <main className="max-w-5xl mx-auto pt-6 px-4 grid grid-cols-1 md:grid-cols-4 gap-6">
-        
-        <aside className="hidden md:block space-y-4">
-           <nav className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 sticky top-24">
-             <ul className="space-y-2">
-               <li>
-                 <a href="#" className="flex items-center gap-3 px-3 py-2 rounded-lg bg-brand-purple/10 text-brand-purple font-bold">
-                   <i className="fas fa-home w-5"></i> Feed
-                 </a>
-               </li>
-               <li>
-                 <a href="#" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-                   <i className="fas fa-compass w-5"></i> Explorar
-                 </a>
-               </li>
-               <li>
-                 <a href="#" className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-                   <i className="fas fa-users w-5"></i> Comunidades
-                 </a>
-               </li>
-               <hr className="border-gray-100 my-2" />
-               <p className="px-3 text-xs font-bold text-gray-400 uppercase mb-2">Minhas Listas</p>
-               <li>
-                 <a href="#" className="flex items-center justify-between px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm">
-                   <span>📖 Lendo Agora</span>
-                   <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">3</span>
-                 </a>
-               </li>
-               <li>
-                 <a href="#" className="flex items-center justify-between px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors text-sm">
-                   <span>✅ Lidos</span>
-                   <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">12</span>
-                 </a>
-               </li>
-             </ul>
-           </nav>
-        </aside>
+             {/* Stories Bar */}
+             <div className="px-4 pt-4 pb-2 border-b border-gray-50">
+                <StoriesBar currentUser={currentUser} />
+             </div>
 
-        <div className="md:col-span-2 space-y-6">
-           <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-             <div className="flex gap-3">
-               <div className="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0"></div>
-               <input 
-                 type="text" 
-                 placeholder="Começou a ler algo novo? Conte para todos..." 
-                 className="flex-1 bg-gray-50 rounded-full px-4 text-sm focus:outline-none focus:ring-2 focus:ring-brand-purple/20 transition-all"
+             {/* Widget de Criação Rápida */}
+             {currentUser && (
+               <CreatePostWidget 
+                  currentUser={currentUser} 
+                  onPostCreate={handlePostCreate} 
+                  onOpenAdvancedModal={() => setIsAdvancedModalOpen(true)}
                />
-             </div>
-             <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-50">
-               <div className="flex gap-2 text-gray-400 text-sm">
-                 <button className="hover:text-brand-purple"><i className="fas fa-image"></i></button>
-                 <button className="hover:text-brand-purple"><i className="fas fa-book"></i></button>
-               </div>
-               <button className="px-4 py-1.5 bg-brand-purple text-white text-sm font-bold rounded-full hover:bg-brand-dark transition-colors">
-                 Publicar
-               </button>
-             </div>
-           </div>
+             )}
 
-           <div className="text-center py-10">
-             <div className="inline-block p-4 rounded-full bg-gray-100 text-gray-400 text-2xl mb-3">
-               <i className="fas fa-stream"></i>
+             {/* Abas (Agora integradas ao feed) */}
+             <div className="sticky top-[0px] md:top-0 z-20 bg-white/95 backdrop-blur-md border-b border-gray-100">
+                <CategoryTabs activeCategory={activeCategory} onSelect={setActiveCategory} />
              </div>
-             <h3 className="text-gray-600 font-medium">Seu feed está silencioso</h3>
-             <p className="text-sm text-gray-400 mt-1">Siga leitores ou entre em comunidades para ver atualizações.</p>
-           </div>
+
+             {/* Feed */}
+             <div className="animate-fade-in">
+                {activeCategory === 'books' || activeCategory === 'all' ? (
+                   <BookFeed 
+                      key={feedKey} 
+                      userId={currentUser?.id} 
+                      onPostClick={handleOpenPost} 
+                   />
+                ) : (
+                   <div className="p-10 text-center text-gray-400">Em breve...</div>
+                )}
+             </div>
+          </main>
+
+          {/* COLUNA DIREITA (Desktop) */}
+          <aside className="hidden lg:block lg:col-span-3">
+             <div className="sticky top-24">
+                <div className="bg-gray-50 rounded-full px-4 py-3 mb-6 flex items-center gap-2 border border-gray-100 focus-within:bg-white focus-within:border-brand-purple transition-all">
+                   <i className="fas fa-search text-gray-400"></i>
+                   <input type="text" placeholder="Buscar no Facillit" className="bg-transparent outline-none text-sm w-full" />
+                </div>
+                <TrendingTerms category={activeCategory} />
+             </div>
+          </aside>
+
         </div>
-
-        <aside className="hidden md:block space-y-4">
-           <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 sticky top-24">
-             <h3 className="font-bold text-dark-text mb-4 text-sm">Sugestões para você</h3>
-             <div className="space-y-4">
-               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs">
-                    SCI-FI
-                 </div>
-                 <div className="flex-1 min-w-0">
-                   <p className="text-sm font-bold truncate">Ficção Científica</p>
-                   <p className="text-xs text-gray-400">Comunidade Global</p>
-                 </div>
-                 <button className="text-brand-purple hover:bg-brand-purple/10 p-1.5 rounded-full transition-colors">
-                   <i className="fas fa-plus"></i>
-                 </button>
-               </div>
-               
-               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-xs">
-                    ROM
-                 </div>
-                 <div className="flex-1 min-w-0">
-                   <p className="text-sm font-bold truncate">Clube do Romance</p>
-                   <p className="text-xs text-gray-400">Comunidade Global</p>
-                 </div>
-                 <button className="text-brand-purple hover:bg-brand-purple/10 p-1.5 rounded-full transition-colors">
-                   <i className="fas fa-plus"></i>
-                 </button>
-               </div>
-             </div>
-             <button className="w-full mt-4 text-xs font-bold text-brand-purple hover:underline">Ver tudo</button>
-           </div>
-        </aside>
-
-      </main>
+      </div>
     </div>
+  );
+}
+
+export default function StoriesPage() {
+  return (
+    <ToastProvider>
+      <Suspense fallback={<div className="h-screen flex items-center justify-center bg-white"><div className="animate-pulse w-10 h-10 bg-brand-purple rounded-full"></div></div>}>
+        <StoriesContent />
+      </Suspense>
+    </ToastProvider>
   );
 }
