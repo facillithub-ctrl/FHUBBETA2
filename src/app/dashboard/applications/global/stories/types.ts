@@ -24,8 +24,7 @@ export type StoryCircle = {
   category?: StoryCategory;
 };
 
-// --- CATEGORIAS GERAIS (CORRIGIDO) ---
-// Adicionamos 'sports' e 'podcasts' para bater com o CategoryTabs.tsx
+// --- CATEGORIAS GERAIS ---
 export type StoryCategory = 
   | 'all' 
   | 'books' 
@@ -33,8 +32,8 @@ export type StoryCategory =
   | 'series' 
   | 'anime' 
   | 'games' 
-  | 'sports'    // <--- Adicionado
-  | 'podcasts'  // <--- Adicionado
+  | 'sports' 
+  | 'podcasts' 
   | 'general';
 
 // --- FORMATOS ESPECÍFICOS ---
@@ -50,7 +49,6 @@ export type BookPostType =
   | 'technical'          
   | 'ranking';           
 
-// --- GAMES ---
 export type GamePostType = 
   | 'game-review'       
   | 'achievement'       
@@ -78,10 +76,7 @@ export type RankingItem = {
 export type StoryPost = {
   id: string;
   category: StoryCategory;
-  
-  // União de todos os tipos possíveis
   type: BookPostType | GamePostType | 'status' | 'media'; 
-  
   user: UserProfile;
   createdAt: string; 
   
@@ -93,6 +88,8 @@ export type StoryPost = {
   isVideo?: boolean; 
   
   metadata?: {
+    tags?: string[]; // Tags fica AQUI dentro
+    
     author?: string;       
     publisher?: string;    
     pages?: number; 
@@ -100,7 +97,6 @@ export type StoryPost = {
     year?: string;         
     rating?: number;       
     mood?: string;         
-    tags?: string[];       
     reasons?: string[];      
     targetAudience?: string; 
     price?: number;

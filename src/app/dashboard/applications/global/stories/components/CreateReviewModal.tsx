@@ -77,6 +77,9 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
     
     const validRankingItems = formData.rankingItems.filter(i => i.title.trim() !== '');
     const validReasons = formData.reasons.filter(r => r.trim() !== '');
+    
+    // Tratamento de tags
+    const tagsArray = formData.tags.split(',').map(t => t.trim()).filter(t => t);
 
     const newPost: Partial<StoryPost> = {
       category: 'books',
@@ -85,9 +88,12 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
       subtitle: formData.author,
       content: formData.content,
       coverImage: formData.coverImage,
-      tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
+      // REMOVIDO: tags: tagsArray (Isso causava o erro pois tags não existe na raiz de StoryPost)
       
       metadata: {
+        // Tags movidas para cá
+        tags: tagsArray,
+        
         author: formData.author,
         price: formData.price ? parseFloat(formData.price) : undefined,
         oldPrice: formData.oldPrice ? parseFloat(formData.oldPrice) : undefined,
@@ -100,10 +106,7 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
         publisher: formData.publisher,
         pages: formData.pages ? parseInt(formData.pages) : undefined,
         genre: formData.genre,
-        
-        // CORREÇÃO CRÍTICA AQUI: quoteText em vez de quote
         quoteText: formData.quote,
-        
         quotePage: formData.quotePage,
         rankingItems: validRankingItems,
       },
@@ -199,7 +202,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                   )}
                </div>
             );
-        
         case 'ranking':
             return (
                <div className="space-y-3 animate-in fade-in">
@@ -222,7 +224,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                   ))}
                </div>
             );
-
         case 'quote':
             return (
                <div className="space-y-3 animate-in fade-in">
@@ -240,7 +241,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                   />
                </div>
             );
-
         case 'promotion':
             return (
                <div className="space-y-3 animate-in fade-in">
@@ -251,7 +251,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                   <input className="w-full bg-gray-50 border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Link de Afiliado/Loja" value={formData.affiliateLink} onChange={e => setFormData({...formData, affiliateLink: e.target.value})} />
                </div>
             );
-
         case 'recommendation':
              return (
                 <div className="space-y-3 animate-in fade-in">
@@ -262,7 +261,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                    ))}
                 </div>
              );
-
         case 'technical':
              return (
                 <div className="grid grid-cols-2 gap-3 animate-in fade-in">
@@ -271,8 +269,7 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
                    <input className="bg-gray-50 border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Nº Páginas" value={formData.pages} onChange={e => setFormData({...formData, pages: e.target.value})} />
                 </div>
              );
-
-        default: // Indication, Discussion, etc
+        default: 
             return (
                <textarea 
                   className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm h-32 outline-none"
@@ -287,8 +284,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
       <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-        
-        {/* HEADER */}
         <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-white">
           <div className="flex items-center gap-3">
              {step === 2 && (
@@ -301,7 +296,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
           <button onClick={onClose} className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors"><i className="fas fa-times"></i></button>
         </div>
 
-        {/* BODY */}
         <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
            {step === 1 ? (
               <div className="grid grid-cols-2 gap-3">
@@ -338,7 +332,6 @@ export default function CreateReviewModal({ isOpen, onClose, currentUser, onPost
            )}
         </div>
 
-        {/* FOOTER */}
         {step === 2 && (
            <div className="p-4 border-t border-gray-100 flex justify-end gap-3 bg-gray-50">
               <button onClick={onClose} className="px-4 py-2 text-gray-500 text-sm font-bold hover:bg-gray-200 rounded-lg transition-colors">Cancelar</button>
