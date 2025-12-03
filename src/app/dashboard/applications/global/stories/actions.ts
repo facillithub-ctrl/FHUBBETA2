@@ -6,26 +6,34 @@ import { StoryPost, StoryCategory, VerificationType } from './types';
 
 const FEED_PATH = '/dashboard/applications/global/stories';
 
-// --- HELPER DE MAPEAMENTO (Banco -> Tipagem App) ---
+// --- HELPER DE MAPEAMENTO ---
+// Transforma o dado cru do banco no formato que o componente espera
 const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
-  // Verifica se o usuário atual curtiu o post
+  // Verifica like do usuário atual
   const isLikedByMe = row.my_like && Array.isArray(row.my_like) 
     ? row.my_like.some((l: any) => l.user_id === currentUserId) 
     : false;
 
-  // Objeto de usuário seguro (fallback)
+  // Fallback seguro para usuário
   const user = row.user || { 
-    id: 'unknown', full_name: 'Usuário', avatar_url: null, username: 'user' 
+    id: 'unknown', full_name: 'Usuário Desconhecido', avatar_url: null, username: 'user' 
   };
 
   const role = user.role || 'student';
   const isVerified = !!user.is_verified;
   
-  // Lógica do Badge de Verificação
+  // LÓGICA DE BADGE ROBUSTA
+  // 1. Tenta pegar o badge direto do banco (ex: 'gold', 'admin')
+  // 2. Se não tiver, infere pelo role ou verificado
   let badgeValue: VerificationType = null;
-  if (user.badge) badgeValue = user.badge as VerificationType;
-  else if (role === 'teacher') badgeValue = 'green';
-  else if (isVerified) badgeValue = 'blue';
+  
+  if (user.badge) {
+      badgeValue = user.badge; // Usa o que vem do banco (ex: 'gold')
+  } else if (role === 'teacher') {
+      badgeValue = 'green';
+  } else if (isVerified) {
+      badgeValue = 'blue';
+  }
 
   return {
     id: row.id,
@@ -37,7 +45,7 @@ const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
       avatar_url: user.avatar_url,
       username: user.nickname || user.username || 'user',
       isVerified,
-      badge: badgeValue,
+      badge: badgeValue, // Passa o valor processado
       role
     },
     createdAt: new Date(row.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
@@ -45,7 +53,7 @@ const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
     title: row.title,           
     subtitle: row.subtitle,     
     coverImage: row.cover_image, 
-    metadata: row.metadata || {}, 
+    metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : (row.metadata || {}), 
     likes: row.likes?.[0]?.count || 0,
     commentsCount: row.comments?.[0]?.count || 0,
     isLiked: isLikedByMe,
@@ -53,7 +61,7 @@ const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
   };
 };
 
-// --- BUSCAR FEED (Suporta filtro e 'all') ---
+// --- BUSCAR FEED ---
 export async function getStoriesFeed(
   category: StoryCategory = 'all', 
   limit: number = 20
@@ -61,12 +69,21 @@ export async function getStoriesFeed(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Query Principal
+  // QUERY PRINCIPAL CORRIGIDA
+  // Adicionado 'badge' explicitamente no select do user:profiles
   let query = supabase
     .from('stories_posts')
     .select(`
       *,
-      user:profiles!stories_posts_user_id_fkey (id, full_name, avatar_url, nickname, is_verified, role, badge),
+      user:profiles!stories_posts_user_id_fkey (
+        id, 
+        full_name, 
+        avatar_url, 
+        nickname, 
+        is_verified, 
+        role, 
+        badge 
+      ),
       likes:stories_likes(count),
       comments:stories_comments(count),
       my_like:stories_likes(user_id)
@@ -74,7 +91,6 @@ export async function getStoriesFeed(
     .order('created_at', { ascending: false })
     .limit(limit);
 
-  // Se a categoria NÃO for 'all', filtra. Se for 'all', traz tudo (Books + Status + Reviews).
   if (category !== 'all') {
     query = query.eq('category', category);
   }
@@ -82,9 +98,9 @@ export async function getStoriesFeed(
   const { data, error } = await query;
 
   if (error) {
-    // Fallback: Tenta query simplificada se o banco estiver desatualizado
+    // Fallback para caso a coluna badge não exista no banco ainda (evita crash)
     if (error.code === '42703' || error.message.includes('does not exist')) {
-        console.warn("⚠️ Usando query de fallback (banco desatualizado)");
+        console.warn("⚠️ Coluna 'badge' não encontrada. Usando fallback.");
         const fallbackQuery = supabase
             .from('stories_posts')
             .select(`
@@ -114,9 +130,18 @@ export async function getPostById(postId: string): Promise<StoryPost | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
+  // Query também corrigida com 'badge'
   const { data, error } = await supabase
     .from('stories_posts')
-    .select(`*, user:profiles!stories_posts_user_id_fkey (id, full_name, avatar_url, nickname, is_verified, role, badge), likes:stories_likes(count), comments:stories_comments(count), my_like:stories_likes(user_id)`)
+    .select(`
+        *, 
+        user:profiles!stories_posts_user_id_fkey (
+            id, full_name, avatar_url, nickname, is_verified, role, badge
+        ), 
+        likes:stories_likes(count), 
+        comments:stories_comments(count), 
+        my_like:stories_likes(user_id)
+    `)
     .eq('id', postId)
     .single();
 
@@ -124,41 +149,36 @@ export async function getPostById(postId: string): Promise<StoryPost | null> {
   return mapToStoryPost(data, user?.id);
 }
 
-// --- CRIAR POST (COM UPLOAD DE ARQUIVO) ---
+// --- CRIAR POST (COM UPLOAD) ---
 export async function createStoryPost(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Unauthorized');
 
-  // Extrair dados do FormData
   const content = formData.get('content') as string;
   const category = (formData.get('category') as string) || 'all';
   const type = (formData.get('type') as string) || 'status';
   const file = formData.get('file') as File | null;
   const metadataStr = formData.get('metadata') as string;
+  const title = formData.get('title') as string;
+  const subtitle = formData.get('subtitle') as string;
 
-  // Parse de metadados opcionais
   let metadata = {};
   if (metadataStr) {
-      try { metadata = JSON.parse(metadataStr); } catch (e) { console.error("Metadata parse error", e); }
+      try { metadata = JSON.parse(metadataStr); } catch (e) { console.error("Metadata error", e); }
   }
   
   let coverImageUrl = null;
 
-  // 1. Processar Upload se houver arquivo
   if (file && file.size > 0) {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
-          .from('stories-media') // Certifique-se de criar este bucket no Supabase
+          .from('stories-media')
           .upload(fileName, file);
 
-      if (uploadError) {
-          console.error('Erro no upload da imagem:', uploadError);
-          // Decide se aborta ou continua sem imagem. Aqui continuamos.
-      } else {
-          // Obter URL pública
+      if (!uploadError) {
           const { data: { publicUrl } } = supabase.storage
               .from('stories-media')
               .getPublicUrl(fileName);
@@ -166,37 +186,36 @@ export async function createStoryPost(formData: FormData) {
       }
   }
 
-  // 2. Salvar no Banco de Dados
   const { error } = await supabase.from('stories_posts').insert({
     user_id: user.id,
     category,
     type,
     content,
+    title,      // Salva Título na raiz
+    subtitle,   // Salva Subtítulo/Autor na raiz
     cover_image: coverImageUrl,
     metadata,
   });
 
   if (error) {
-      console.error("Erro ao criar post:", error);
+      console.error("Erro create:", error);
       throw error;
   }
 
-  // Revalida o cache para atualizar o feed
   revalidatePath(FEED_PATH);
 }
 
-// --- DELETAR POST ---
+// --- DELETAR ---
 export async function deleteStoryPost(postId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
   
-  // match garante que só deleta se o ID e o user_id baterem
   await supabase.from('stories_posts').delete().match({ id: postId, user_id: user.id });
   revalidatePath(FEED_PATH);
 }
 
-// --- LIKE / UNLIKE ---
+// --- LIKE ---
 export async function togglePostLike(postId: string, currentLikedState: boolean) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -205,7 +224,6 @@ export async function togglePostLike(postId: string, currentLikedState: boolean)
   if (currentLikedState) {
     await supabase.from('stories_likes').delete().match({ post_id: postId, user_id: user.id });
   } else {
-    // upsert evita erro de duplicidade
     await supabase.from('stories_likes').upsert({ post_id: postId, user_id: user.id }, { onConflict: 'post_id, user_id' });
   }
   revalidatePath(FEED_PATH);

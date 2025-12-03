@@ -1,35 +1,21 @@
 // CAMINHO: src/app/dashboard/applications/global/stories/types.ts
 
-// --- CORREÇÃO: Adicionado para resolver o erro de build ---
-export type VerificationType = 'blue' | 'gold' | 'green' | 'red' | 'none' | null;
+// Tipos de verificação aceitos (ampliado para incluir qualquer string do banco)
+export type VerificationType = 'blue' | 'gold' | 'green' | 'red' | string | null;
 
-// --- PERFIL DE USUÁRIO ---
 export type UserProfile = {
   id: string;
   name: string;
   avatar_url: string | null;
   username: string;
   isVerified?: boolean;
-  // Compatibilidade com o componente VerificationBadge
-  badge?: string | null; 
-  bio?: string;
+  badge?: VerificationType; // Agora aceita string genérica para não quebrar
   role?: 'student' | 'teacher' | 'admin';
-  level?: number; 
-  readCount?: number;
+  bio?: string;
   followers?: number;
   following?: number;
 };
 
-// --- STORY CIRCLES ---
-export type StoryCircle = {
-  id: string;
-  user: UserProfile;
-  hasUnseen: boolean;
-  isLive?: boolean;
-  category?: StoryCategory;
-};
-
-// --- CATEGORIAS ---
 export type StoryCategory = 
   | 'all' 
   | 'books' 
@@ -41,7 +27,6 @@ export type StoryCategory =
   | 'podcasts' 
   | 'general';
 
-// --- FORMATOS ESPECÍFICOS (Mantidos) ---
 export type BookPostType = 
   | 'review'             
   | 'rating'             
@@ -77,66 +62,44 @@ export type RankingItem = {
   description?: string;
 };
 
-// --- TIPO PRINCIPAL DO POST ---
 export type StoryPost = {
   id: string;
   category: StoryCategory;
-  
-  // União de todos os tipos possíveis
   type: BookPostType | GamePostType | 'status' | 'media'; 
-  
   user: UserProfile;
   createdAt: string; 
-  timestamp?: string;
   
   content: string;       
   title?: string;        
   subtitle?: string;     
   coverImage?: string;   
-  mediaUrl?: string;     
-  isVideo?: boolean; 
   
-  // Metadados Ricos (Mantidos)
+  // Metadados completos
   metadata?: {
     tags?: string[]; 
-    
-    // LIVROS
     author?: string;       
     publisher?: string;    
     pages?: number; 
     genre?: string;        
-    year?: string;  
-   
-    // AVALIAÇÃO
+    year?: string;         
     rating?: number;       
     mood?: string;         
-    
-    // RECOMENDAÇÃO
     reasons?: string[];      
     targetAudience?: string; 
-    
-    // PROMOÇÃO
     price?: number;
     oldPrice?: number;
     discountPercent?: number;
     coupon?: string;
     linkUrl?: string; 
-    
-    // PROGRESSO
     progress?: number; 
-    
-    // QUOTE
     quoteText?: string;    
     quotePage?: string;    
-    
-    // RANKING
     rankingItems?: RankingItem[];
-    
-    // GAMES
-    platform?: 'PlayStation' | 'Xbox' | 'PC' | 'Nintendo' | 'Mobile';
+    // Games
+    platform?: string;
     gameTitle?: string;
     achievementName?: string;
-    achievementRarity?: 'Common' | 'Rare' | 'Epic' | 'Legendary';
+    achievementRarity?: string;
     score?: string;
     rank?: string;
     graphics?: number;

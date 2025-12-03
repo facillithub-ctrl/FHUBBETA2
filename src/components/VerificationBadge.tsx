@@ -5,6 +5,7 @@ type VerificationBadgeProps = {
   size?: '4px' | '12px' | '14px';
 };
 
+// Mapa de badges aceitos e suas cores
 const badgeDetails: Record<string, { icon: string; color: string; tooltip: string }> = {
   green: {
       icon: 'fa-check-circle',
@@ -23,10 +24,11 @@ const badgeDetails: Record<string, { icon: string; color: string; tooltip: strin
   },
   gold: {
     icon: 'fa-crown',
-    color: 'text-yellow-500', // Ouro para Admin/Oficial
+    color: 'text-yellow-500',
     tooltip: 'Oficial / Admin',
   },
-  admin: { // Fallback para caso esteja salvo como 'admin' no banco
+  // Alias para gold
+  admin: {
     icon: 'fa-crown',
     color: 'text-yellow-500',
     tooltip: 'Administrador',
@@ -34,7 +36,7 @@ const badgeDetails: Record<string, { icon: string; color: string; tooltip: strin
 };
 
 export const VerificationBadge = ({ badge, size = '4px' }: VerificationBadgeProps) => {
-  // Normaliza para minúsculo e remove espaços (ex: "Gold " vira "gold")
+  // 1. Limpeza do dado que vem do banco
   const badgeKey = badge?.toLowerCase().trim();
 
   if (!badgeKey || !badgeDetails[badgeKey]) {
@@ -57,12 +59,6 @@ export const VerificationBadge = ({ badge, size = '4px' }: VerificationBadgeProp
       title={details.tooltip}
     >
       <i className={`fas ${details.icon}`}></i>
-      
-      {/* Tooltip Hover (Opcional, pois o title já ajuda) */}
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-max px-2 py-1 bg-gray-900 text-white text-[10px] font-bold rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-        {details.tooltip}
-        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-      </div>
     </span>
   );
 };
