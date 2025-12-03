@@ -1,178 +1,76 @@
 "use client";
-
-import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
-import { StoryCircle, UserProfile } from '../types';
-import { db } from '@/lib/firebase';
-import createClient from '@/utils/supabase/client';
-import { collection, query, where, getDocs, addDoc, Timestamp, orderBy, serverTimestamp } from 'firebase/firestore';
+import Link from 'next/link';
+import { UserProfile } from '../types';
 
-interface StoriesBarProps {
-  currentUser?: UserProfile | null;
-  stories?: StoryCircle[]; // Mantido para compatibilidade, mas o componente busca os reais
+interface StoryCircle {
+  id: string;
+  user: { avatar_url: string | null; name: string; username: string };
+  hasUnseen: boolean;
 }
 
-export default function StoriesBar({ currentUser }: StoriesBarProps) {
-  const [stories, setStories] = useState<StoryCircle[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // TRAVA DE SEGURANÇA (useRef não depende de re-renderização)
-  const isUploadingRef = useRef(false);
+// Dados mockados para os círculos de stories
+const mockStories: StoryCircle[] = [
+    { id: '1', user: { avatar_url: '/assets/images/time/pedro.JPG', name: 'Pedro', username: 'pedro_r' }, hasUnseen: true },
+    { id: '2', user: { avatar_url: '/assets/images/time/igor.jpg', name: 'Igor', username: 'igor_dev' }, hasUnseen: false },
+    { id: '3', user: { avatar_url: null, name: 'Comunidade', username: 'community' }, hasUnseen: true },
+    { id: '4', user: { avatar_url: null, name: 'Facillit', username: 'facillit' }, hasUnseen: false },
+    // Adicionar mais, se necessário
+];
 
-  // 1. Carregar Stories (Firestore)
-  useEffect(() => {
-    let isMounted = true;
-    const fetchStories = async () => {
-      const yesterday = new Date();
-      yesterday.setHours(yesterday.getHours() - 24);
-
-      try {
-        const q = query(
-          collection(db, 'ephemeral_stories'),
-          where('createdAt', '>=', Timestamp.fromDate(yesterday)),
-          orderBy('createdAt', 'desc')
-        );
-
-        const snapshot = await getDocs(q);
-        const storiesMap = new Map<string, StoryCircle>();
-
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          if (!storiesMap.has(data.userId)) {
-            storiesMap.set(data.userId, {
-              id: data.userId,
-              user: {
-                  id: data.userId,
-                  name: data.userName,
-                  avatar_url: data.userAvatar,
-                  username: ''
-              },
-              hasUnseen: true,
-              category: 'all'
-            });
-          }
-        });
-
-        if (isMounted) setStories(Array.from(storiesMap.values()));
-      } catch (error) {
-        console.error("Erro ao carregar stories:", error);
-      }
-    };
-
-    fetchStories();
-    return () => { isMounted = false; };
-  }, []);
-
-  // 2. Upload com Trava de Segurança
-  const handleUploadStory = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Se já estiver enviando (ref true), PARA IMEDIATAMENTE
-    if (isUploadingRef.current || !currentUser || !e.target.files?.[0]) return;
-    
-    // Ativa a trava
-    isUploadingRef.current = true;
-    setIsUploading(true);
-    
-    try {
-        const file = e.target.files[0];
-        const supabase = createClient();
-        
-        // Upload Supabase
-        const fileName = `story-${currentUser.id}-${Date.now()}`;
-        const { error: uploadError } = await supabase.storage.from('stories').upload(fileName, file);
-        
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage.from('stories').getPublicUrl(fileName);
-
-        // Salvar Firestore
-        await addDoc(collection(db, 'ephemeral_stories'), {
-            userId: currentUser.id,
-            userName: currentUser.name,
-            userAvatar: currentUser.avatar_url,
-            mediaUrl: publicUrl,
-            createdAt: serverTimestamp(),
-            expiresAt: Timestamp.fromDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
-        });
-
-        // Atualiza UI localmente para feedback imediato
-        setStories(prev => {
-            // Remove se já existir para adicionar no início
-            const filtered = prev.filter(s => s.id !== currentUser.id);
-            return [{ 
-                id: currentUser.id, 
-                user: currentUser, 
-                hasUnseen: false, 
-                isLive: true 
-            }, ...filtered];
-        });
-
-    } catch (error) {
-        console.error('Erro ao postar story:', error);
-        alert('Erro ao enviar story.');
-    } finally {
-        // Libera a trava
-        isUploadingRef.current = false;
-        setIsUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  // Renderização de Skeleton se user não carregou
-  if (!currentUser) return <div className="h-24 bg-gray-50/50 rounded-xl mb-4 animate-pulse"></div>;
+export default function StoriesBar({ currentUser }: { currentUser: UserProfile | null }) {
+  const userAvatar = currentUser?.avatar_url || '/assets/images/accont.svg';
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide pt-2">
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleUploadStory} 
-        className="hidden" 
-        accept="image/*,video/*"
-      />
-
-      {/* SEU STORY (Botão de Adicionar) */}
-      <div 
-        className="flex flex-col items-center gap-2 cursor-pointer relative group min-w-[72px]"
-        onClick={() => !isUploading && fileInputRef.current?.click()}
-      >
-        <div className={`relative w-[72px] h-[72px] transition-transform ${isUploading ? 'opacity-50 scale-95' : ''}`}>
-          <div className="w-full h-full rounded-full p-[2px] border-2 border-dashed border-purple-300 group-hover:border-purple-500 transition-colors">
-            <div className="w-full h-full rounded-full overflow-hidden relative bg-gray-50">
-               {currentUser.avatar_url ? (
-                 <Image src={currentUser.avatar_url} alt="Eu" fill className="object-cover" />
-               ) : (
-                 <div className="w-full h-full bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-xl">
-                    {currentUser.name.charAt(0)}
-                 </div>
-               )}
+    <div className="flex space-x-6 overflow-x-auto scrollbar-hide px-4 sm:px-6 py-2">
+      
+      {/* Botão de Criação/Meu Story */}
+      <div className="flex flex-col items-center flex-shrink-0 cursor-pointer group">
+         <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center border-2 border-dashed border-gray-300 relative overflow-hidden transition-all group-hover:scale-105">
+            {currentUser?.avatar_url ? (
+               <Image src={userAvatar} alt="Seu Story" fill className="object-cover rounded-full" />
+            ) : (
+               <i className="fas fa-plus text-lg text-gray-500"></i>
+            )}
+            {/* Círculo + para indicar que pode postar */}
+            <div className="absolute bottom-0 right-0 w-5 h-5 bg-white border-2 border-white rounded-full flex items-center justify-center text-brand-purple">
+               <i className="fas fa-plus text-xs"></i>
             </div>
-          </div>
-          <div className="absolute bottom-0 right-0 w-6 h-6 bg-blue-600 rounded-full border-2 border-white flex items-center justify-center text-white text-[10px] shadow-sm group-hover:scale-110 transition-transform">
-            {isUploading ? <i className="fas fa-spinner animate-spin"></i> : <i className="fas fa-plus"></i>}
-          </div>
-        </div>
-        <span className="text-xs font-medium text-gray-500">Seu story</span>
+         </div>
+         <span className="text-xs font-medium text-gray-700 mt-1.5">Seu Story</span>
       </div>
 
-      {/* OUTROS STORIES */}
-      {stories.map((story) => (
-        <div key={story.id} className="flex flex-col items-center gap-2 cursor-pointer min-w-[72px] group">
-          <div className={`w-[72px] h-[72px] rounded-full p-[2px] transition-all ${story.hasUnseen ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 group-hover:rotate-6' : 'bg-gray-200'}`}>
-            <div className="w-full h-full rounded-full border-2 border-white overflow-hidden relative bg-white">
-               {story.user.avatar_url ? (
-                  <Image src={story.user.avatar_url} alt={story.user.name} fill className="object-cover" />
-               ) : (
-                  <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300">
-                    <i className="fas fa-user"></i>
-                  </div>
-               )}
-            </div>
+      {/* Stories Fixos Solicitados (Links de Navegação) */}
+      <Link href="/dashboard/notifications" className="flex flex-col items-center flex-shrink-0 cursor-pointer group pt-1">
+          <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 transition-all group-hover:scale-105 border-4 border-white shadow-sm">
+             <i className="far fa-bell text-2xl"></i>
           </div>
-          <span className="text-xs font-medium text-gray-600 truncate max-w-[74px]">
-            {story.user.name.split(' ')[0]}
-          </span>
-        </div>
+          <span className="text-xs font-medium text-gray-600 mt-1.5">Alertas</span>
+      </Link>
+      
+      <Link href="/dashboard/saved" className="flex flex-col items-center flex-shrink-0 cursor-pointer group pt-1">
+          <div className="w-14 h-14 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-600 transition-all group-hover:scale-105 border-4 border-white shadow-sm">
+             <i className="far fa-bookmark text-2xl"></i>
+          </div>
+          <span className="text-xs font-medium text-gray-600 mt-1.5">Salvos</span>
+      </Link>
+
+      {/* Stories Mockados */}
+      {mockStories.map(story => (
+         <div key={story.id} className="flex flex-col items-center flex-shrink-0 cursor-pointer group">
+             <div className={`w-16 h-16 rounded-full p-[2px] relative transition-all group-hover:scale-105 ${story.hasUnseen ? 'bg-gradient-to-tr from-brand-purple to-brand-green' : 'bg-gray-200'}`}>
+                 <div className="w-full h-full bg-white rounded-full p-[2px]">
+                    <div className="w-full h-full rounded-full bg-gray-100 flex items-center justify-center relative overflow-hidden">
+                       {story.user.avatar_url ? (
+                           <Image src={story.user.avatar_url} alt={story.user.name} fill className="object-cover rounded-full" />
+                       ) : (
+                           <i className="fas fa-user text-xl text-gray-400"></i>
+                       )}
+                    </div>
+                 </div>
+             </div>
+             <span className="text-xs font-medium text-gray-700 mt-1.5">{story.user.name.split(' ')[0]}</span>
+         </div>
       ))}
     </div>
   );
