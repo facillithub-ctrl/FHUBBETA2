@@ -105,8 +105,8 @@ export type StoryPost = {
     publisher?: string;    
     pages?: number; 
     genre?: string;        
-    year?: string;         
-    
+    year?: string;  
+   
     // AVALIAÇÃO
     rating?: number;       
     mood?: string;         
