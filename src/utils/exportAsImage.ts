@@ -46,6 +46,7 @@ async function waitForImages(element: HTMLElement): Promise<void> {
     if (promises.length > 0) await Promise.all(promises);
 }
 
+// Gera o arquivo (Blob) da imagem a partir do HTML
 export async function generateImageBlob(element: HTMLElement, fileName: string, bgColor: string = '#ffffff'): Promise<File | null> {
     if (!element) return null;
 
@@ -83,6 +84,7 @@ export async function generateImageBlob(element: HTMLElement, fileName: string, 
     }
 }
 
+// Função para tentar compartilhamento nativo (Mobile)
 export async function shareNativeFile(file: File, title: string, text: string): Promise<boolean> {
     if (typeof navigator === 'undefined' || !navigator.share || !navigator.canShare) return false;
     const shareData = { files: [file], title, text };
@@ -94,5 +96,27 @@ export async function shareNativeFile(file: File, title: string, text: string): 
     } catch (err: any) {
         if (err.name === 'AbortError') return true;
         return false;
+    }
+}
+
+// --- FUNÇÃO QUE FALTAVA ---
+// Esta função orquestra a geração e o download no navegador
+export async function exportAsImage(element: HTMLElement, fileName: string): Promise<void> {
+    const file = await generateImageBlob(element, fileName);
+    if (!file) throw new Error("Falha ao gerar imagem");
+
+    // Tenta compartilhamento nativo primeiro (bom para mobile)
+    const shared = await shareNativeFile(file, "Compartilhar", "Confira este post!");
+    
+    // Se não suportar nativo ou falhar (desktop), força o download via link
+    if (!shared) {
+        const url = URL.createObjectURL(file);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     }
 }

@@ -7,7 +7,8 @@ import { StoryPost } from '../types';
 import { togglePostLike, deleteStoryPost } from '../actions'; 
 import BookPostDispatcher from './feeds/books/BookPostDispatcher';
 import { VerificationBadge } from '@/components/VerificationBadge'; 
-import { Heart, MessageCircle, Share2, MoreHorizontal, Trash2, Flag } from 'lucide-react';
+import SharePostButton from '@/components/sharing/SharePostButton'; // <--- Importação Nova
+import { Heart, MessageCircle, MoreHorizontal, Trash2, Flag } from 'lucide-react';
 
 interface Props {
   post: StoryPost;
@@ -23,8 +24,7 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
 
   const isOwner = currentUserId === post.user.id;
   
-  // CORREÇÃO: Mapeia corretamente para o campo verification_badge
-  // Adicionamos um fallback para 'badge' caso o type ainda tenha o campo antigo
+  // Mapeia corretamente para o campo verification_badge com fallback
   const badgeToDisplay = post.user.verification_badge || (post.user as any).badge || null;
 
   const handleLike = async (e: React.MouseEvent) => {
@@ -43,12 +43,6 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
         try { await deleteStoryPost(post.id); setIsDeleted(true); } 
         catch { alert("Erro ao excluir."); }
     }
-  };
-
-  const handleShare = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      const url = `${window.location.origin}/stories?p=${post.id}`;
-      navigator.clipboard.writeText(url).then(() => alert("Link copiado!"));
   };
 
   if (isDeleted) return null;
@@ -93,7 +87,7 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
                         {post.user.name}
                     </Link>
                     
-                    {/* SELO VERIFICADO: Renderização corrigida */}
+                    {/* SELO VERIFICADO */}
                     {badgeToDisplay && (
                         <div className="flex-shrink-0 inline-flex items-center pt-[2px]">
                             <VerificationBadge badge={badgeToDisplay} size="14px" />
@@ -153,9 +147,9 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
                     <div className="p-2 rounded-full group-hover:bg-pink-50 transition-colors"><Heart size={18} className={liked ? 'fill-current' : ''} /></div>
                     <span className="text-xs font-medium">{likesCount}</span>
                 </button>
-                <button onClick={handleShare} className="group flex items-center gap-2 hover:text-brand-purple transition-colors">
-                    <div className="p-2 rounded-full group-hover:bg-purple-50 transition-colors"><Share2 size={18} /></div>
-                </button>
+                
+                {/* Botão de Compartilhar Novo */}
+                <SharePostButton post={post} />
             </div>
          </div>
       </div>
