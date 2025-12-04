@@ -4,19 +4,31 @@ import { useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { UserProfile } from '@/app/dashboard/types';
+import { StoryPost } from '@/app/dashboard/applications/global/stories/types'; // Importar tipo StoryPost
 import { toggleFollow } from './actions';
 import ShareProfileButton from '@/components/sharing/ShareProfileButton';
 import { useToast } from '@/contexts/ToastContext';
 import { VerificationBadge } from '@/components/VerificationBadge'; 
+import PostCard from '@/app/dashboard/applications/global/stories/components/PostCard'; // Reuso do PostCard
+
+// Estendemos a interface para incluir os stories que vêm da action
+interface EnhancedUserProfile extends UserProfile {
+    stories?: StoryPost[];
+    recent_essays?: any[];
+    stats_media?: number;
+    stats_simulados?: number;
+}
 
 interface PublicProfileViewProps {
-  profile: UserProfile;
+  profile: EnhancedUserProfile;
   isOwner: boolean;
   currentUser: any;
   initialIsFollowing: boolean;
   followersCount: number;
   followingCount: number;
 }
+
+type TabType = 'stories' | 'essays' | 'achievements';
 
 export default function PublicProfileView({
   profile,
@@ -27,6 +39,7 @@ export default function PublicProfileView({
   followingCount,
 }: PublicProfileViewProps) {
   
+  const [activeTab, setActiveTab] = useState<TabType>('stories'); // Stories como padrão (mais engajamento)
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [followersCount, setFollowersCount] = useState(initialFollowersCount);
   const [isPending, startTransition] = useTransition();
@@ -61,7 +74,6 @@ export default function PublicProfileView({
     ? new Date(profile.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
     : null;
 
-  // Lógica para pegar o nome da escola com fallback seguro
   const schoolDisplay = profile.school_name || profile.schoolName;
 
   return (
@@ -125,7 +137,6 @@ export default function PublicProfileView({
                             <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
                                 {profile.full_name}
                             </h1>
-                            {/* Componente VerificationBadge Original do Site */}
                             <VerificationBadge badge={profile.verification_badge} size="12px" />
                         </div>
                         <p className="text-lg text-gray-500 dark:text-gray-400 font-medium">@{profile.nickname}</p>
@@ -221,7 +232,6 @@ export default function PublicProfileView({
                     </h3>
                     
                     <ul className="space-y-4">
-                        {/* AQUI ESTAVA O ERRO DO SCHOOL NAME */}
                         {schoolDisplay && (
                             <li className="flex items-start gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
@@ -292,64 +302,133 @@ export default function PublicProfileView({
 
             </div>
 
-            {/* COLUNA DIREITA */}
+            {/* COLUNA DIREITA: CONTEÚDO */}
             <div className="lg:col-span-8 space-y-6">
-                <div className="flex border-b border-gray-200 dark:border-gray-800">
-                    <button className="px-6 py-3 border-b-2 border-brand-purple text-brand-purple font-bold">
+                
+                {/* Abas de Navegação */}
+                <div className="flex border-b border-gray-200 dark:border-gray-800 overflow-x-auto scrollbar-hide">
+                    <button 
+                        onClick={() => setActiveTab('stories')}
+                        className={`px-6 py-3 border-b-2 font-bold whitespace-nowrap transition-colors flex items-center gap-2 ${
+                            activeTab === 'stories' 
+                                ? 'border-brand-purple text-brand-purple' 
+                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                        <i className="fas fa-feather-alt"></i>
+                        Stories
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('essays')}
+                        className={`px-6 py-3 border-b-2 font-bold whitespace-nowrap transition-colors flex items-center gap-2 ${
+                            activeTab === 'essays' 
+                                ? 'border-brand-purple text-brand-purple' 
+                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                        <i className="fas fa-file-alt"></i>
                         Redações
                     </button>
-                    <button className="px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium">
+                    <button 
+                        onClick={() => setActiveTab('achievements')}
+                        className={`px-6 py-3 border-b-2 font-bold whitespace-nowrap transition-colors flex items-center gap-2 ${
+                            activeTab === 'achievements' 
+                                ? 'border-brand-purple text-brand-purple' 
+                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                        }`}
+                    >
+                        <i className="fas fa-trophy"></i>
                         Conquistas
                     </button>
                 </div>
 
-                <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden min-h-[300px]">
-                    <div className="p-6">
-                        <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-4">Últimas Redações</h3>
-                        <div className="space-y-4">
-                            {profile.recent_essays && profile.recent_essays.length > 0 ? (
-                                profile.recent_essays.map((essay, index) => (
-                                    <div key={index} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-brand-purple/30 hover:bg-brand-purple/5 transition-all group">
-                                        <div className="flex items-start gap-4">
-                                            <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 group-hover:text-brand-purple transition-colors">
-                                                <i className="fas fa-file-alt text-xl"></i>
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-gray-800 dark:text-white group-hover:text-brand-purple transition-colors line-clamp-1">
-                                                    {essay.title}
-                                                </h4>
-                                                <p className="text-sm text-gray-500 mt-1">
-                                                    <i className="far fa-clock mr-1"></i>
-                                                    {new Date(essay.created_at).toLocaleDateString('pt-BR')}
-                                                </p>
-                                            </div>
+                {/* Conteúdo das Abas */}
+                <div className="min-h-[300px]">
+                    
+                    {/* ABA STORIES */}
+                    {activeTab === 'stories' && (
+                        <div className="space-y-6 animate-in fade-in">
+                            {profile.stories && profile.stories.length > 0 ? (
+                                <div className="space-y-4">
+                                    {profile.stories.map((post) => (
+                                        <div key={post.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                                            {/* Passamos o currentUserId apenas para habilitar likes/comentários, 
+                                                mas não edição, a menos que seja o dono */}
+                                            <PostCard post={post} currentUserId={currentUser?.id} />
                                         </div>
-                                        
-                                        <div className="flex flex-col items-end pl-4">
-                                            {essay.final_grade ? (
-                                                <div className={`px-3 py-1 rounded-lg font-bold text-sm ${
-                                                    essay.final_grade >= 900 ? 'bg-green-100 text-green-700' :
-                                                    essay.final_grade >= 700 ? 'bg-blue-100 text-blue-700' :
-                                                    'bg-yellow-100 text-yellow-700'
-                                                }`}>
-                                                    {essay.final_grade} pts
-                                                </div>
-                                            ) : (
-                                                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Corrigindo...</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))
+                                    ))}
+                                </div>
                             ) : (
-                                <div className="flex flex-col items-center justify-center py-12 text-center text-gray-400">
+                                <div className="flex flex-col items-center justify-center py-12 text-center text-gray-400 bg-white rounded-2xl border border-gray-100 border-dashed">
                                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
                                         <i className="fas fa-feather-alt text-2xl opacity-50"></i>
                                     </div>
-                                    <p>Nenhuma redação pública disponível ainda.</p>
+                                    <p>Nenhum post publicado ainda.</p>
                                 </div>
                             )}
                         </div>
-                    </div>
+                    )}
+
+                    {/* ABA REDAÇÕES */}
+                    {activeTab === 'essays' && (
+                        <div className="bg-white dark:bg-dark-card rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden animate-in fade-in">
+                            <div className="p-6">
+                                <h3 className="font-bold text-gray-900 dark:text-white text-lg mb-4">Últimas Redações</h3>
+                                <div className="space-y-4">
+                                    {profile.recent_essays && profile.recent_essays.length > 0 ? (
+                                        profile.recent_essays.map((essay, index) => (
+                                            <div key={index} className="flex items-center justify-between p-4 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-brand-purple/30 hover:bg-brand-purple/5 transition-all group">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 group-hover:text-brand-purple transition-colors">
+                                                        <i className="fas fa-file-alt text-xl"></i>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-bold text-gray-800 dark:text-white group-hover:text-brand-purple transition-colors line-clamp-1">
+                                                            {essay.title}
+                                                        </h4>
+                                                        <p className="text-sm text-gray-500 mt-1">
+                                                            <i className="far fa-clock mr-1"></i>
+                                                            {new Date(essay.created_at).toLocaleDateString('pt-BR')}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="flex flex-col items-end pl-4">
+                                                    {essay.final_grade ? (
+                                                        <div className={`px-3 py-1 rounded-lg font-bold text-sm ${
+                                                            essay.final_grade >= 900 ? 'bg-green-100 text-green-700' :
+                                                            essay.final_grade >= 700 ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-yellow-100 text-yellow-700'
+                                                        }`}>
+                                                            {essay.final_grade} pts
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Corrigindo...</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-12 text-center text-gray-400">
+                                            <p>Nenhuma redação pública disponível ainda.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ABA CONQUISTAS (Placeholder) */}
+                    {activeTab === 'achievements' && (
+                        <div className="flex flex-col items-center justify-center py-20 text-center text-gray-400 bg-white rounded-2xl border border-gray-100 border-dashed animate-in fade-in">
+                            <div className="w-20 h-20 bg-yellow-50 rounded-full flex items-center justify-center mb-4 text-yellow-400">
+                                <i className="fas fa-trophy text-3xl"></i>
+                            </div>
+                            <h3 className="font-bold text-lg text-gray-700 mb-1">Galeria de Conquistas</h3>
+                            <p>Em breve você poderá ver os troféus e medalhas deste aluno.</p>
+                        </div>
+                    )}
+
                 </div>
             </div>
         </div>
