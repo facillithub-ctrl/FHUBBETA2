@@ -5,31 +5,30 @@ type VerificationBadgeProps = {
   size?: '4px' | '12px' | '14px';
 };
 
-// Define o único ícone padrão de verificação para todos os badges, conforme solicitado.
-const VERIFICATION_ICON = 'fa-check-circle'; // Ícone de Check (Verificado)
+// Define o único ícone padrão de verificação para todos os badges
+const VERIFICATION_ICON = 'fa-check-circle';
 
 // --- Lógica de Refatoração e Simplificação ---
 
-// 1. Fonte de Verdade: Definição dos tipos de badges (chaves semânticas)
-// Isso elimina a repetição de ícones e centraliza as definições de cor e tooltip.
+// 1. Fonte de Verdade: Definição dos tipos de badges
 const BADGE_TYPES = {
   identity: { // Azul - Identidade verificada
     color: 'text-blue-500',
     tooltip: 'Identidade Verificada',
   },
-  educator: { // Verde - Educador verificado (substitui o antigo 'Professor Verificado')
+  educator: { // Verde - Educador verificado
     color: 'text-green-500',
     tooltip: 'Educador Verificado',
   },
-  official: { // Amarelo - Conta oficial / criador oficial (substitui 'Oficial/Admin' e 'gold')
+  official: { // Amarelo - Conta oficial / criador oficial
     color: 'text-yellow-500',
     tooltip: 'Conta Oficial / Criador Oficial',
   },
-  featured: { // Vermelho - Contas destaques (substitui o antigo 'Aluno Destaque')
+  featured: { // Vermelho - Contas destaques
     color: 'text-red-500',
     tooltip: 'Conta Destaque',
   },
-  legacy: { // Roxo - Usuários legados (Novo tipo de badge)
+  legacy: { // Roxo - Usuários legados
     color: 'text-purple-500',
     tooltip: 'Usuário Legado',
   },
@@ -37,16 +36,15 @@ const BADGE_TYPES = {
 
 type BadgeTypeKey = keyof typeof BADGE_TYPES;
 
-// 2. Mapa de Aliases: Resolve qualquer string de entrada (antiga ou baseada em cor)
-// para uma das chaves semânticas primárias definidas em BADGE_TYPES.
+// 2. Mapa de Aliases: Resolve strings antigas ou cores para as chaves semânticas
 const BADGE_ALIASES: Record<string, BadgeTypeKey> = {
-  // Chaves semânticas (para evitar falha de lookup se o valor for exato)
+  // Chaves semânticas
   'identity': 'identity',
   'educator': 'educator',
   'official': 'official',
   'featured': 'featured',
   'legacy': 'legacy',
-  // Aliases de cores e chaves antigas (mantém a compatibilidade)
+  // Aliases de cores e legado
   'blue': 'identity',
   'verified': 'identity',
   'green': 'educator',
@@ -56,21 +54,20 @@ const BADGE_ALIASES: Record<string, BadgeTypeKey> = {
   'purple': 'legacy',
 };
 
-// Função de utilidade para buscar os detalhes do badge de forma robusta e simples
-const getBadgeDetails = (badgeKey: string | undefined): (typeof BADGE_TYPES[BadgeTypeKey] & { icon: string }) | null => {
+// Função de utilidade corrigida para aceitar null/undefined
+const getBadgeDetails = (badgeKey: string | null | undefined): (typeof BADGE_TYPES[BadgeTypeKey] & { icon: string }) | null => {
   if (!badgeKey) return null;
 
-  // 1. Limpeza do dado que vem do banco
+  // 1. Limpeza do dado
   const normalizedKey = badgeKey.toLowerCase().trim();
   
-  // 2. Resolve o alias para a chave primária
+  // 2. Resolve o alias
   const primaryKey = BADGE_ALIASES[normalizedKey];
 
   if (!primaryKey) return null;
 
   const details = BADGE_TYPES[primaryKey];
   
-  // Retorna os detalhes juntamente com o ícone padrão
   return {
     ...details,
     icon: VERIFICATION_ICON,

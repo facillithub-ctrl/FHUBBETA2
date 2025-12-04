@@ -1,7 +1,8 @@
-import { getWriteModuleData } from '../admin/actions';
+import { getWriteModuleData } from './actions';
 import ManagePrompts from './write/components/ManagePrompts';
+import ManageUserBadges from './write/components/ManageUserBadges';
 
-export default async function AdminWritePage() {
+export default async function AdminPage() {
     const { data, error } = await getWriteModuleData();
 
     if (error) {
@@ -15,7 +16,13 @@ export default async function AdminWritePage() {
 
     const prompts = data?.prompts || [];
     const students = data?.students || [];
-    const professors = data?.professors || [];
+    
+    // Tratamento para garantir que professores tenham a categoria para exibição correta,
+    // já que a action pode não retornar esse campo explicitamente na query atual.
+    const professors = (data?.professors || []).map(p => ({
+        ...p,
+        user_category: 'professor' 
+    }));
 
     return (
         <div className="space-y-8">
@@ -45,7 +52,12 @@ export default async function AdminWritePage() {
                         <div className="h-8 w-1 bg-green-500 rounded-full"></div>
                         <h2 className="text-xl font-bold text-dark-text dark:text-white">Alunos & Selos</h2>
                     </div>
-                    <ManageStudents students={students} />
+                    {/* Reutilizando o componente genérico de gestão de badges */}
+                    <ManageUserBadges 
+                        users={students} 
+                        title="Alunos Registrados" 
+                        totalCount={students.length} 
+                    />
                 </section>
 
                 <section>
@@ -53,7 +65,12 @@ export default async function AdminWritePage() {
                         <div className="h-8 w-1 bg-purple-500 rounded-full"></div>
                         <h2 className="text-xl font-bold text-dark-text dark:text-white">Professores</h2>
                     </div>
-                    <ManageProfessors professors={professors} />
+                    {/* Reutilizando o componente genérico de gestão de badges */}
+                    <ManageUserBadges 
+                        users={professors} 
+                        title="Lista de Professores" 
+                        totalCount={professors.length} 
+                    />
                 </section>
             </div>
         </div>

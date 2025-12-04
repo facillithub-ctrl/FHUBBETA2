@@ -195,7 +195,7 @@ export default function PublicProfileView({
                              <div className="flex items-center gap-1.5">
                                  <i className="far fa-calendar-alt"></i>
                                  <span>Entrou em {joinedDate}</span>
-                             </a>
+                             </div>
                          )}
 
                          {profile.social_links?.website && (
