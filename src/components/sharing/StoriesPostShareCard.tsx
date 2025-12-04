@@ -7,7 +7,7 @@ interface StoriesPostShareCardProps {
   post: StoryPost;
 }
 
-// Helper SVG para o selo (Garante exportação perfeita)
+// Helper SVG para o selo (Garante exportação perfeita em qualquer resolução)
 const ShareCardBadge = ({ badge }: { badge: string | null | undefined }) => {
   if (!badge) return null;
   const normalized = badge.toLowerCase();
@@ -29,33 +29,39 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
   const isSpecialPost = post.category === 'books';
 
   // Estados para armazenar as versões Base64 das imagens
-  const [logoSrc, setLogoSrc] = useState<string>(''); // Começa vazio ou com caminho original
+  const [logoSrc, setLogoSrc] = useState<string>(''); 
   const [avatarSrc, setAvatarSrc] = useState<string>(user.avatar_url || '');
   const [postCoverSrc, setPostCoverSrc] = useState<string>(coverImage || '');
 
-  // Efeito para converter todas as imagens críticas para Base64 ao montar
+  // Efeito para converter TODAS as imagens críticas para Base64 ao montar
   useEffect(() => {
     const loadImages = async () => {
-        // 1. Logo Local (Caminho Relativo)
-        // Nota: preloadImage lida melhor com URLs completas, mas para locais o fetch direto funciona bem
+        // 1. LOGO: Construção de URL Absoluta para garantir o fetch no mobile
         try {
-            const logoRes = await fetch('/assets/images/marcas/Stories.png');
-            const logoBlob = await logoRes.blob();
+            const origin = typeof window !== 'undefined' ? window.location.origin : '';
+            // Usa URL absoluta para evitar erros de caminho relativo em webviews/mobile
+            const logoUrl = `${origin}/assets/images/marcas/Stories.png`;
+            
+            const response = await fetch(logoUrl);
+            if (!response.ok) throw new Error('Falha ao carregar logo');
+            
+            const blob = await response.blob();
             const reader = new FileReader();
             reader.onloadend = () => setLogoSrc(reader.result as string);
-            reader.readAsDataURL(logoBlob);
+            reader.readAsDataURL(blob);
         } catch (e) {
             console.error("Erro logo:", e);
-            setLogoSrc('/assets/images/marcas/Stories.png'); // Fallback
+            // Fallback para o caminho relativo se a conversão falhar
+            setLogoSrc('/assets/images/marcas/Stories.png'); 
         }
 
-        // 2. Avatar do Usuário (Externo)
+        // 2. Avatar do Usuário (Externo -> Proxy)
         if (user.avatar_url) {
             const base64Avatar = await preloadImage(user.avatar_url);
             if (base64Avatar) setAvatarSrc(base64Avatar);
         }
 
-        // 3. Capa do Post (Externo)
+        // 3. Capa do Post (Externo -> Proxy)
         if (coverImage) {
             const base64Cover = await preloadImage(coverImage);
             if (base64Cover) setPostCoverSrc(base64Cover);
@@ -74,13 +80,14 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
     >
       {/* --- HEADER: LOGO + Divisória Fina --- */}
       <div className="pt-8 pb-6 flex justify-center w-full border-b border-gray-100">
-         {/* Renderiza apenas se tivermos uma fonte (Base64 ou original) */}
+         {/* Renderiza apenas se tivermos uma fonte */}
          {logoSrc && (
              <img 
                 src={logoSrc} 
                 alt="Facillit Stories" 
                 className="w-40 h-12 object-contain"
-                // crossOrigin não é necessário para Base64, mas mal não faz
+                // crossOrigin ajuda em alguns casos de cache, mesmo com base64
+                crossOrigin="anonymous" 
              />
          )}
       </div>
@@ -96,6 +103,7 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
                         src={avatarSrc} 
                         alt={user.name} 
                         className="w-full h-full object-cover"
+                        crossOrigin="anonymous"
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-xl">
@@ -121,8 +129,8 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
             <div className="text-[18px] leading-relaxed text-gray-800">
                 {isSpecialPost ? (
                     <div className="my-2">
-                        {/* Nota: Se o BookPostDispatcher tiver imagens internas, elas podem não aparecer se não forem tratadas. 
-                            Mas o layout principal está protegido. */}
+                        {/* Nota: Se o dispatcher usar imagens internas, elas podem falhar sem tratamento, 
+                            mas o layout principal (logo/user) agora está garantido */}
                         <BookPostDispatcher post={post} />
                     </div>
                 ) : (
@@ -136,6 +144,7 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
                                     src={postCoverSrc} 
                                     alt="Post media" 
                                     className="w-full h-full object-cover"
+                                    crossOrigin="anonymous"
                                 />
                             </div>
                         )}
