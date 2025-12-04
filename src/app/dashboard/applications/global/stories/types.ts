@@ -1,7 +1,13 @@
 // CAMINHO: src/app/dashboard/applications/global/stories/types.ts
 
-// Tipos de verificação aceitos (ampliado para incluir qualquer string do banco)
-export type VerificationType = 'blue' | 'gold' | 'green' | 'red' | string | null;
+// Tipos de verificação aceitos (atualizados para usar chaves semânticas)
+export type VerificationType = 
+  | 'identity'   // Azul
+  | 'educator'   // Verde
+  | 'official'   // Amarelo/Gold
+  | 'featured'   // Vermelho
+  | 'legacy'     // Roxo
+  | string | null; // Mantém fallback para compatibilidade
 
 export type UserProfile = {
   id: string;
@@ -9,7 +15,7 @@ export type UserProfile = {
   avatar_url: string | null;
   username: string;
   isVerified?: boolean;
-  badge?: VerificationType; // Agora aceita string genérica para não quebrar
+  badge?: VerificationType; // Usa o novo tipo
   role?: 'student' | 'teacher' | 'admin';
   bio?: string;
   followers?: number;

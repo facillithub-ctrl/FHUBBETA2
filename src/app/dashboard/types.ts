@@ -63,7 +63,8 @@ export type UserProfile = {
   organization_id: string | null;
   target_exam: string | null;
   active_modules: string[] | null;
-  verification_badge: string | null; // 'green' | 'blue' | 'red'
+  // Valores esperados: 'identity', 'educator', 'official', 'featured', 'legacy'
+  verification_badge: string | null; 
   has_completed_onboarding?: boolean;
 
   // --- Injetados (Stats) ---

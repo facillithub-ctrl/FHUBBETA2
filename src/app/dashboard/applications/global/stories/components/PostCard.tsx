@@ -23,8 +23,9 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
 
   const isOwner = currentUserId === post.user.id;
   
-  // CORREÇÃO FINAL: Usa o badge processado (já com fallback de 'blue' ou 'green' no actions.ts)
-  // O valor de post.user.badge já é o valor final calculado no mapToStoryPost
+  // Usa a propriedade badge do usuário que vem diretamente do servidor.
+  // O componente VerificationBadge agora é responsável por mapear as strings
+  // antigas ('blue', 'green') ou as novas chaves semânticas.
   const badgeToDisplay = post.user.badge || null;
 
   const handleLike = async (e: React.MouseEvent) => {

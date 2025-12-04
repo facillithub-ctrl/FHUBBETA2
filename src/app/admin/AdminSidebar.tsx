@@ -15,12 +15,14 @@ const adminSections = [
         title: "Gestão Institucional",
         items: [
             { name: 'Instituições', href: '/admin/schools', icon: 'fa-school' },
-            { name: 'Usuários', href: '/admin/users', icon: 'fa-users', disabled: true }, 
+            // ATUALIZADO: Habilitado para a Gestão Global de Selos (Account)
+            { name: 'Usuários & Selos', href: '/admin/users', icon: 'fa-users', disabled: false }, 
         ]
     },
     {
         title: "Módulos Pedagógicos",
         items: [
+            // NOTA: O Facillit Write ainda pode ter outras funcionalidades de admin, mas a gestão de selos saiu daqui.
             { name: 'Facillit Write', href: '/admin/write', icon: 'fa-pencil-alt' },
             { name: 'Facillit Test', href: '/admin/test', icon: 'fa-file-alt' },
             { name: 'Facillit Games', href: '/admin/games', icon: 'fa-gamepad', disabled: true },
@@ -81,7 +83,7 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }: SidebarP
                             </h3>
                             <ul className="space-y-1">
                                 {section.items.map((item) => {
-                                    const isActive = pathname === item.href;
+                                    const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href + '/')); // Adicionado para suportar sub-rotas
                                     return (
                                         <li key={item.name}>
                                             <Link 
@@ -92,6 +94,7 @@ export default function AdminSidebar({ isMobileOpen, setIsMobileOpen }: SidebarP
                                                         : 'text-slate-400 hover:text-white hover:bg-slate-800'}
                                                     ${item.disabled ? 'opacity-50 cursor-not-allowed hover:bg-transparent hover:text-slate-400' : ''}
                                                 `}
+                                                onClick={item.disabled ? (e) => e.preventDefault() : undefined} // Previne navegação se desabilitado
                                             >
                                                 <i className={`fas ${item.icon} w-5 text-center ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white'}`}></i>
                                                 <span>{item.name}</span>

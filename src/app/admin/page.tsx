@@ -1,6 +1,4 @@
 import { getWriteModuleData } from '../admin/actions';
-import ManageStudents from './write/components/ManageStudents';
-import ManageProfessors from './write/components/ManageProfessors';
 import ManagePrompts from './write/components/ManagePrompts';
 
 export default async function AdminWritePage() {

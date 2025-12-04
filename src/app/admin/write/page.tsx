@@ -1,6 +1,4 @@
 import { getWriteModuleData } from '../actions';
-import ManageStudents from './components/ManageStudents';
-import ManageProfessors from './components/ManageProfessors';
 import ManagePrompts from './components/ManagePrompts';
 
 export default async function AdminWritePage() {
@@ -15,9 +13,7 @@ export default async function AdminWritePage() {
             <h1 className="text-3xl font-bold mb-8 text-dark-text dark:text-white">Gerenciar Módulo Write</h1>
             
             <div className="space-y-10">
-                <ManagePrompts prompts={data.prompts || []} />
-                <ManageStudents students={data.students || []} />
-                <ManageProfessors professors={data.professors || []} />
+                <ManagePrompts prompts={data.prompts || []} />  
             </div>
         </div>
     );
