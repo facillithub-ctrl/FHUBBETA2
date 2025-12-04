@@ -23,17 +23,8 @@ const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
   const isVerified = !!user.is_verified;
   
   // LÓGICA DE BADGE ROBUSTA
-  // 1. Tenta pegar o badge direto do banco (ex: 'gold', 'admin')
-  // 2. Se não tiver, infere pelo role ou verificado
-  let badgeValue: VerificationType = null;
-  
-  if (user.badge) {
-      badgeValue = user.badge; // Usa o que vem do banco (ex: 'gold')
-  } else if (role === 'teacher') {
-      badgeValue = 'green';
-  } else if (isVerified) {
-      badgeValue = 'blue';
-  }
+  // Prioriza verification_badge (novo padrão), depois tenta badge (legado)
+  const badgeValue: VerificationType = user.verification_badge || user.badge || null;
 
   return {
     id: row.id,
@@ -45,7 +36,8 @@ const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
       avatar_url: user.avatar_url,
       username: user.nickname || user.username || 'user',
       isVerified,
-      badge: badgeValue, // Passa o valor processado
+      verification_badge: badgeValue, // Campo principal
+      badge: badgeValue,              // Fallback para componentes antigos
       role
     },
     createdAt: new Date(row.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
@@ -70,7 +62,7 @@ export async function getStoriesFeed(
   const { data: { user } } = await supabase.auth.getUser();
 
   // QUERY PRINCIPAL CORRIGIDA
-  // Adicionado 'badge' explicitamente no select do user:profiles
+  // Adicionado 'verification_badge' explicitamente no select do user:profiles
   let query = supabase
     .from('stories_posts')
     .select(`
@@ -82,6 +74,7 @@ export async function getStoriesFeed(
         nickname, 
         is_verified, 
         role, 
+        verification_badge,
         badge 
       ),
       likes:stories_likes(count),
@@ -98,9 +91,10 @@ export async function getStoriesFeed(
   const { data, error } = await query;
 
   if (error) {
-    // Fallback para caso a coluna badge não exista no banco ainda (evita crash)
+    console.error("Erro ao buscar feed:", error);
+    // Tentativa de fallback simplificado se a query falhar (ex: coluna não existe)
     if (error.code === '42703' || error.message.includes('does not exist')) {
-        console.warn("⚠️ Coluna 'badge' não encontrada. Usando fallback.");
+        console.warn("⚠️ Coluna de badge pode estar ausente. Tentando query simplificada.");
         const fallbackQuery = supabase
             .from('stories_posts')
             .select(`
@@ -118,7 +112,6 @@ export async function getStoriesFeed(
         const { data: fallbackData } = await fallbackQuery;
         return (fallbackData || []).map(row => mapToStoryPost(row, user?.id));
     }
-    console.error("Erro ao buscar feed:", error);
     return [];
   }
   
@@ -130,13 +123,13 @@ export async function getPostById(postId: string): Promise<StoryPost | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
-  // Query também corrigida com 'badge'
+  // Query corrigida com 'verification_badge'
   const { data, error } = await supabase
     .from('stories_posts')
     .select(`
         *, 
         user:profiles!stories_posts_user_id_fkey (
-            id, full_name, avatar_url, nickname, is_verified, role, badge
+            id, full_name, avatar_url, nickname, is_verified, role, verification_badge, badge
         ), 
         likes:stories_likes(count), 
         comments:stories_comments(count), 
@@ -191,8 +184,8 @@ export async function createStoryPost(formData: FormData) {
     category,
     type,
     content,
-    title,      // Salva Título na raiz
-    subtitle,   // Salva Subtítulo/Autor na raiz
+    title,      
+    subtitle,   
     cover_image: coverImageUrl,
     metadata,
   });

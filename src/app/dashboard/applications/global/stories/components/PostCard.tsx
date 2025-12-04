@@ -23,10 +23,9 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
 
   const isOwner = currentUserId === post.user.id;
   
-  // Usa a propriedade badge do usuário que vem diretamente do servidor.
-  // O componente VerificationBadge agora é responsável por mapear as strings
-  // antigas ('blue', 'green') ou as novas chaves semânticas.
-  const badgeToDisplay = post.user.badge || null;
+  // CORREÇÃO: Mapeia corretamente para o campo verification_badge
+  // Adicionamos um fallback para 'badge' caso o type ainda tenha o campo antigo
+  const badgeToDisplay = post.user.verification_badge || (post.user as any).badge || null;
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -94,7 +93,7 @@ export default function PostCard({ post, currentUserId, onCommentClick }: Props)
                         {post.user.name}
                     </Link>
                     
-                    {/* SELO VERIFICADO: Renderização usando a variável de exibição */}
+                    {/* SELO VERIFICADO: Renderização corrigida */}
                     {badgeToDisplay && (
                         <div className="flex-shrink-0 inline-flex items-center pt-[2px]">
                             <VerificationBadge badge={badgeToDisplay} size="14px" />

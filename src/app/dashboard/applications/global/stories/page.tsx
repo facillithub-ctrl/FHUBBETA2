@@ -107,10 +107,17 @@ function StoriesContent() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        
+        // CORREÇÃO: Mapeia o selo corretamente para o usuário logado
         setCurrentUser({
-          id: user.id, name: profile?.full_name || 'Usuário', avatar_url: profile?.avatar_url,
-          username: profile?.nickname || 'user', isVerified: profile?.is_verified,
-          role: profile?.role || 'student', badge: profile?.badge || null
+          id: user.id, 
+          name: profile?.full_name || 'Usuário', 
+          avatar_url: profile?.avatar_url,
+          username: profile?.nickname || 'user', 
+          isVerified: profile?.is_verified,
+          role: profile?.role || 'student', 
+          // Prioriza o verification_badge, fallback para badge antigo
+          verification_badge: profile?.verification_badge || profile?.badge || null
         });
       }
     };

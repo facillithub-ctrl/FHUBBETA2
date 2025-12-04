@@ -15,7 +15,8 @@ export type UserProfile = {
   avatar_url: string | null;
   username: string;
   isVerified?: boolean;
-  badge?: VerificationType; // Usa o novo tipo
+  verification_badge: string | null; // <--- CAMPO CORRETO DO BANCO
+  badge?: VerificationType;          // Mantido para compatibilidade de tipos antigos
   role?: 'student' | 'teacher' | 'admin';
   bio?: string;
   followers?: number;
