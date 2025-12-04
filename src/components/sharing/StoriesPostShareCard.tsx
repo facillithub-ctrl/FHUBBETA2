@@ -29,30 +29,28 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
   const isSpecialPost = post.category === 'books';
 
   // Estados para armazenar as versões Base64 das imagens
-  const [logoSrc, setLogoSrc] = useState<string>(''); 
+  const [logoSrc, setLogoSrc] = useState<string>('/assets/images/marcas/Stories.png'); // Fallback inicial
   const [avatarSrc, setAvatarSrc] = useState<string>(user.avatar_url || '');
   const [postCoverSrc, setPostCoverSrc] = useState<string>(coverImage || '');
 
   // Efeito para converter TODAS as imagens críticas para Base64 ao montar
   useEffect(() => {
     const loadImages = async () => {
-        // 1. LOGO: Construção de URL Absoluta para garantir o fetch no mobile
+        // 1. LOGO: Conversão Robusta para Base64 (Correção Mobile)
         try {
-            const origin = typeof window !== 'undefined' ? window.location.origin : '';
-            // Usa URL absoluta para evitar erros de caminho relativo em webviews/mobile
-            const logoUrl = `${origin}/assets/images/marcas/Stories.png`;
-            
-            const response = await fetch(logoUrl);
-            if (!response.ok) throw new Error('Falha ao carregar logo');
-            
-            const blob = await response.blob();
-            const reader = new FileReader();
-            reader.onloadend = () => setLogoSrc(reader.result as string);
-            reader.readAsDataURL(blob);
+            // Usamos fetch direto no caminho relativo. Funciona melhor que absolute URL em alguns mobiles.
+            const response = await fetch('/assets/images/marcas/Stories.png');
+            if (response.ok) {
+                const blob = await response.blob();
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    if (reader.result) setLogoSrc(reader.result as string);
+                };
+                reader.readAsDataURL(blob);
+            }
         } catch (e) {
-            console.error("Erro logo:", e);
-            // Fallback para o caminho relativo se a conversão falhar
-            setLogoSrc('/assets/images/marcas/Stories.png'); 
+            console.error("Erro ao converter logo:", e);
+            // Mantém o estado inicial (caminho relativo) se falhar
         }
 
         // 2. Avatar do Usuário (Externo -> Proxy)
@@ -80,16 +78,15 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
     >
       {/* --- HEADER: LOGO + Divisória Fina --- */}
       <div className="pt-8 pb-6 flex justify-center w-full border-b border-gray-100">
-         {/* Renderiza apenas se tivermos uma fonte */}
-         {logoSrc && (
-             <img 
-                src={logoSrc} 
-                alt="Facillit Stories" 
-                className="w-40 h-12 object-contain"
-                // crossOrigin ajuda em alguns casos de cache, mesmo com base64
-                crossOrigin="anonymous" 
-             />
-         )}
+         {/* CORREÇÃO MOBILE: 
+            1. Usar <img> nativa.
+            2. Remover crossOrigin se for Base64 ou local para evitar bloqueio.
+         */}
+         <img 
+            src={logoSrc} 
+            alt="Facillit Stories" 
+            className="w-40 h-12 object-contain"
+         />
       </div>
 
       {/* --- CORPO PRINCIPAL --- */}
@@ -103,7 +100,8 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
                         src={avatarSrc} 
                         alt={user.name} 
                         className="w-full h-full object-cover"
-                        crossOrigin="anonymous"
+                        // CrossOrigin só ajuda se a url for externa e não base64, mas mal não faz aqui
+                        crossOrigin={avatarSrc.startsWith('data:') ? undefined : "anonymous"}
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-xl">
@@ -129,8 +127,6 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
             <div className="text-[18px] leading-relaxed text-gray-800">
                 {isSpecialPost ? (
                     <div className="my-2">
-                        {/* Nota: Se o dispatcher usar imagens internas, elas podem falhar sem tratamento, 
-                            mas o layout principal (logo/user) agora está garantido */}
                         <BookPostDispatcher post={post} />
                     </div>
                 ) : (
@@ -144,7 +140,7 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
                                     src={postCoverSrc} 
                                     alt="Post media" 
                                     className="w-full h-full object-cover"
-                                    crossOrigin="anonymous"
+                                    crossOrigin={postCoverSrc.startsWith('data:') ? undefined : "anonymous"}
                                 />
                             </div>
                         )}
@@ -166,12 +162,14 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
          </div>
       </div>
 
-      {/* --- FOOTER: CTA Minimalista + Divisória Fina --- */}
+      {/* --- FOOTER: NOVO LAYOUT --- */}
       <div className="py-6 text-center w-full border-t border-gray-100 bg-gray-50/30">
-          <p className="text-brand-purple font-bold text-base">
-              Participe da conversa no <span className="font-extrabold">Facillit Hub</span>
+          <p className="text-gray-900 text-xs font-medium">
+              Esse post foi feito no Facillit <span className="font-bold text-transparent bg-clip-text bg-brand-gradient">Stories</span>
           </p>
-          <p className="text-gray-400 text-[11px] mt-2 font-medium tracking-[0.2em] uppercase">facillit.com.br</p>
+          <p className="text-gray-400 text-[10px] mt-1 font-light">
+              Crie uma conta no Facillit Hub para conferir mais.
+          </p>
       </div>
 
     </div>
