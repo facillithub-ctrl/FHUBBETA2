@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React, { forwardRef, useEffect, useState } from 'react';
 import { StoryPost } from '@/app/dashboard/applications/global/stories/types';
 import BookPostDispatcher from '@/app/dashboard/applications/global/stories/components/feeds/books/BookPostDispatcher';
@@ -7,7 +8,7 @@ interface StoriesPostShareCardProps {
   post: StoryPost;
 }
 
-// Helper SVG para o selo (Garante exportação perfeita em qualquer resolução)
+// Helper SVG para o selo (Renderização nativa garantida)
 const ShareCardBadge = ({ badge }: { badge: string | null | undefined }) => {
   if (!badge) return null;
   const normalized = badge.toLowerCase();
@@ -28,17 +29,17 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
   const { user, content, coverImage, createdAt } = post;
   const isSpecialPost = post.category === 'books';
 
-  // Estados para armazenar as versões Base64 das imagens
-  const [logoSrc, setLogoSrc] = useState<string>('/assets/images/marcas/Stories.png'); // Fallback inicial
+  // ESTADOS PARA IMAGENS (Base64)
+  // Iniciamos com o caminho relativo para ter algo visual imediato, mas o useEffect vai sobrescrever com Base64
+  const [logoSrc, setLogoSrc] = useState<string>('/assets/images/marcas/Stories.png');
   const [avatarSrc, setAvatarSrc] = useState<string>(user.avatar_url || '');
   const [postCoverSrc, setPostCoverSrc] = useState<string>(coverImage || '');
 
-  // Efeito para converter TODAS as imagens críticas para Base64 ao montar
+  // PRÉ-CARREGAMENTO ROBUSTO (Estilo ProfileShareCard + Base64)
   useEffect(() => {
     const loadImages = async () => {
-        // 1. LOGO: Conversão Robusta para Base64 (Correção Mobile)
+        // 1. LOGO: Conversão forçada para Base64
         try {
-            // Usamos fetch direto no caminho relativo. Funciona melhor que absolute URL em alguns mobiles.
             const response = await fetch('/assets/images/marcas/Stories.png');
             if (response.ok) {
                 const blob = await response.blob();
@@ -50,16 +51,14 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
             }
         } catch (e) {
             console.error("Erro ao converter logo:", e);
-            // Mantém o estado inicial (caminho relativo) se falhar
         }
 
-        // 2. Avatar do Usuário (Externo -> Proxy)
+        // 2. Avatar e Capa (Usando seu utilitário de proxy/preload)
         if (user.avatar_url) {
             const base64Avatar = await preloadImage(user.avatar_url);
             if (base64Avatar) setAvatarSrc(base64Avatar);
         }
 
-        // 3. Capa do Post (Externo -> Proxy)
         if (coverImage) {
             const base64Cover = await preloadImage(coverImage);
             if (base64Cover) setPostCoverSrc(base64Cover);
@@ -73,35 +72,32 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
     <div 
       ref={ref}
       id={`post-share-card-${post.id}`}
-      // Design Minimalista: Fundo Branco, Tamanho Fixo (9:16)
-      className="w-[405px] h-[720px] bg-white relative overflow-hidden flex flex-col font-inter text-gray-900"
+      // Layout 9:16 Fixo | Fundo Branco | Sem Sombras
+      className="w-[405px] min-h-[720px] bg-white relative overflow-hidden flex flex-col font-inter text-gray-900 box-border"
     >
-      {/* --- HEADER: LOGO + Divisória Fina --- */}
-      <div className="pt-8 pb-6 flex justify-center w-full border-b border-gray-100">
-         {/* CORREÇÃO MOBILE: 
-            1. Usar <img> nativa.
-            2. Remover crossOrigin se for Base64 ou local para evitar bloqueio.
-         */}
+      {/* --- HEADER: LOGO --- */}
+      <div className="pt-8 pb-5 flex justify-center w-full border-b border-gray-100">
          <img 
             src={logoSrc} 
             alt="Facillit Stories" 
-            className="w-40 h-12 object-contain"
+            className="h-10 w-auto object-contain"
+            // Lógica do ProfileShareCard: crossOrigin anonimo se não for data: URI
+            {...(!logoSrc.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
          />
       </div>
 
-      {/* --- CORPO PRINCIPAL --- */}
-      <div className="flex-1 px-8 py-6 w-full flex flex-col">
+      {/* --- CORPO --- */}
+      <div className="flex-1 px-6 py-6 w-full flex flex-col">
          
-         {/* 1. Autor + Divisória Fina */}
-         <div className="flex items-center gap-4 pb-6 mb-6 border-b border-gray-100 w-full">
-            <div className="relative w-14 h-14 rounded-full overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
+         {/* CABEÇALHO DO AUTOR */}
+         <div className="flex items-center gap-3 pb-5 mb-5 border-b border-gray-100 w-full">
+            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
                 {avatarSrc ? (
                     <img 
                         src={avatarSrc} 
                         alt={user.name} 
                         className="w-full h-full object-cover"
-                        // CrossOrigin só ajuda se a url for externa e não base64, mas mal não faz aqui
-                        crossOrigin={avatarSrc.startsWith('data:') ? undefined : "anonymous"}
+                        {...(!avatarSrc.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-xl">
@@ -111,10 +107,10 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
             </div>
             <div className="min-w-0 flex-1">
                 <div className="flex items-center">
-                    <span className="font-bold text-[17px] text-gray-900 truncate">{user.name}</span>
+                    <span className="font-bold text-[15px] text-gray-900 truncate">{user.name}</span>
                     <ShareCardBadge badge={user.verification_badge || user.badge} />
                 </div>
-                <div className="text-gray-500 text-[13px] flex items-center gap-2 mt-0.5">
+                <div className="text-gray-500 text-[12px] flex items-center gap-2 mt-0.5">
                     <span>@{user.username}</span>
                     <span className="text-gray-300">•</span>
                     <span>{createdAt}</span>
@@ -122,25 +118,29 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
             </div>
          </div>
 
-         {/* 2. Conteúdo do Post (Flex-1 para ocupar o espaço) */}
-         <div className="flex-1">
-            <div className="text-[18px] leading-relaxed text-gray-800">
+         {/* CONTEÚDO DO POST (Area Flexível) */}
+         <div className="flex-1 flex flex-col">
+            <div className="text-[15px] leading-relaxed text-gray-800 w-full">
                 {isSpecialPost ? (
-                    <div className="my-2">
+                    // WRAPPER DE PROTEÇÃO DE LAYOUT:
+                    // Garante que componentes complexos (reviews) não estourem a largura
+                    <div className="w-full overflow-hidden [&_img]:max-w-full [&_img]:h-auto [&_img]:object-contain">
                         <BookPostDispatcher post={post} />
                     </div>
                 ) : (
-                    <div>
+                    <div className="flex flex-col gap-3">
                         {content && (
                             <p className="whitespace-pre-wrap font-medium">{content}</p>
                         )}
+                        {/* Imagem do Post Padrão */}
                         {postCoverSrc && (
-                            <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-50 mt-6 border border-gray-100">
+                            <div className="relative w-full rounded-lg overflow-hidden border border-gray-100 mt-2 bg-gray-50">
+                                {/* Forçamos altura maxima para não esticar demais o card verticalmente */}
                                 <img 
                                     src={postCoverSrc} 
                                     alt="Post media" 
-                                    className="w-full h-full object-cover"
-                                    crossOrigin={postCoverSrc.startsWith('data:') ? undefined : "anonymous"}
+                                    className="w-full h-auto max-h-[350px] object-cover"
+                                    {...(!postCoverSrc.startsWith('data:') ? { crossOrigin: "anonymous" } : {})}
                                 />
                             </div>
                         )}
@@ -149,25 +149,25 @@ export const StoriesPostShareCard = forwardRef<HTMLDivElement, StoriesPostShareC
             </div>
          </div>
 
-         {/* 3. Métricas + Divisória Fina acima */}
-         <div className="pt-6 mt-auto border-t border-gray-100 flex items-center gap-8 text-gray-500 text-sm font-medium w-full">
-            <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
-                {post.likes} <span className="text-xs uppercase tracking-wider ml-1">Curtidas</span>
+         {/* MÉTRICAS (Rodapé do conteúdo) */}
+         <div className="pt-5 mt-auto border-t border-gray-100 flex items-center gap-6 text-gray-400 text-xs font-medium w-full">
+            <div className="flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                {post.likes}
             </div>
-            <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-                {post.commentsCount} <span className="text-xs uppercase tracking-wider ml-1">Comentários</span>
+            <div className="flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                {post.commentsCount}
             </div>
          </div>
       </div>
 
-      {/* --- FOOTER: NOVO LAYOUT --- */}
-      <div className="py-6 text-center w-full border-t border-gray-100 bg-gray-50/30">
+      {/* --- FOOTER: MENSAGEM --- */}
+      <div className="py-5 px-6 text-center w-full border-t border-gray-100 bg-gray-50/50">
           <p className="text-gray-900 text-xs font-medium">
-              Esse post foi feito no Facillit <span className="font-bold text-transparent bg-clip-text bg-brand-gradient">Stories</span>
+              Esse post foi feito no Facillit <span className="font-extrabold text-transparent bg-clip-text bg-brand-gradient">Stories</span>
           </p>
-          <p className="text-gray-400 text-[10px] mt-1 font-light">
+          <p className="text-gray-400 text-[10px] mt-1.5 font-light tracking-wide">
               Crie uma conta no Facillit Hub para conferir mais.
           </p>
       </div>
