@@ -1,40 +1,112 @@
 "use client";
 
-import TrendingTerms from './TrendingTerms'; // Assumindo que você tem esse componente ou eu crio um simples abaixo
+import React from 'react';
+import Image from 'next/image';
+import { UserProfile, StoryCategory } from '../types';
+import CategoryTabs from './CategoryTabs';
+import ProfileSearch from '@/components/ProfileSearch'; // <--- Import
 
-export default function StoriesSidebar() {
+const MOCK_STORIES = [
+    { id: '1', name: 'Facillit', hasUnseen: true, img: '/assets/images/time/igor.jpg' },
+    { id: '2', name: 'Pedro', hasUnseen: false, img: '/assets/images/time/pedro.JPG' },
+    { id: '3', name: 'Escola', hasUnseen: true, img: null },
+    { id: '4', name: 'Clube', hasUnseen: true, img: null },
+    { id: '5', name: 'Evento', hasUnseen: false, img: null },
+];
+
+interface StoriesBarProps {
+  currentUser: UserProfile | null;
+  activeCategory: StoryCategory;
+  onSelectCategory: (cat: StoryCategory) => void;
+  onToggleSidebar: () => void;
+}
+
+export default function StoriesBar({ currentUser, activeCategory, onSelectCategory, onToggleSidebar }: StoriesBarProps) {
+  
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
-    <div className="flex flex-col gap-4 pl-4">
-      {/* Busca */}
-      <div className="relative group">
-         <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500"></i>
-         <input 
-           type="text" 
-           placeholder="Buscar no Facillit" 
-           className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-full py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-blue-500 transition-all outline-none dark:text-white"
-         />
-      </div>
+    <div className="w-full bg-white relative">
+      
+      {/* 1. TÍTULO, HAMBÚRGUER E CABEÇALHO */}
+      <div className="px-4 py-3 cursor-pointer border-b border-gray-50 flex items-center justify-between gap-3">
+         
+         <div className="flex items-center gap-3 flex-1">
+             {/* Botão Hambúrguer (Só Mobile) */}
+             <button 
+                onClick={(e) => { e.stopPropagation(); onToggleSidebar(); }}
+                className="lg:hidden p-2 -ml-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors focus:outline-none"
+             >
+                <i className="fas fa-bars text-xl"></i>
+             </button>
 
-      {/* Box de Trending */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
-         <h3 className="font-extrabold text-lg text-slate-900 dark:text-white mb-4">O que está acontecendo</h3>
-         {/* Se não tiver o componente TrendingTerms, use este placeholder: */}
-         <div className="space-y-4">
-            {[1, 2, 3].map(i => (
-               <div key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800 p-2 -mx-2 rounded transition cursor-pointer">
-                  <div className="flex justify-between text-xs text-slate-500">
-                     <span>Educação • Assunto do Momento</span>
-                     <i className="fas fa-ellipsis-h"></i>
-                  </div>
-                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">ENEM 2024</p>
-                  <p className="text-xs text-slate-500">10.5K posts</p>
-               </div>
-            ))}
+             <div onClick={scrollToTop}>
+                <h1 className="font-bold text-xl text-gray-900">Página Inicial</h1>
+             </div>
+         </div>
+
+         {/* ÁREA DA DIREITA: BUSCA + PERFIL MOBILE */}
+         <div className="flex items-center gap-2">
+             
+             {/* BUSCADOR DE PERFIL (NOVO) */}
+             <ProfileSearch />
+
+             {/* Ícone de perfil mobile (Opcional) */}
+             <div className="lg:hidden w-8 h-8 rounded-full bg-gray-200 relative overflow-hidden border border-gray-100">
+                {currentUser?.avatar_url && <Image src={currentUser.avatar_url} alt="Eu" fill className="object-cover" />}
+             </div>
          </div>
       </div>
 
-      <div className="text-xs text-slate-400 px-2">
-         © 2024 Facillit Hub Inc.
+      {/* 2. ÁREA DE STORIES */}
+      <div className="px-4 py-3 w-full">
+        <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
+          
+          {/* Meu Story */}
+          <div className="flex flex-col items-center gap-1 min-w-[68px] cursor-pointer group">
+             <div className="relative w-[60px] h-[60px] rounded-full p-[2px] border-2 border-dashed border-gray-300 group-hover:border-brand-purple transition-colors">
+                <div className="w-full h-full rounded-full bg-gray-100 overflow-hidden relative">
+                   {currentUser?.avatar_url ? (
+                      <Image src={currentUser.avatar_url} alt="Eu" fill className="object-cover" />
+                   ) : (
+                      <div className="flex items-center justify-center h-full w-full text-gray-400"><i className="fas fa-user"></i></div>
+                   )}
+                </div>
+                {/* GRADIENTE */}
+                <div className="absolute bottom-0 right-0 bg-brand-gradient text-white rounded-full w-5 h-5 flex items-center justify-center border-2 border-white text-[10px] shadow-sm">
+                   <i className="fas fa-plus"></i>
+                </div>
+             </div>
+             <span className="text-[11px] font-medium text-gray-600 truncate w-16 text-center">Seu Story</span>
+          </div>
+
+          {/* Outros Stories */}
+          {MOCK_STORIES.map((story) => (
+            <div key={story.id} className="flex flex-col items-center gap-1 min-w-[68px] cursor-pointer group">
+              <div className={`relative w-[64px] h-[64px] rounded-full p-[2px] transition-transform duration-200 group-hover:scale-105 ${story.hasUnseen ? 'bg-brand-gradient' : 'bg-gray-200'}`}>
+                 <div className="w-full h-full rounded-full border-2 border-white bg-white overflow-hidden relative">
+                    {story.img ? (
+                       <Image src={story.img} alt={story.name} fill className="object-cover" />
+                    ) : (
+                       <div className="flex items-center justify-center h-full w-full text-gray-300 bg-gray-100">
+                          <i className="fas fa-user"></i>
+                       </div>
+                    )}
+                 </div>
+              </div>
+              <span className="text-[11px] font-medium text-gray-600 truncate w-16 text-center">
+                 {story.name}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 3. ABAS DE CATEGORIA */}
+      <div className="px-4 pb-0 w-full overflow-x-auto scrollbar-hide">
+         <CategoryTabs activeCategory={activeCategory} onSelect={onSelectCategory} />
       </div>
     </div>
   );

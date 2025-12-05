@@ -4,16 +4,16 @@ import { useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { UserProfile } from '@/app/dashboard/types';
-import { StoryPost } from '@/app/dashboard/applications/global/stories/types'; // Importar tipo StoryPost
 import { toggleFollow } from './actions';
 import ShareProfileButton from '@/components/sharing/ShareProfileButton';
 import { useToast } from '@/contexts/ToastContext';
 import { VerificationBadge } from '@/components/VerificationBadge'; 
 import PostCard from '@/app/dashboard/applications/global/stories/components/PostCard'; // Reuso do PostCard
+import ProfileSearch from '@/components/ProfileSearch'; // <--- Import
 
 // Estendemos a interface para incluir os stories que vêm da action
 interface EnhancedUserProfile extends UserProfile {
-    stories?: StoryPost[];
+    stories?: any[]; // Usando any aqui para simplificar compatibilidade, idealmente StoryPost[]
     recent_essays?: any[];
     stats_media?: number;
     stats_simulados?: number;
@@ -39,7 +39,7 @@ export default function PublicProfileView({
   followingCount,
 }: PublicProfileViewProps) {
   
-  const [activeTab, setActiveTab] = useState<TabType>('stories'); // Stories como padrão (mais engajamento)
+  const [activeTab, setActiveTab] = useState<TabType>('stories'); 
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [followersCount, setFollowersCount] = useState(initialFollowersCount);
   const [isPending, startTransition] = useTransition();
@@ -77,8 +77,15 @@ export default function PublicProfileView({
   const schoolDisplay = profile.school_name || profile.schoolName;
 
   return (
-    <div className="w-full min-h-screen bg-gray-50 dark:bg-gray-900 pb-20">
+    <div className="w-full min-h-screen bg-gray-50 dark:bg-gray-900 pb-20 relative">
       
+      {/* BOTÃO DE BUSCA FLUTUANTE (TOP LEFT ou RIGHT) */}
+      <div className="absolute top-4 left-4 z-50">
+          <div className="bg-white/80 backdrop-blur-md rounded-full shadow-md p-1">
+             <ProfileSearch />
+          </div>
+      </div>
+
       {/* CAPA */}
       <div className="relative h-64 md:h-80 w-full group">
         {profile.cover_image_url ? (
