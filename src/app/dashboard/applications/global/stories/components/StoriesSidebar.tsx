@@ -1,113 +1,108 @@
+// CAMINHO: src/app/dashboard/applications/global/stories/components/StoriesSidebar.tsx
 "use client";
 
-import React from 'react';
+import Link from 'next/link';
 import Image from 'next/image';
-import { UserProfile, StoryCategory } from '../types';
-import CategoryTabs from './CategoryTabs';
-import ProfileSearch from '@/components/ProfileSearch'; // <--- Import
+import { useSearchParams } from 'next/navigation';
+import { useTransition } from 'react';
 
-const MOCK_STORIES = [
-    { id: '1', name: 'Facillit', hasUnseen: true, img: '/assets/images/time/igor.jpg' },
-    { id: '2', name: 'Pedro', hasUnseen: false, img: '/assets/images/time/pedro.JPG' },
-    { id: '3', name: 'Escola', hasUnseen: true, img: null },
-    { id: '4', name: 'Clube', hasUnseen: true, img: null },
-    { id: '5', name: 'Evento', hasUnseen: false, img: null },
-];
+export default function StoriesSidebar({ user }: { user: any }) {
+  const searchParams = useSearchParams();
+  const currentView = searchParams.get('view') || 'feed'; // 'feed' é o padrão
 
-interface StoriesBarProps {
-  currentUser: UserProfile | null;
-  activeCategory: StoryCategory;
-  onSelectCategory: (cat: StoryCategory) => void;
-  onToggleSidebar: () => void;
-}
-
-export default function StoriesBar({ currentUser, activeCategory, onSelectCategory, onToggleSidebar }: StoriesBarProps) {
-  
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const navItems = [
+    { id: 'feed', label: 'Feed Geral', icon: 'fas fa-home', color: 'text-blue-500' },
+    { id: 'community', label: 'Comunidade', icon: 'fas fa-users', color: 'text-brand-purple' },
+    { id: 'book-club', label: 'Clube do Livro', icon: 'fas fa-book-reader', color: 'text-green-500' }, // Atalho para comunidade
+    { id: 'events', label: 'Eventos', icon: 'fas fa-calendar-alt', color: 'text-orange-500' },      // Atalho para comunidade
+  ];
 
   return (
-    <div className="w-full bg-white relative">
+    <aside className="hidden lg:flex flex-col w-64 h-[calc(100vh-80px)] sticky top-24 pr-4 overflow-y-auto custom-scrollbar">
       
-      {/* 1. TÍTULO, HAMBÚRGUER E CABEÇALHO */}
-      <div className="px-4 py-3 cursor-pointer border-b border-gray-50 flex items-center justify-between gap-3">
-         
-         <div className="flex items-center gap-3 flex-1">
-             {/* Botão Hambúrguer (Só Mobile) */}
-             <button 
-                onClick={(e) => { e.stopPropagation(); onToggleSidebar(); }}
-                className="lg:hidden p-2 -ml-2 text-gray-700 hover:bg-gray-100 rounded-full transition-colors focus:outline-none"
-             >
-                <i className="fas fa-bars text-xl"></i>
-             </button>
-
-             <div onClick={scrollToTop}>
-                <h1 className="font-bold text-xl text-gray-900">Página Inicial</h1>
-             </div>
-         </div>
-
-         {/* ÁREA DA DIREITA: BUSCA + PERFIL MOBILE */}
-         <div className="flex items-center gap-2">
-             
-             {/* BUSCADOR DE PERFIL (NOVO) */}
-             <ProfileSearch />
-
-             {/* Ícone de perfil mobile (Opcional) */}
-             <div className="lg:hidden w-8 h-8 rounded-full bg-gray-200 relative overflow-hidden border border-gray-100">
-                {currentUser?.avatar_url && <Image src={currentUser.avatar_url} alt="Eu" fill className="object-cover" />}
-             </div>
-         </div>
-      </div>
-
-      {/* 2. ÁREA DE STORIES */}
-      <div className="px-4 py-3 w-full">
-        <div className="flex gap-4 overflow-x-auto pb-1 scrollbar-hide">
-          
-          {/* Meu Story */}
-          <div className="flex flex-col items-center gap-1 min-w-[68px] cursor-pointer group">
-             <div className="relative w-[60px] h-[60px] rounded-full p-[2px] border-2 border-dashed border-gray-300 group-hover:border-brand-purple transition-colors">
-                <div className="w-full h-full rounded-full bg-gray-100 overflow-hidden relative">
-                   {currentUser?.avatar_url ? (
-                      <Image src={currentUser.avatar_url} alt="Eu" fill className="object-cover" />
-                   ) : (
-                      <div className="flex items-center justify-center h-full w-full text-gray-400"><i className="fas fa-user"></i></div>
-                   )}
-                </div>
-                {/* GRADIENTE */}
-                <div className="absolute bottom-0 right-0 bg-brand-gradient text-white rounded-full w-5 h-5 flex items-center justify-center border-2 border-white text-[10px] shadow-sm">
-                   <i className="fas fa-plus"></i>
-                </div>
-             </div>
-             <span className="text-[11px] font-medium text-gray-600 truncate w-16 text-center">Seu Story</span>
-          </div>
-
-          {/* Outros Stories */}
-          {MOCK_STORIES.map((story) => (
-            <div key={story.id} className="flex flex-col items-center gap-1 min-w-[68px] cursor-pointer group">
-              <div className={`relative w-[64px] h-[64px] rounded-full p-[2px] transition-transform duration-200 group-hover:scale-105 ${story.hasUnseen ? 'bg-brand-gradient' : 'bg-gray-200'}`}>
-                 <div className="w-full h-full rounded-full border-2 border-white bg-white overflow-hidden relative">
-                    {story.img ? (
-                       <Image src={story.img} alt={story.name} fill className="object-cover" />
+      {/* Mini Perfil */}
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm mb-6 text-center">
+        <div className="relative w-20 h-20 mx-auto mb-3">
+             <div className="w-full h-full rounded-full overflow-hidden border-2 border-brand-purple p-0.5">
+                <div className="w-full h-full rounded-full overflow-hidden relative bg-gray-100">
+                    {user?.avatar_url ? (
+                        <Image src={user.avatar_url} fill alt="Avatar" className="object-cover" />
                     ) : (
-                       <div className="flex items-center justify-center h-full w-full text-gray-300 bg-gray-100">
-                          <i className="fas fa-user"></i>
-                       </div>
+                        <div className="w-full h-full flex items-center justify-center text-2xl text-gray-300 font-bold">
+                            {user?.full_name?.charAt(0) || 'U'}
+                        </div>
                     )}
+                </div>
+             </div>
+             {user?.is_verified && (
+                 <div className="absolute bottom-0 right-0 bg-blue-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs border-2 border-white" title="Verificado">
+                     <i className="fas fa-check"></i>
                  </div>
-              </div>
-              <span className="text-[11px] font-medium text-gray-600 truncate w-16 text-center">
-                 {story.name}
-              </span>
-            </div>
-          ))}
+             )}
+        </div>
+        <h2 className="font-bold text-gray-800 text-lg leading-tight">{user?.full_name || 'Visitante'}</h2>
+        <p className="text-xs text-gray-500 mt-1">@{user?.username || 'usuario'}</p>
+        
+        <div className="flex gap-4 justify-center mt-4 border-t border-gray-50 pt-3">
+             <div className="text-center">
+                 <span className="block font-bold text-gray-800 text-sm">{user?.followers || 0}</span>
+                 <span className="text-[10px] text-gray-400 uppercase font-bold">Seguidores</span>
+             </div>
+             <div className="text-center">
+                 <span className="block font-bold text-gray-800 text-sm">{user?.following || 0}</span>
+                 <span className="text-[10px] text-gray-400 uppercase font-bold">Seguindo</span>
+             </div>
         </div>
       </div>
 
-      {/* 3. ABAS DE CATEGORIA */}
-      <div className="px-4 pb-0 w-full overflow-x-auto scrollbar-hide">
-         <CategoryTabs activeCategory={activeCategory} onSelect={onSelectCategory} />
+      {/* Navegação Principal */}
+      <nav className="space-y-1 mb-6">
+        <h3 className="px-4 text-xs font-bold text-gray-400 uppercase mb-2">Menu</h3>
+        {navItems.map((item) => {
+            const isActive = currentView === item.id || (item.id === 'book-club' && currentView === 'community') || (item.id === 'events' && currentView === 'community');
+            
+            // Redirecionamento inteligente: Clube e Eventos vão para a view de comunidade
+            const targetView = item.id === 'book-club' || item.id === 'events' ? 'community' : item.id;
+
+            return (
+                <Link 
+                    key={item.id}
+                    href={`/dashboard/applications/global/stories?view=${targetView}`}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-sm
+                    ${isActive 
+                        ? 'bg-brand-purple/10 text-brand-purple font-bold shadow-sm border border-brand-purple/20' 
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isActive ? 'bg-white' : 'bg-gray-100'} ${item.color}`}>
+                        <i className={item.icon}></i>
+                    </div>
+                    {item.label}
+                </Link>
+            );
+        })}
+      </nav>
+
+      {/* Atalhos de Tópicos (Filtros) */}
+      <div className="space-y-1">
+        <h3 className="px-4 text-xs font-bold text-gray-400 uppercase mb-2">Tópicos em Alta</h3>
+        {['#RedaçãoNota1000', '#ClubeDoLivro', '#DicasDeEstudo', '#Tecnologia'].map(tag => (
+            <Link 
+                key={tag} 
+                href={`/dashboard/applications/global/stories?q=${tag.replace('#', '')}`}
+                className="block px-4 py-2 text-sm text-gray-500 hover:text-brand-purple hover:bg-purple-50 rounded-lg transition-colors truncate"
+            >
+                {tag}
+            </Link>
+        ))}
       </div>
-    </div>
+
+      {/* Footerzinho */}
+      <div className="mt-auto pt-6 px-4 text-[10px] text-gray-300 text-center">
+        <p>Facillit Stories © 2024</p>
+        <p>Feito com ❤️ pela comunidade</p>
+      </div>
+
+    </aside>
   );
 }

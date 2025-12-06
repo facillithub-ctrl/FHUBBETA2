@@ -1,13 +1,13 @@
 // CAMINHO: src/app/dashboard/applications/global/stories/types.ts
 
-// Tipos de verificação aceitos (atualizados para usar chaves semânticas)
+// Tipos de verificação aceitos
 export type VerificationType = 
-  | 'identity'   // Azul
-  | 'educator'   // Verde
-  | 'official'   // Amarelo/Gold
-  | 'featured'   // Vermelho
-  | 'legacy'     // Roxo
-  | string | null; // Mantém fallback para compatibilidade
+  | 'identity'   
+  | 'educator'   
+  | 'official'   
+  | 'featured'   
+  | 'legacy'     
+  | string | null;
 
 export type UserProfile = {
   id: string;
@@ -15,8 +15,8 @@ export type UserProfile = {
   avatar_url: string | null;
   username: string;
   isVerified?: boolean;
-  verification_badge: string | null; // <--- CAMPO CORRETO DO BANCO
-  badge?: VerificationType;          // Mantido para compatibilidade de tipos antigos
+  verification_badge: string | null;
+  badge?: VerificationType;
   role?: 'student' | 'teacher' | 'admin';
   bio?: string;
   followers?: number;
@@ -54,11 +54,15 @@ export type GamePostType =
   | 'looking-for-group' 
   | 'ranking';          
 
-export type Comment = {
+// --- NOVO TIPO UNIFICADO PARA COMENTÁRIOS ---
+export type CommentData = {
   id: string;
-  user: UserProfile;
+  user: { name: string; avatar: string };
   text: string;
-  createdAt: string;
+  likes: number;
+  timeAgo: string;
+  replies?: CommentData[];
+  parentId?: string | null; // Importante para a recursividade
 };
 
 export type RankingItem = {
@@ -81,7 +85,6 @@ export type StoryPost = {
   subtitle?: string;     
   coverImage?: string;   
   
-  // Metadados completos
   metadata?: {
     tags?: string[]; 
     author?: string;       
@@ -102,7 +105,6 @@ export type StoryPost = {
     quoteText?: string;    
     quotePage?: string;    
     rankingItems?: RankingItem[];
-    // Games
     platform?: string;
     gameTitle?: string;
     achievementName?: string;
@@ -116,9 +118,7 @@ export type StoryPost = {
 
   likes: number;
   commentsCount: number;
-  topComments?: Comment[]; 
+  topComments?: CommentData[]; 
   isLiked?: boolean;
   isSaved?: boolean;
 };
-
-export type BookReviewPost = StoryPost;
