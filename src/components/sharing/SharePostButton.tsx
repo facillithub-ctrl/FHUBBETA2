@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from 'react';
-import { StoryPost } from '@/app/dashboard/applications/global/stories/types';
+import { StoryPost } from '@/app/(hubs)/global/stories/types';
 import { useToast } from '@/contexts/ToastContext';
 import { exportAsImage } from '@/utils/exportAsImage';
 import { StoriesPostShareCard } from './StoriesPostShareCard';

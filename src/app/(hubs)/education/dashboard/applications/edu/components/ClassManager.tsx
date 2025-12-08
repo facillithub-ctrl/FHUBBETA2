@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from 'react';
-import { SchoolClass, UserProfile } from '@/app/dashboard/types';
+import { SchoolClass, UserProfile } from '@/app/(hubs)/education/dashboard/types';
 import { createClass, addUserToClass, removeUserFromClass } from '../actions';
 import { useToast } from '@/contexts/ToastContext';
 import ConfirmationModal from '@/components/ConfirmationModal';

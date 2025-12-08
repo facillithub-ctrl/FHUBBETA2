@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition, useRef, MouseEvent } from 'react';
 // Importação de Ações
 import { Essay, getEssayDetails, submitCorrection, Annotation, AIFeedback, generateAndSaveAIAnalysis } from '../actions';
 // Importação para buscar testes (para o GPS)
-import { getTestsForTeacher } from '@/app/dashboard/applications/test/actions';
+import { getTestsForTeacher } from '@/app/(hubs)/education/dashboard/applications/test/actions';
 import Image from 'next/image';
 import createClient from '@/utils/supabase/client';
 import { useToast } from '@/contexts/ToastContext';

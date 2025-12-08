@@ -2,7 +2,7 @@
 
 import createClient from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { StoryPost } from '@/app/dashboard/applications/global/stories/types'; // Importando tipos corretos
+import { StoryPost } from '@/app/(hubs)/global/stories/types'; // Importando tipos corretos
 
 // --- BUSCAR DADOS COMPLETOS DO PERFIL ---
 export async function getPublicProfile(nickname: string) {

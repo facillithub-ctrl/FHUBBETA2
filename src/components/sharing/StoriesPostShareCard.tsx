@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { forwardRef, useEffect, useState } from 'react';
-import { StoryPost } from '@/app/dashboard/applications/global/stories/types';
-import BookPostDispatcher from '@/app/dashboard/applications/global/stories/components/feeds/books/BookPostDispatcher';
+import { StoryPost } from '@/app/(hubs)/global/stories/types';
+import BookPostDispatcher from '@/app/(hubs)/global/stories/components/feeds/books/BookPostDispatcher';
 import { preloadImage } from '@/utils/exportAsImage';
 
 interface StoriesPostShareCardProps {

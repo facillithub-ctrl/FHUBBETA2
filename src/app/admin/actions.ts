@@ -2,7 +2,7 @@
 
 import createSupabaseServerClient from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-import { EssayPrompt } from "../dashboard/types";
+import { EssayPrompt } from "../(hubs)/education/dashboard/types";
 
 // Helper de Segurança para verificar se o usuário é admin
 async function isAdmin() {

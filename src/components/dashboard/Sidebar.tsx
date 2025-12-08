@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import createClient from '@/utils/supabase/client';
 import { useRouter, usePathname } from 'next/navigation';
-import type { UserProfile } from '@/app/dashboard/types';
+import type { UserProfile } from '@/app/(hubs)/education/dashboard/types';
 import { 
     LayoutDashboard, PenTool, FileText, GraduationCap, BookOpen, 
     Gamepad2, Calendar, PlayCircle, Users, Target, FlaskConical, 

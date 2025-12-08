@@ -3,13 +3,13 @@
 import { useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { UserProfile } from '@/app/dashboard/types';
-import { StoryPost } from '@/app/dashboard/applications/global/stories/types'; // Importar tipo StoryPost
+import { UserProfile } from '@/app/(hubs)/education/dashboard/types';
+import { StoryPost } from '@/app/(hubs)/global/stories/types'; // Importar tipo StoryPost
 import { toggleFollow } from './actions';
 import ShareProfileButton from '@/components/sharing/ShareProfileButton';
 import { useToast } from '@/contexts/ToastContext';
 import { VerificationBadge } from '@/components/VerificationBadge'; 
-import PostCard from '@/app/dashboard/applications/global/stories/components/PostCard'; // Reuso do PostCard
+import PostCard from '@/app/(hubs)/global/stories/components/PostCard'; // Reuso do PostCard
 
 // Estendemos a interface para incluir os stories que vêm da action
 interface EnhancedUserProfile extends UserProfile {

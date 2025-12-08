@@ -14,7 +14,7 @@ import Image from 'next/image';
 import { VerificationBadge } from '@/components/VerificationBadge';
 import { useToast } from '@/contexts/ToastContext';
 import { ShareWriteButton } from '@/components/sharing/ShareWriteButton';
-import { UserProfile } from '@/app/dashboard/types';
+import { UserProfile } from '@/app/(hubs)/education/dashboard/types';
 import Link from 'next/link';
 
 // --- TIPOS LOCAIS ---

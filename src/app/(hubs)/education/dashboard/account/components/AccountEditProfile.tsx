@@ -3,9 +3,9 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import createClient from '@/utils/supabase/client';
-import { UserProfile } from '@/app/dashboard/types';
+import { UserProfile } from '@/app/(hubs)/education/dashboard/types';
 import { useToast } from '@/contexts/ToastContext';
-import AvatarUploader from '@/app/dashboard/profile/AvatarUploader';
+import AvatarUploader from '@/app/(hubs)/education/dashboard/profile/AvatarUploader';
 import CoverUploader from './CoverUploader';
 
 export default function AccountEditProfile({ profile }: { profile: UserProfile }) {

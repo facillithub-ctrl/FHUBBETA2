@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Organization, SchoolClass, UserProfile } from '@/app/dashboard/types';
+import { Organization, SchoolClass, UserProfile } from '@/app/(hubs)/education/dashboard/types';
 import ClassManager from './ClassManager';
 
 // CORREÇÃO: Definimos ClassMember para incluir 'role', satisfazendo o ClassManager

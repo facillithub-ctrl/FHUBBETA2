@@ -1,5 +1,5 @@
 // O caminho da importação foi corrigido para buscar de 'dashboard/types'
-import type { Update } from '@/app/dashboard/types';
+import type { Update } from '@/app/(hubs)/education/dashboard/types';
 
 const moduleNames: { [key: string]: string } = {
   'facillit-write': 'Facillit Write',

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import createSupabaseServerClient from '@/utils/supabase/server';
-import type { Update } from '@/app/dashboard/types';
+import type { Update } from '@/app/(hubs)/education/dashboard/types';
 
 // Helper de Segurança para verificar se o usuário é admin
 async function isAdmin() {

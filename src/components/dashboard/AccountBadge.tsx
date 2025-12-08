@@ -1,7 +1,7 @@
 "use client";
 
 import Image from 'next/image';
-import { UserProfile } from '@/app/dashboard/types';
+import { UserProfile } from '@/app/(hubs)/education/dashboard/types';
 import { VerificationBadge } from '@/components/VerificationBadge';
 
 export default function AccountBadge({ userProfile }: { userProfile: UserProfile }) {

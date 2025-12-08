@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { UserProfile } from '@/app/dashboard/types';
+import { UserProfile } from '@/app/(hubs)/education/dashboard/types';
 import { RefObject } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 

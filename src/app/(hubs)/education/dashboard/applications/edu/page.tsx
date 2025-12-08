@@ -2,7 +2,7 @@ import createSupabaseServerClient from "@/utils/supabase/server";
 import { redirect } from 'next/navigation';
 // ✅ CORREÇÃO FINAL: Apontando para o local correto das actions E dos componentes
 import { getOrganizationData, getUnassignedUsers } from './actions'; 
-import { UserProfile } from "@/app/dashboard/types";
+import { UserProfile } from "@/app/(hubs)/education/dashboard/types";
 import ManageSchools from './components/ManageSchools'; 
 
 // Componente para a visão do Aluno/Professor (Placeholder)

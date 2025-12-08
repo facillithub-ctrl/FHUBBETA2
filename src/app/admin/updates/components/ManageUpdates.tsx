@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { upsertUpdate, deleteUpdate } from '../mutations'; 
-import type { Update } from '@/app/dashboard/types';
+import type { Update } from '@/app/(hubs)/education/dashboard/types';
 import { useToast } from '@/contexts/ToastContext';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import RichTextEditor from '@/components/DynamicRichTextEditor';

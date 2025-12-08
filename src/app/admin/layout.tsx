@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import createSupabaseServerClient from '@/utils/supabase/server';
-import type { UserProfile } from '@/app/dashboard/types';
+import type { UserProfile } from '@/app/(hubs)/education/dashboard/types';
 import AdminClientLayout from './AdminClientLayout';
 
 export default async function AdminLayout({

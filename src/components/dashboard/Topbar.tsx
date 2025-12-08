@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useNotifications } from '@/hooks/useNotifications';
-import { UserProfile } from '@/app/dashboard/types';
+import { UserProfile } from '@/app/(hubs)/education/dashboard/types';
 import { VerificationBadge } from '@/components/VerificationBadge'; 
 
 interface TopbarProps {

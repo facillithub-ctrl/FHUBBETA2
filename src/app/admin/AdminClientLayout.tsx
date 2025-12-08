@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import type { UserProfile } from '@/app/dashboard/types';
+import type { UserProfile } from '@/app/(hubs)/education/dashboard/types';
 import AdminSidebar from './AdminSidebar';
 import Topbar from '@/components/dashboard/Topbar';
 import { ToastProvider } from '@/contexts/ToastContext';

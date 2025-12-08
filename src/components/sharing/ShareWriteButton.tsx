@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from 'react';
-import { UserProfile } from '@/app/dashboard/types';
+import { UserProfile } from '@/app/(hubs)/education/dashboard/types';
 import { WriteShareCard, WriteShareStats } from './WriteShareCard';
 import { useProfileShare } from '@/features/share'; 
 

@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import createClient from '@/utils/supabase/client';
 import { upsertPrompt, deletePrompt } from '../../actions';
-import type { EssayPrompt } from '@/app/dashboard/types';
+import type { EssayPrompt } from '@/app/(hubs)/education/dashboard/types';
 import Image from 'next/image';
 import { useToast } from '@/contexts/ToastContext';
 import ConfirmationModal from '@/components/ConfirmationModal';

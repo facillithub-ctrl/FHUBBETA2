@@ -3,8 +3,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { redirect } from 'next/navigation';
 // Actions
-import { getEssaysForStudent, getStudentStatistics, getPendingEssaysForTeacher } from '@/app/dashboard/applications/write/actions';
-import { getStudentTestDashboardData, getCampaignsForStudent, getTeacherDashboardData } from '@/app/dashboard/applications/test/actions';
+import { getEssaysForStudent, getStudentStatistics, getPendingEssaysForTeacher } from '@/app/(hubs)/education/dashboard/applications/write/actions';
+import { getStudentTestDashboardData, getCampaignsForStudent, getTeacherDashboardData } from '@/app/(hubs)/education/dashboard/applications/test/actions';
 import { client, urlFor } from '@/lib/sanity';
 import CountdownWidget from '@/components/dashboard/CountdownWidget';
 import LearningGPS from '@/components/learning-gps/LearningGPS';

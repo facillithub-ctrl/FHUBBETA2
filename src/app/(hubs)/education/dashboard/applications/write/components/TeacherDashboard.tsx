@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import CorrectionInterface from './CorrectionInterface';
 import EssayCorrectionView from './EssayCorrectionView';
-import type { UserProfile } from '@/app/dashboard/types';
+import type { UserProfile } from '@/app/(hubs)/education/dashboard/types';
 
 type EssayListItem = {
   id: string;
