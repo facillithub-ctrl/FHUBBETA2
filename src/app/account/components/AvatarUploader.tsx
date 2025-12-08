@@ -1,10 +1,11 @@
 'use client'
 
 import React, { useState } from 'react'
-import { createClient } from '@/utils/supabase/client' // Ajuste conforme seu utils
+// CORREÇÃO: Import sem chaves
+import createClient from '@/utils/supabase/client' 
 import { Camera, Loader2, User } from 'lucide-react'
 import Image from 'next/image'
-import { useToast } from '@/components/ToastContext' // Ajuste conforme seu path de toast
+import { useToast } from '@/contexts/ToastContext' // Confirme este caminho também
 
 export default function AvatarUploader({ 
   url, 
@@ -16,6 +17,10 @@ export default function AvatarUploader({
   size?: number
 }) {
   const supabase = createClient()
+  // ... resto do código igual ...
+  // Vou manter o código curto para não encher a resposta, a lógica é a mesma do passo anterior
+  // O importante é a linha do import createClient
+  
   const [uploading, setUploading] = useState(false)
   const { addToast } = useToast()
 
@@ -32,7 +37,7 @@ export default function AvatarUploader({
       const filePath = `${Math.random()}.${fileExt}`
 
       const { error: uploadError } = await supabase.storage
-        .from('avatars') // Certifique-se que este bucket existe no Supabase
+        .from('avatars')
         .upload(filePath, file)
 
       if (uploadError) {
@@ -56,7 +61,7 @@ export default function AvatarUploader({
       >
         {url ? (
           <Image
-            src={url} // Nota: Você pode precisar de uma função helper para pegar a URL pública completa se 'url' for apenas o path
+            src={url} 
             alt="Avatar"
             fill
             className="object-cover"
@@ -67,7 +72,6 @@ export default function AvatarUploader({
           </div>
         )}
 
-        {/* Overlay de Upload */}
         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <label className="cursor-pointer flex flex-col items-center text-white gap-1 p-2">
             {uploading ? <Loader2 className="animate-spin" /> : <Camera />}

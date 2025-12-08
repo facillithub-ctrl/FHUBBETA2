@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
-// CORREÇÃO 1: Importar tipos de um local acessível (crie esse types.ts na raiz de /account se não existir)
+// CORREÇÃO: Remover as chaves { } do createClient
+import createClient from '@/utils/supabase/client'; 
+// Ajuste o caminho dos tipos se necessário. Se types.ts estiver em src/app/account/types.ts, use '../types'
 import { UserProfile } from '../../types'; 
 import { useToast } from '@/contexts/ToastContext';
-// CORREÇÃO 2: Import relativo (pois agora estão na mesma pasta components)
 import AvatarUploader from './AvatarUploader'; 
 import CoverUploader from './CoverUploader';
 import { Save, Loader2 } from 'lucide-react';
@@ -55,7 +55,7 @@ export default function AccountEditProfile({ profile }: { profile: UserProfile }
         <div className="flex flex-col items-center p-6 bg-white rounded-2xl border border-neutral-100 shadow-sm">
             <h3 className="text-sm font-semibold text-neutral-500 mb-4 w-full text-left">Foto de Perfil</h3>
             <AvatarUploader 
-                url={formData.avatar_url} // Certifique-se de tratar a URL completa aqui se necessário
+                url={formData.avatar_url}
                 onUpload={(url) => setFormData({ ...formData, avatar_url: url })}
             />
         </div>
