@@ -1,7 +1,6 @@
-'use client'; // <--- ESTA LINHA É OBRIGATÓRIA QUANDO SE USA useState
+'use client';
 
 import React, { useState } from 'react';
-// Certifique-se que moveu a Sidebar e Topbar para esta pasta conforme combinamos
 import EducationSidebar from './components/Sidebar';
 import EducationTopbar from './components/Topbar';
 
@@ -10,25 +9,33 @@ export default function EducationLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Desktop
 
   return (
-    <div className="flex h-screen bg-neutral-50">
-      {/* Sidebar Local */}
+    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+      
+      {/* Sidebar Controlada */}
       <EducationSidebar 
         isOpen={isSidebarOpen} 
-        onClose={() => setIsSidebarOpen(false)} 
+        isCollapsed={isSidebarCollapsed}
+        toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onCloseMobile={() => setIsSidebarOpen(false)} 
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Topbar Local */}
+      {/* Área de Conteúdo */}
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 relative">
+        
+        {/* Topbar */}
         <EducationTopbar 
           onMenuClick={() => setIsSidebarOpen(true)} 
         />
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          {children}
+        {/* Scrollable Main Content */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 scroll-smooth">
+          <div className="w-full max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {children}
+          </div>
         </main>
       </div>
     </div>

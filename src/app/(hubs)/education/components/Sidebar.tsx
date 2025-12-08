@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
@@ -15,7 +15,6 @@ import {
   ChevronRight,
   LogOut,
   Settings,
-  HelpCircle,
   X
 } from 'lucide-react';
 import Image from 'next/image';
@@ -35,17 +34,19 @@ export default function EducationSidebar({
 }: SidebarProps) {
   const pathname = usePathname();
 
-  // Helper para estilo ativo
-  const isActive = (path: string) => pathname === path || pathname?.startsWith(`${path}/`);
+  const isActive = (path: string) => {
+    if (path === '/education' && pathname === '/education') return true;
+    if (path !== '/education' && pathname?.startsWith(path)) return true;
+    return false;
+  };
 
-  // Lista de Módulos (No futuro, você pode filtrar isso baseado nas permissões do usuário)
   const modules = [
-    { title: 'Visão Geral', path: '/education', icon: <LayoutDashboard size={20} />, enabled: true },
-    { title: 'Redação', path: '/education/applications/write', icon: <Pencil size={20} />, enabled: true },
-    { title: 'Simulados', path: '/education/applications/test', icon: <CheckCircle size={20} />, enabled: true },
-    { title: 'Biblioteca', path: '/education/applications/library', icon: <Library size={20} />, enabled: true },
-    { title: 'Aulas', path: '/education/applications/edu', icon: <PlayCircle size={20} />, enabled: true }, // Exemplo: desabilitado se o plano não permitir
-    { title: 'Jogos', path: '/education/applications/games', icon: <Gamepad2 size={20} />, enabled: false }, 
+    { title: 'Visão Geral', path: '/education', icon: <LayoutDashboard size={22} />, enabled: true },
+    { title: 'Redação', path: '/education/applications/write', icon: <Pencil size={22} />, enabled: true },
+    { title: 'Simulados', path: '/education/applications/test', icon: <CheckCircle size={22} />, enabled: true },
+    { title: 'Biblioteca', path: '/education/applications/library', icon: <Library size={22} />, enabled: true },
+    { title: 'Aulas', path: '/education/applications/edu', icon: <PlayCircle size={22} />, enabled: true },
+    { title: 'Jogos', path: '/education/applications/games', icon: <Gamepad2 size={22} />, enabled: false }, 
   ];
 
   return (
@@ -53,7 +54,7 @@ export default function EducationSidebar({
       {/* Overlay Mobile */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden"
           onClick={onCloseMobile}
         />
       )}
@@ -61,21 +62,21 @@ export default function EducationSidebar({
       {/* Sidebar Container */}
       <aside 
         className={`
-          fixed top-0 left-0 z-50 h-full bg-white border-r border-neutral-200 shadow-sm
-          transition-all duration-300 ease-in-out
+          fixed top-0 left-0 z-50 h-full bg-white border-r border-neutral-200 shadow-xl lg:shadow-none
+          transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]
           ${isOpen ? 'translate-x-0' : '-translate-x-full'} 
           lg:translate-x-0 lg:static
-          ${isCollapsed ? 'w-20' : 'w-64'}
+          ${isCollapsed ? 'w-[88px]' : 'w-72'}
         `}
       >
         <div className="flex flex-col h-full">
           
-          {/* Header: Logo & Collapse Toggle */}
-          <div className={`h-16 flex items-center border-b border-neutral-100 px-4 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+          {/* Header: Logo */}
+          <div className={`h-20 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between px-6'} border-b border-neutral-100`}>
             
-            {!isCollapsed && (
-              <Link href="/education" className="flex items-center gap-2 overflow-hidden">
-                <div className="relative w-8 h-8 min-w-[2rem]">
+            {!isCollapsed ? (
+              <Link href="/education" className="flex items-center gap-3 group">
+                <div className="relative w-8 h-8 transition-transform group-hover:scale-110">
                    <Image 
                      src="/assets/images/LOGO/isologo/azul.png" 
                      alt="FH" 
@@ -83,98 +84,92 @@ export default function EducationSidebar({
                      className="object-contain"
                    />
                 </div>
-                <span className="font-bold text-lg text-neutral-800 whitespace-nowrap">Education</span>
+                <span className="font-bold text-xl text-neutral-800 tracking-tight">Education</span>
               </Link>
-            )}
-            
-            {isCollapsed && (
-               <div className="relative w-8 h-8">
+            ) : (
+               <Link href="/education" className="relative w-9 h-9 hover:scale-110 transition-transform">
                  <Image src="/assets/images/LOGO/isologo/azul.png" alt="FH" fill className="object-contain"/>
-               </div>
+               </Link>
             )}
 
-            {/* Mobile Close Button */}
-            <button onClick={onCloseMobile} className="lg:hidden text-neutral-500">
+            <button onClick={onCloseMobile} className="lg:hidden p-2 text-neutral-400 hover:text-neutral-600">
               <X size={24} />
             </button>
 
             {/* Desktop Collapse Button */}
             <button 
               onClick={toggleCollapse}
-              className="hidden lg:flex p-1.5 rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-blue-600 transition-colors"
+              className="hidden lg:flex p-1.5 rounded-lg text-neutral-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
             >
-              {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+              {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
             </button>
           </div>
 
           {/* Navigation Items */}
-          <nav className="flex-1 overflow-y-auto py-6 space-y-1 custom-scrollbar">
+          <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2 custom-scrollbar">
             
-            {/* Título da Seção (Apenas se expandido) */}
             {!isCollapsed && (
-              <div className="px-6 mb-2 text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                Módulos
+              <div className="px-4 mb-3 text-[11px] font-bold text-neutral-400 uppercase tracking-widest opacity-80">
+                Menu Principal
               </div>
             )}
 
             {modules.map((item) => {
-              if (!item.enabled) return null; // Não renderiza se não estiver habilitado
-
+              if (!item.enabled) return null;
               const active = isActive(item.path);
               
               return (
-                <div key={item.path} className="px-3">
-                  <Link
-                    href={item.path}
-                    title={isCollapsed ? item.title : ''}
-                    className={`
-                      flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group
-                      ${active 
-                        ? 'bg-blue-50 text-blue-600 shadow-sm shadow-blue-100' 
-                        : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}
-                      ${isCollapsed ? 'justify-center' : ''}
-                    `}
-                  >
-                    <div className={`${active ? 'text-blue-600' : 'text-neutral-500 group-hover:text-neutral-700'}`}>
-                      {item.icon}
-                    </div>
-                    
-                    {!isCollapsed && (
-                      <span className="text-sm font-medium whitespace-nowrap">
-                        {item.title}
-                      </span>
-                    )}
-                  </Link>
-                </div>
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  title={isCollapsed ? item.title : ''}
+                  className={`
+                    flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-200 group relative
+                    ${active 
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 font-medium' 
+                      : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900'}
+                    ${isCollapsed ? 'justify-center px-0' : ''}
+                  `}
+                >
+                  <div className={`relative z-10 flex items-center justify-center ${active ? 'text-white' : 'text-neutral-500 group-hover:text-blue-600 transition-colors'}`}>
+                    {item.icon}
+                  </div>
+                  
+                  {!isCollapsed && (
+                    <span className="relative z-10 text-sm">
+                      {item.title}
+                    </span>
+                  )}
+                </Link>
               );
             })}
           </nav>
 
           {/* Footer Actions */}
-          <div className="p-3 border-t border-neutral-100 space-y-1">
+          <div className="p-4 border-t border-neutral-100 space-y-2 bg-neutral-50/30">
              <Link
-                href="/account" // Rota global de conta
+                href="/account" // Rota global absoluta para a conta
                 title="Minha Conta"
                 className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors
-                  text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900
-                  ${isCollapsed ? 'justify-center' : ''}
+                  flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors
+                  text-neutral-600 hover:bg-white hover:shadow-md border border-transparent hover:border-neutral-100
+                  ${isCollapsed ? 'justify-center px-0' : ''}
                 `}
               >
-                <Settings size={20} />
-                {!isCollapsed && <span className="text-sm font-medium">Configurações</span>}
+                <Settings size={22} className="text-neutral-500" />
+                {!isCollapsed && <span className="text-sm font-medium">Minha Conta</span>}
               </Link>
 
               <Link
                 href="/selection"
                 title="Trocar Hub"
                 className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors
-                  text-neutral-600 hover:bg-red-50 hover:text-red-600
-                  ${isCollapsed ? 'justify-center' : ''}
+                  flex items-center gap-3 px-4 py-3 rounded-2xl transition-colors
+                  text-neutral-600 hover:bg-red-50 hover:text-red-600 hover:shadow-sm border border-transparent
+                  ${isCollapsed ? 'justify-center px-0' : ''}
                 `}
               >
-                <LogOut size={20} />
+                <LogOut size={22} className="hover:text-red-600" />
                 {!isCollapsed && <span className="text-sm font-medium">Trocar Hub</span>}
               </Link>
           </div>
