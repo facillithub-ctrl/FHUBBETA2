@@ -1,68 +1,36 @@
-import { redirect } from 'next/navigation';
-import createSupabaseServerClient from '@/utils/supabase/server';
-import type { UserProfile } from './types';
-import DashboardClientLayout from './DashboardClientLayout';
+'use client'; // <--- ESTA LINHA É OBRIGATÓRIA QUANDO SE USA useState
 
-export default async function DashboardLayout({
+import React, { useState } from 'react';
+// Certifique-se que moveu a Sidebar e Topbar para esta pasta conforme combinamos
+import EducationSidebar from './components/Sidebar';
+import EducationTopbar from './components/Topbar';
+
+export default function EducationLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createSupabaseServerClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect('/login');
-  }
-  
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-
-  if (error && error.code !== 'PGRST116') {
-    console.error("Erro ao buscar perfil:", error); 
-  }
-
-  // Constrói o objeto UserProfile garantindo que não seja undefined
-  // A tipagem agora aceita null, mas garantimos arrays vazios para active_modules
-  const userProfile: UserProfile = profile ? {
-    id: profile.id,
-    fullName: profile.full_name,
-    userCategory: profile.user_category,
-    avatarUrl: profile.avatar_url,
-    pronoun: profile.pronoun,
-    nickname: profile.nickname,
-    birthDate: profile.birth_date,
-    schoolName: profile.school_name,
-    organization_id: profile.organization_id,
-    target_exam: profile.target_exam,
-    verification_badge: profile.verification_badge,
-    active_modules: profile.active_modules || [], // Garante array
-    has_completed_onboarding: profile.has_completed_onboarding,
-    email: user.email
-  } : {
-    id: user.id,
-    fullName: user.email?.split('@')[0] || 'Usuário',
-    userCategory: null,
-    avatarUrl: null,
-    pronoun: null,
-    nickname: null,
-    birthDate: null,
-    schoolName: null,
-    organization_id: null,
-    target_exam: null,
-    verification_badge: null,
-    active_modules: [],
-    has_completed_onboarding: false,
-    email: user.email
-  };
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <DashboardClientLayout userProfile={userProfile}>
-      {children}
-    </DashboardClientLayout>
+    <div className="flex h-screen bg-neutral-50">
+      {/* Sidebar Local */}
+      <EducationSidebar 
+        isOpen={isSidebarOpen} 
+        onClose={() => setIsSidebarOpen(false)} 
+      />
+
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Topbar Local */}
+        <EducationTopbar 
+          onMenuClick={() => setIsSidebarOpen(true)} 
+        />
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          {children}
+        </main>
+      </div>
+    </div>
   );
 }
