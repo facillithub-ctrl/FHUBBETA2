@@ -50,7 +50,7 @@
   "framer-motion": "^12.23.25",
   "html-to-image": "^1.11.13",
   "lucide-react": "^0.378.0",
-  "next": "^16.0.7",
+  "next": "^15.5.7",
   "next-sanity": "^9.0.0",
   "nextjs-toploader": "^3.9.17",
   "openai": "^4.47.1",
