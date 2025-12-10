@@ -2,29 +2,22 @@
 
 import createClient from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { StoryPost, StoryCategory, VerificationType } from './types';
+import { StoryPost, StoryCategory, VerificationType, Comment } from './types';
 
-const FEED_PATH = '/dashboard/applications/global/stories';
+const FEED_PATH = '/global/stories';
 
-// --- HELPER DE MAPEAMENTO ---
-// Transforma o dado cru do banco no formato que o componente espera
+// --- HELPER: Mapeamento de Dados ---
 const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
-  // Verifica like do usuário atual
   const isLikedByMe = row.my_like && Array.isArray(row.my_like) 
     ? row.my_like.some((l: any) => l.user_id === currentUserId) 
     : false;
 
-  // Fallback seguro para usuário
   const user = row.user || { 
     id: 'unknown', full_name: 'Usuário Desconhecido', avatar_url: null, username: 'user' 
   };
 
-  const role = user.role || 'student';
-  const isVerified = !!user.is_verified;
-  
-  // LÓGICA DE BADGE ROBUSTA
-  // Prioriza verification_badge (novo padrão), depois tenta badge (legado)
-  const badgeValue: VerificationType = user.verification_badge || user.badge || null;
+  // Tratamento robusto para badges e verificação
+  const verificationBadge = user.verification_badge || user.badge || null;
 
   return {
     id: row.id,
@@ -35,12 +28,12 @@ const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
       name: user.full_name,
       avatar_url: user.avatar_url,
       username: user.nickname || user.username || 'user',
-      isVerified,
-      verification_badge: badgeValue, // Campo principal
-      badge: badgeValue,              // Fallback para componentes antigos
-      role
+      isVerified: !!user.is_verified,
+      verification_badge: verificationBadge,
+      badge: verificationBadge, // Mantém compatibilidade com tipos antigos
+      role: user.role || 'student'
     },
-    createdAt: new Date(row.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
+    createdAt: new Date(row.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
     content: row.content || '',
     title: row.title,           
     subtitle: row.subtitle,     
@@ -53,30 +46,16 @@ const mapToStoryPost = (row: any, currentUserId?: string): StoryPost => {
   };
 };
 
-// --- BUSCAR FEED ---
-export async function getStoriesFeed(
-  category: StoryCategory = 'all', 
-  limit: number = 20
-): Promise<StoryPost[]> {
+// --- FEED PRINCIPAL ---
+export async function getStoriesFeed(category: StoryCategory = 'all', limit: number = 20): Promise<StoryPost[]> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // QUERY PRINCIPAL CORRIGIDA
-  // Adicionado 'verification_badge' explicitamente no select do user:profiles
   let query = supabase
     .from('stories_posts')
     .select(`
       *,
-      user:profiles!stories_posts_user_id_fkey (
-        id, 
-        full_name, 
-        avatar_url, 
-        nickname, 
-        is_verified, 
-        role, 
-        verification_badge,
-        badge 
-      ),
+      user:profiles!stories_posts_user_id_fkey (id, full_name, avatar_url, nickname, is_verified, role, verification_badge, badge),
       likes:stories_likes(count),
       comments:stories_comments(count),
       my_like:stories_likes(user_id)
@@ -84,65 +63,18 @@ export async function getStoriesFeed(
     .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (category !== 'all') {
-    query = query.eq('category', category);
-  }
+  if (category !== 'all') query = query.eq('category', category);
 
   const { data, error } = await query;
-
-  if (error) {
-    console.error("Erro ao buscar feed:", error);
-    // Tentativa de fallback simplificado se a query falhar (ex: coluna não existe)
-    if (error.code === '42703' || error.message.includes('does not exist')) {
-        console.warn("⚠️ Coluna de badge pode estar ausente. Tentando query simplificada.");
-        const fallbackQuery = supabase
-            .from('stories_posts')
-            .select(`
-              *,
-              user:profiles!stories_posts_user_id_fkey (id, full_name, avatar_url, nickname, is_verified),
-              likes:stories_likes(count),
-              comments:stories_comments(count),
-              my_like:stories_likes(user_id)
-            `)
-            .order('created_at', { ascending: false })
-            .limit(limit);
-            
-        if (category !== 'all') fallbackQuery.eq('category', category);
-
-        const { data: fallbackData } = await fallbackQuery;
-        return (fallbackData || []).map(row => mapToStoryPost(row, user?.id));
-    }
-    return [];
+  if (error) { 
+      console.error("Feed error:", error); 
+      return []; 
   }
   
   return (data || []).map(row => mapToStoryPost(row, user?.id));
 }
 
-// --- BUSCAR POST POR ID ---
-export async function getPostById(postId: string): Promise<StoryPost | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  // Query corrigida com 'verification_badge'
-  const { data, error } = await supabase
-    .from('stories_posts')
-    .select(`
-        *, 
-        user:profiles!stories_posts_user_id_fkey (
-            id, full_name, avatar_url, nickname, is_verified, role, verification_badge, badge
-        ), 
-        likes:stories_likes(count), 
-        comments:stories_comments(count), 
-        my_like:stories_likes(user_id)
-    `)
-    .eq('id', postId)
-    .single();
-
-  if (error || !data) return null;
-  return mapToStoryPost(data, user?.id);
-}
-
-// --- CRIAR POST (COM UPLOAD) ---
+// --- CRIAR POST ---
 export async function createStoryPost(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -156,30 +88,22 @@ export async function createStoryPost(formData: FormData) {
   const title = formData.get('title') as string;
   const subtitle = formData.get('subtitle') as string;
 
-  let metadata = {};
-  if (metadataStr) {
-      try { metadata = JSON.parse(metadataStr); } catch (e) { console.error("Metadata error", e); }
-  }
-  
   let coverImageUrl = null;
 
   if (file && file.size > 0) {
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-          .from('stories-media')
-          .upload(fileName, file);
-
+      const { error: uploadError } = await supabase.storage.from('stories-media').upload(fileName, file);
       if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage
-              .from('stories-media')
-              .getPublicUrl(fileName);
-          coverImageUrl = publicUrl;
+          const { data } = supabase.storage.from('stories-media').getPublicUrl(fileName);
+          coverImageUrl = data.publicUrl;
       }
   }
 
-  const { error } = await supabase.from('stories_posts').insert({
+  let metadata = {};
+  try { metadata = JSON.parse(metadataStr || '{}'); } catch {}
+
+  await supabase.from('stories_posts').insert({
     user_id: user.id,
     category,
     type,
@@ -190,15 +114,10 @@ export async function createStoryPost(formData: FormData) {
     metadata,
   });
 
-  if (error) {
-      console.error("Erro create:", error);
-      throw error;
-  }
-
   revalidatePath(FEED_PATH);
 }
 
-// --- DELETAR ---
+// --- DELETAR POST (Restaurado) ---
 export async function deleteStoryPost(postId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -208,16 +127,86 @@ export async function deleteStoryPost(postId: string) {
   revalidatePath(FEED_PATH);
 }
 
-// --- LIKE ---
-export async function togglePostLike(postId: string, currentLikedState: boolean) {
+// --- LIKES (Corrigido para aceitar 2 argumentos) ---
+export async function togglePostLike(postId: string, currentLikedState?: boolean) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  if (!user) return false;
 
-  if (currentLikedState) {
+  // Se currentLikedState for fornecido, usamos ele para economizar uma query,
+  // caso contrário verificamos no banco.
+  let shouldDelete = currentLikedState;
+
+  if (typeof shouldDelete === 'undefined') {
+      const { data: existing } = await supabase
+        .from('stories_likes')
+        .select('id')
+        .match({ post_id: postId, user_id: user.id })
+        .single();
+      shouldDelete = !!existing;
+  }
+
+  if (shouldDelete) {
     await supabase.from('stories_likes').delete().match({ post_id: postId, user_id: user.id });
   } else {
     await supabase.from('stories_likes').upsert({ post_id: postId, user_id: user.id }, { onConflict: 'post_id, user_id' });
   }
+  
   revalidatePath(FEED_PATH);
+  return !shouldDelete;
+}
+
+// --- COMENTÁRIOS ---
+export async function getPostComments(postId: string): Promise<Comment[]> {
+  const supabase = await createClient();
+  
+  const { data } = await supabase
+    .from('stories_comments')
+    .select(`
+        id, text, created_at,
+        user:profiles!stories_comments_user_id_fkey (id, full_name, avatar_url, nickname)
+    `)
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true });
+
+  return (data || []).map((c: any) => ({
+      id: c.id,
+      text: c.text,
+      createdAt: new Date(c.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
+      user: {
+          id: c.user.id,
+          name: c.user.full_name,
+          username: c.user.nickname,
+          avatar_url: c.user.avatar_url
+      }
+  }));
+}
+
+export async function addPostComment(postId: string, text: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('stories_comments')
+    .insert({ post_id: postId, user_id: user.id, text })
+    .select(`
+        id, text, created_at,
+        user:profiles!stories_comments_user_id_fkey (id, full_name, avatar_url, nickname)
+    `)
+    .single();
+
+  if (error) return null;
+
+  return {
+      id: data.id,
+      text: data.text,
+      createdAt: 'Agora',
+      user: {
+          id: data.user.id,
+          name: data.user.full_name,
+          username: data.user.nickname,
+          avatar_url: data.user.avatar_url
+      }
+  };
 }

@@ -67,7 +67,7 @@ export default function HubSelectionPage() {
                   </div>
                   
                   <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-pink-600 group-hover:to-brand-purple transition-all">
-                    Global Hub
+                    For Global
                   </h2>
                   <p className="text-gray-500 text-base md:text-lg leading-relaxed mb-6">
                     O coração da comunidade. Explore histórias inspiradoras, conecte-se com estudantes de todo o mundo e fique por dentro das tendências.
@@ -127,7 +127,7 @@ export default function HubSelectionPage() {
                 </div>
 
                 <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
-                  Education Hub
+                  For Education
                 </h2>
                 <p className="text-gray-500 text-sm mb-6 line-clamp-2">
                   Ferramentas focadas no seu desempenho acadêmico e aprendizado contínuo.
