@@ -15,8 +15,10 @@ interface TopbarProps {
 export default function EducationTopbar({ onMenuClick }: TopbarProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [loading, setLoading] = useState(true);
+  
+  // A primeira posição do array (loading) foi ignorada pois não é usada
+  const [, setLoading] = useState(true);
+  
   const dropdownRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
