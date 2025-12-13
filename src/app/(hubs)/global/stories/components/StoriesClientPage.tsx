@@ -5,14 +5,12 @@ import { UserProfile, StoryCategory } from '../types';
 import { createStoryPost } from '../actions';
 
 // Componentes
-import StoriesBar from './StoriesBar'; // Topo com abas e stories
-import CreatePostWidget from './CreatePostWidget'; // Widget estilo X/Twitter
-import BookFeed from './feeds/BookFeed'; // Feed inteligente
-import StoriesSidebar from './StoriesSidebar'; // Sidebar direita (Trending)
-import CreateReviewModal from './CreateReviewModal'; // Modal avançado (Assumindo existência)
-import { 
-  Home, Hash, Bell, Bookmark, User, Users, BookOpen
-} from 'lucide-react';
+import StoriesBar from './StoriesBar';
+import CreatePostWidget from './CreatePostWidget';
+import BookFeed from './feeds/BookFeed';
+import StoriesSidebar from './StoriesSidebar';
+import CreateReviewModal from './CreateReviewModal';
+import { Home, Hash, Bell, Bookmark, User, Users, BookOpen, PenTool } from 'lucide-react';
 import Link from 'next/link';
 
 interface Props {
@@ -22,29 +20,21 @@ interface Props {
 export default function StoriesClientPage({ currentUser }: Props) {
   const [activeCategory, setActiveCategory] = useState<StoryCategory>('all');
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Wrapper para criar post simples (Status)
-  const handleSimplePost = async (formData: FormData) => {
-    await createStoryPost(formData);
-    // O Feed se atualiza automaticamente via server actions revalidatePath, 
-    // mas em uma implementação real full, usaríamos um refresh hook aqui.
-  };
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] dark:bg-black text-slate-900 dark:text-white font-inter flex justify-center">
+    <div className="min-h-screen bg-white dark:bg-black font-inter flex justify-center">
       
-      {/* --- COLUNA ESQUERDA (Navegação Fixa) --- */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-[275px] bg-white dark:bg-black border-r border-gray-200 dark:border-gray-800 transform ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:block transition-transform duration-200 ease-in-out`}>
-        <div className="h-full flex flex-col p-4">
+      {/* --- COLUNA ESQUERDA (Nav Fixa) --- */}
+      <header className="hidden lg:flex flex-col w-[275px] h-screen sticky top-0 px-4 py-6 border-r border-gray-100 justify-between items-end pr-6">
+        <div className="w-full">
           {/* Logo */}
-          <div className="mb-6 px-3">
+          <Link href="/" className="block mb-8 pl-2">
              <div className="w-10 h-10 bg-brand-gradient rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-purple-500/20">
                F
              </div>
-          </div>
+          </Link>
 
-          <nav className="space-y-1 flex-1">
+          <nav className="space-y-1 w-full">
             <NavItem href="/global/stories" icon={<Home size={26} />} label="Início" active />
             <NavItem href="/global/explore" icon={<Hash size={26} />} label="Explorar" />
             <NavItem href="/education/library" icon={<BookOpen size={26} />} label="Minha Estante" />
@@ -53,93 +43,85 @@ export default function StoriesClientPage({ currentUser }: Props) {
             <NavItem href={`/u/${currentUser.username}`} icon={<User size={26} />} label="Perfil" />
           </nav>
 
-          {/* Botão de Ação */}
+          {/* Botão de Ação "Escrever" */}
           <button 
             onClick={() => setIsReviewModalOpen(true)}
-            className="w-full mt-4 bg-brand-gradient text-white font-bold py-3.5 rounded-full shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+            className="w-full mt-8 bg-brand-gradient text-white font-bold py-3.5 rounded-full shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3 text-lg"
           >
-            <span className="text-lg">Escrever Resenha</span>
+            <PenTool size={20} />
+            <span className="hidden xl:inline">Publicar</span>
           </button>
+        </div>
 
-          {/* Mini Perfil */}
-          <div className="mt-6 flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full cursor-pointer transition-colors">
-             <div className="w-10 h-10 rounded-full bg-gray-300 relative overflow-hidden">
-                {/* Avatar Image Here */}
+        {/* Mini Perfil */}
+        <div className="w-full mt-auto flex items-center gap-3 p-3 hover:bg-gray-100 rounded-full cursor-pointer transition-colors mb-2">
+             <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-gray-200 relative">
+                {currentUser.avatar_url && <img src={currentUser.avatar_url} className="w-full h-full object-cover" alt="" />}
              </div>
-             <div className="flex-1 overflow-hidden">
-                <p className="font-bold text-sm truncate">{currentUser.name}</p>
+             <div className="hidden xl:block flex-1 overflow-hidden">
+                <p className="font-bold text-sm text-gray-900 truncate">{currentUser.name}</p>
                 <p className="text-gray-500 text-xs truncate">@{currentUser.username}</p>
              </div>
-          </div>
         </div>
-      </aside>
+      </header>
 
-      {/* Overlay Mobile */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
-      )}
-
-      {/* --- COLUNA CENTRAL (Feed) --- */}
-      <main className="w-full md:w-[600px] lg:w-[640px] min-h-screen border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-black">
+      {/* --- COLUNA CENTRAL (Feed Infinito) --- */}
+      <main className="w-full md:w-[600px] min-h-screen border-r border-gray-100 bg-white pb-20">
         
-        {/* Header & Stories (Sticky) */}
-        <div className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+        {/* Header Sticky com Blur */}
+        <div className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-gray-100">
            <StoriesBar 
               currentUser={currentUser} 
               activeCategory={activeCategory} 
               onSelectCategory={setActiveCategory}
-              onToggleSidebar={() => setMobileMenuOpen(true)}
+              onToggleSidebar={() => {}}
            />
         </div>
 
-        {/* Criar Post Rápido */}
-        <div className="border-b border-gray-100 dark:border-gray-800">
-           <CreatePostWidget 
-              currentUser={currentUser}
-              onPostCreate={handleSimplePost}
-              onOpenAdvancedModal={() => setIsReviewModalOpen(true)}
-           />
-        </div>
+        {/* Widget de Criação Rápida */}
+        <CreatePostWidget 
+            currentUser={currentUser}
+            onPostCreate={createStoryPost}
+            onOpenAdvancedModal={() => setIsReviewModalOpen(true)}
+        />
+        
+        <div className="h-2 bg-[#f7f9f9] border-y border-gray-100"></div>
 
-        {/* FEED REAL */}
-        <div className="pb-20">
-           <BookFeed 
-              category={activeCategory} 
-              userId={currentUser.id}
-           />
-        </div>
+        {/* O Feed Real */}
+        <BookFeed 
+            category={activeCategory} 
+            userId={currentUser.id}
+        />
       </main>
 
-      {/* --- COLUNA DIREITA (Widgets & Trending) --- */}
-      <aside className="hidden lg:block w-[350px] sticky top-0 h-screen overflow-y-auto p-4 space-y-6">
+      {/* --- COLUNA DIREITA (Widgets) --- */}
+      <aside className="hidden lg:block w-[390px] sticky top-0 h-screen overflow-y-auto custom-scrollbar">
          <StoriesSidebar />
       </aside>
 
-      {/* MODAIS */}
-      {/* Aqui você integraria o Modal de Review completo se tivesse o código dele */}
-      {/* <CreateReviewModal isOpen={isReviewModalOpen} onClose={() => setIsReviewModalOpen(false)} /> */}
+      {/* MODAL DE CRIAÇÃO (Overlay) */}
       {isReviewModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white p-8 rounded-2xl max-w-lg w-full">
-                <h2 className="text-2xl font-bold mb-4">Criar Resenha Literária</h2>
-                <p className="text-gray-500 mb-6">Funcionalidade completa de editor de review virá aqui.</p>
-                <button onClick={() => setIsReviewModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded-lg">Fechar</button>
-            </div>
-        </div>
+        <CreateReviewModal 
+            isOpen={isReviewModalOpen} 
+            onClose={() => setIsReviewModalOpen(false)}
+            currentUser={currentUser}
+            onPostCreate={createStoryPost}
+        />
       )}
 
     </div>
   );
 }
 
-// Componente Helper de Navegação
+// NavItem Helper
 function NavItem({ href, icon, label, active }: { href: string, icon: React.ReactNode, label: string, active?: boolean }) {
     return (
-        <Link href={href} className={`flex items-center gap-4 p-3 rounded-full cursor-pointer transition-all hover:bg-gray-100 dark:hover:bg-gray-800 group w-fit xl:w-full ${active ? 'font-bold' : 'font-medium'}`}>
-            <div className={`${active ? 'text-brand-purple' : 'text-slate-900 dark:text-slate-200'} group-hover:text-brand-purple transition-colors`}>
+        <Link href={href} className="group flex items-center gap-4 p-3 rounded-full cursor-pointer transition-colors hover:bg-gray-100">
+            <div className={`${active ? 'text-brand-purple' : 'text-gray-900'} relative`}>
                 {icon}
+                {active && <div className="absolute -top-1 -right-1 w-2 h-2 bg-brand-purple rounded-full"></div>}
             </div>
-            <span className={`text-xl ${active ? 'text-slate-900 dark:text-white' : 'text-slate-700 dark:text-slate-400'}`}>{label}</span>
+            <span className={`hidden xl:block text-xl ${active ? 'font-bold text-gray-900' : 'font-normal text-gray-700'}`}>{label}</span>
         </Link>
     )
 }

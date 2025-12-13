@@ -2,19 +2,19 @@
 
 import React, { useState } from 'react';
 import { StoryPost } from '../types';
-import { togglePostLike, deleteStoryPost } from '../actions';
+import { togglePostLike, deleteStoryPost } from '../actions'; // Import corrigido
 import { PostDispatcher } from './PostDispatcher';
 import { MessageCircle, Heart, Share2, MoreHorizontal, Bookmark, Trash2 } from 'lucide-react';
 import CommentsSection from './CommentsSection';
-import { VerificationBadge } from '@/components/VerificationBadge'; // Assumindo que existe, ou remova
+import Image from 'next/image';
 
 interface PostCardProps {
   post: StoryPost;
   currentUserId?: string;
-  onCommentClick?: (post: StoryPost) => void;
 }
 
 export default function PostCard({ post, currentUserId }: PostCardProps) {
+  // Estado local para Optimistic UI (resposta instantânea)
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [likesCount, setLikesCount] = useState(post.likes);
   const [showComments, setShowComments] = useState(false);
@@ -22,112 +22,106 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
   const [showMenu, setShowMenu] = useState(false);
 
   const handleLike = async () => {
-    // Optimistic UI Update
-    const newLikedState = !isLiked;
-    setIsLiked(newLikedState);
-    setLikesCount(prev => newLikedState ? prev + 1 : prev - 1);
+    const previousState = isLiked;
+    // Atualiza UI instantaneamente
+    setIsLiked(!previousState);
+    setLikesCount(prev => !previousState ? prev + 1 : prev - 1);
     
-    // Chama a server action
-    await togglePostLike(post.id, isLiked);
+    // Chama o server
+    await togglePostLike(post.id, previousState);
   };
 
   const handleDelete = async () => {
-    if (!confirm('Tem certeza que deseja apagar este post?')) return;
+    if (!confirm('Excluir este post permanentemente?')) return;
     setIsDeleting(true);
     await deleteStoryPost(post.id);
-    // O post será removido visualmente quando o servidor revalidar o feed, 
-    // ou poderíamos esconder aqui com estado local.
   };
 
   if (isDeleting) return null;
 
-  const isOwner = currentUserId === post.user.id;
-
   return (
-    <article className="px-4 py-3 hover:bg-gray-50/50 transition-colors cursor-pointer group border-b border-gray-100 dark:border-gray-800">
+    <article className="bg-white px-4 py-3 cursor-pointer hover:bg-gray-[0.5] transition-colors relative">
       <div className="flex gap-3">
         {/* Avatar */}
-        <div className="flex-shrink-0">
-          <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden relative border border-gray-100">
+        <div className="shrink-0 pt-1">
+          <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden relative border border-gray-100 shadow-sm">
             {post.user.avatar_url ? (
-              <img src={post.user.avatar_url} alt={post.user.name} className="w-full h-full object-cover" />
+              <Image src={post.user.avatar_url} alt={post.user.name} fill className="object-cover" sizes="40px" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center bg-brand-purple text-white font-bold text-xs">
+              <div className="w-full h-full flex items-center justify-center bg-brand-purple text-white font-bold text-xs uppercase">
                 {post.user.name[0]}
               </div>
             )}
           </div>
         </div>
 
-        {/* Conteúdo */}
+        {/* Conteúdo Principal */}
         <div className="flex-1 min-w-0">
-          {/* Header */}
-          <div className="flex justify-between items-start relative">
-            <div className="flex items-center gap-1.5 overflow-hidden">
-              <span className="font-bold text-[15px] text-gray-900 dark:text-white truncate hover:underline decoration-1">
-                {post.user.name}
-              </span>
-              
+          
+          {/* Header do Post */}
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-1.5 overflow-hidden flex-wrap leading-tight">
+              <span className="font-bold text-[15px] text-gray-900 hover:underline">{post.user.name}</span>
               {post.user.isVerified && (
-                 <span className="text-brand-purple" title="Verificado">
-                    <i className="fas fa-certificate text-[10px]"></i>
-                 </span>
+                 <i className="fas fa-check-circle text-blue-500 text-[12px]" title="Verificado"></i>
               )}
-              
-              <span className="text-gray-500 text-[14px] truncate font-normal">@{post.user.username}</span>
-              <span className="text-gray-400 text-[13px] font-normal">· {post.createdAt}</span>
+              <span className="text-gray-500 text-[14px] font-normal truncate">@{post.user.username}</span>
+              <span className="text-gray-400 text-[13px] font-normal mx-0.5">·</span>
+              <span className="text-gray-400 text-[13px] font-normal hover:underline">{post.createdAt}</span>
             </div>
-            
-            {/* Menu de Opções */}
-            <div className="relative">
+
+            {/* Menu de Ações (3 pontinhos) */}
+            <div className="relative group">
                 <button 
                     onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-                    className="text-gray-400 hover:text-brand-purple hover:bg-purple-50 p-1.5 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                    className="p-1.5 text-gray-400 hover:text-brand-purple hover:bg-purple-50 rounded-full transition-colors"
                 >
                     <MoreHorizontal size={16} />
                 </button>
-                
-                {showMenu && isOwner && (
-                    <div className="absolute right-0 top-8 bg-white dark:bg-gray-900 shadow-xl border border-gray-100 dark:border-gray-800 rounded-lg py-1 z-10 w-32 animate-in fade-in zoom-in-95">
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); handleDelete(); }}
-                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                        >
-                            <Trash2 size={14} /> Apagar
-                        </button>
+                {/* Dropdown do Menu */}
+                {showMenu && (
+                    <div className="absolute right-0 top-8 bg-white shadow-xl border border-gray-100 rounded-lg py-1 z-10 w-40 animate-in fade-in zoom-in-95">
+                        {currentUserId === post.user.id ? (
+                            <button onClick={handleDelete} className="w-full text-left px-4 py-2 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium">
+                                <Trash2 size={14} /> Excluir Post
+                            </button>
+                        ) : (
+                            <button className="w-full text-left px-4 py-2 text-xs text-gray-600 hover:bg-gray-50 flex items-center gap-2 font-medium">
+                                <Bookmark size={14} /> Salvar
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
           </div>
 
-          {/* Body do Post (Texto, Review, Imagem, etc) */}
-          <div className="mt-1 text-[15px] text-gray-900 dark:text-gray-100 leading-relaxed font-normal whitespace-pre-wrap">
-             {/* O Dispatcher decide como renderizar baseado no type */}
+          {/* O Dispatcher usa seus componentes ricos (Review, Ranking, etc) */}
+          <div className="mt-0.5 text-[15px] text-gray-900 whitespace-pre-wrap leading-normal font-normal">
              <PostDispatcher post={post} />
           </div>
 
-          {/* Action Bar */}
-          <div className="flex items-center justify-between mt-3 max-w-md">
-            <ActionButton 
-              icon={MessageCircle} 
-              count={post.commentsCount} 
-              color="blue" 
-              onClick={(e: any) => { e.stopPropagation(); setShowComments(!showComments); }}
+          {/* Barra de Ações (Estilo X) */}
+          <div className="flex items-center justify-between mt-3 max-w-[420px] text-gray-500">
+            <ActionBtn 
+                icon={MessageCircle} 
+                count={post.commentsCount} 
+                color="blue" 
+                onClick={() => setShowComments(!showComments)} 
             />
-            <ActionButton icon={Share2} count={0} color="green" />
-            <ActionButton 
-              icon={Heart} 
-              count={likesCount} 
-              color="pink" 
-              active={isLiked}
-              onClick={(e: any) => { e.stopPropagation(); handleLike(); }}
+            <ActionBtn icon={Share2} count={0} color="green" />
+            <ActionBtn 
+                icon={Heart} 
+                count={likesCount} 
+                color="pink" 
+                active={isLiked}
+                onClick={handleLike}
             />
-            <ActionButton icon={Bookmark} count={0} color="purple" />
+            <ActionBtn icon={Bookmark} count={0} color="purple" />
           </div>
 
-          {/* Seção de Comentários */}
+          {/* Área de Comentários */}
           {showComments && (
-            <div className="mt-4 border-t border-gray-100 dark:border-gray-800 animate-in slide-in-from-top-2" onClick={e => e.stopPropagation()}>
+            <div className="mt-3 pt-3 border-t border-gray-100 animate-in slide-in-from-top-2">
                 <CommentsSection postId={post.id} />
             </div>
           )}
@@ -137,23 +131,24 @@ export default function PostCard({ post, currentUserId }: PostCardProps) {
   );
 }
 
-function ActionButton({ icon: Icon, count, color, active, onClick }: any) {
-  const colors: any = {
-    blue: 'hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20',
-    green: 'hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20',
-    pink: 'hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-900/20',
-    purple: 'hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20',
-  };
-  
-  return (
-    <button 
-      onClick={onClick}
-      className={`flex items-center gap-1.5 group text-gray-500 dark:text-gray-400 transition-all ${colors[color]} ${active ? 'text-pink-600 dark:text-pink-500' : ''}`}
-    >
-      <div className="p-2 rounded-full transition-colors relative">
-        <Icon size={18} className={active ? 'fill-current' : ''} />
-      </div>
-      {count > 0 && <span className="text-xs font-medium">{count}</span>}
-    </button>
-  );
+// Botão de Ação Reutilizável
+function ActionBtn({ icon: Icon, count, color, active, onClick }: any) {
+    const colorClasses: any = {
+        blue: 'hover:text-blue-500 hover:bg-blue-50',
+        green: 'hover:text-green-500 hover:bg-green-50',
+        pink: 'hover:text-pink-600 hover:bg-pink-50',
+        purple: 'hover:text-purple-600 hover:bg-purple-50',
+    };
+
+    return (
+        <button 
+            onClick={(e) => { e.stopPropagation(); onClick && onClick(); }}
+            className={`flex items-center gap-1 group transition-all text-[13px] ${colorClasses[color]} ${active ? 'text-pink-600' : ''}`}
+        >
+            <div className="p-2 rounded-full transition-colors relative group-active:scale-90">
+                <Icon size={18} className={active ? 'fill-current' : ''} />
+            </div>
+            {count > 0 && <span className="font-medium tabular-nums">{count}</span>}
+        </button>
+    );
 }

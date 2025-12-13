@@ -1,58 +1,40 @@
-// CAMINHO: src/app/dashboard/applications/global/stories/types.ts
+// CAMINHO: src/app/(hubs)/global/stories/types.ts
 
-// Tipos de verificação aceitos (atualizados para usar chaves semânticas)
+// Tipos de verificação
 export type VerificationType = 
   | 'identity'   // Azul
   | 'educator'   // Verde
   | 'official'   // Amarelo/Gold
   | 'featured'   // Vermelho
   | 'legacy'     // Roxo
-  | string | null; // Mantém fallback para compatibilidade
+  | string | null;
 
 export type UserProfile = {
   id: string;
   name: string;
   avatar_url: string | null;
   username: string;
+  
+  // Tornamos opcionais para evitar erros em listas parciais (comentários)
   isVerified?: boolean;
-  verification_badge: string | null; // <--- CAMPO CORRETO DO BANCO
-  badge?: VerificationType;          // Mantido para compatibilidade de tipos antigos
-  role?: 'student' | 'teacher' | 'admin';
+  verification_badge?: string | null; 
+  badge?: VerificationType;          
+  
+  role?: 'student' | 'teacher' | 'admin' | string;
   bio?: string;
   followers?: number;
   following?: number;
 };
 
 export type StoryCategory = 
-  | 'all' 
-  | 'books' 
-  | 'movies' 
-  | 'series' 
-  | 'anime' 
-  | 'games' 
-  | 'sports' 
-  | 'podcasts' 
-  | 'general';
+  | 'all' | 'books' | 'movies' | 'series' | 'anime' | 'games' | 'sports' | 'podcasts' | 'general';
 
 export type BookPostType = 
-  | 'review'             
-  | 'rating'             
-  | 'recommendation'     
-  | 'indication'         
-  | 'promotion'          
-  | 'discussion'         
-  | 'first-impressions'  
-  | 'quote'              
-  | 'technical'          
-  | 'ranking';           
+  | 'review' | 'rating' | 'recommendation' | 'indication' | 'promotion' 
+  | 'discussion' | 'first-impressions' | 'quote' | 'technical' | 'ranking';           
 
 export type GamePostType = 
-  | 'game-review'       
-  | 'achievement'       
-  | 'clip'              
-  | 'setup'             
-  | 'looking-for-group' 
-  | 'ranking';          
+  | 'game-review' | 'achievement' | 'clip' | 'setup' | 'looking-for-group' | 'ranking';          
 
 export type Comment = {
   id: string;
@@ -120,5 +102,3 @@ export type StoryPost = {
   isLiked?: boolean;
   isSaved?: boolean;
 };
-
-export type BookReviewPost = StoryPost;
